@@ -364,6 +364,27 @@ const AddSalesReturn = () => {
   };
 
   const validationSchema = Yup.object().shape({
+    returnNo: Yup.string()
+      .trim()
+      .required('Return Memo # is required')
+      .test('check-unique-return-no', 'This Return Memo # already exists!', async function (value) {
+        if (!value) return true;
+        const currentReturnId = editData?.id;
+        try {
+          let query = supabase
+            .from('sales_returns')
+            .select('id')
+            .ilike('return_no', value.trim());
+          if (currentReturnId) {
+            query = query.neq('id', currentReturnId);
+          }
+          const { data, error } = await query.maybeSingle();
+          if (error) return true;
+          return !data;
+        } catch {
+          return true;
+        }
+      }),
     customerName: Yup.string().required('Customer selection is required'),
     sourceWarehouse: Yup.string().required('Receiving warehouse selection is required'),
     gatePassNo: Yup.string().required('Gate Pass No is required'),
@@ -631,7 +652,7 @@ const AddSalesReturn = () => {
 
               // 2. Prepare payload
               const returnPayload = {
-                return_no: values.returnNo || defaultReturnNo,
+                return_no: (values.returnNo || defaultReturnNo || '').trim(),
                 customer_name: values.customerName,
                 return_date: values.returnDate,
                 gate_pass_no: values.gatePassNo,
@@ -728,13 +749,43 @@ const AddSalesReturn = () => {
                   
                   {/* Return Memo ID Code */}
                   <div>
-                    <label className="block text-slate-600 dark:text-slate-400 font-bold uppercase text-[11px] mb-1">
-                      Return Memo ID Code #:
-                    </label>
-                    <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl font-mono font-black text-emerald-700 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 text-xs flex items-center justify-between">
-                      <span>{values.returnNo || defaultReturnNo || 'RTN-...'}</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-sans uppercase font-bold">Auto</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-slate-600 dark:text-slate-400 font-bold uppercase text-[11px]">
+                        Return Memo ID Code #: *
+                      </label>
+                      {defaultReturnNo && values.returnNo !== defaultReturnNo && (
+                        <button
+                          type="button"
+                          onClick={() => setFieldValue('returnNo', defaultReturnNo)}
+                          className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-bold hover:underline cursor-pointer"
+                          title="Reset to auto-suggested number"
+                        >
+                          Auto: {defaultReturnNo}
+                        </button>
+                      )}
                     </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="returnNo"
+                        placeholder="e.g. RTN-0001 or custom #"
+                        value={values.returnNo}
+                        onChange={handleChange}
+                        className={`w-full border rounded-xl p-2.5 bg-slate-50/50 dark:bg-slate-800 font-mono font-black text-emerald-800 dark:text-emerald-300 outline-none text-xs ${
+                          touched.returnNo && errors.returnNo
+                            ? 'border-red-500 bg-red-50/10'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-emerald-600'
+                        }`}
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded font-sans uppercase font-bold pointer-events-none">
+                        {values.returnNo === defaultReturnNo ? 'Auto' : 'Manual'}
+                      </span>
+                    </div>
+                    {touched.returnNo && errors.returnNo && (
+                      <div className="text-[10px] text-red-500 font-semibold mt-1">
+                        {errors.returnNo as string}
+                      </div>
+                    )}
                   </div>
 
                   {/* Return Date */}

@@ -78,7 +78,7 @@ const PrintInvoice = () => {
         // Fetch products to know tile packings & units
         const { data: prods } = await supabase
           .from('products')
-          .select('product_name, item_sr_no, category, uom, pieces_per_box, pcs_per_box, pieces_per_packing, product_description');
+          .select('product_name, item_sr_no, category, sub_sub_category, uom, pieces_per_box, pcs_per_box, pieces_per_packing, product_description');
         if (prods) setProductsCatalog(prods);
 
         // Fetch customer info dynamically
@@ -117,12 +117,14 @@ const PrintInvoice = () => {
     const pName = item.itemName ?? item.product_name ?? 'N/A';
     const prodMeta = productsCatalog.find(p => p.product_name === pName);
 
-    const rawPcs = Number(prodMeta?.pieces_per_box || prodMeta?.pcs_per_box || prodMeta?.pieces_per_packing || 0);
+    const rawPcs = Number(item.piecesPerBox || prodMeta?.pieces_per_box || prodMeta?.pcs_per_box || prodMeta?.pieces_per_packing || 0);
     const isTile = Boolean(
-      prodMeta && (
+      item.isTileItem ||
+      (prodMeta && (
         String(prodMeta.category || '').toLowerCase().includes('tile') ||
+        String(prodMeta.sub_sub_category || '').toLowerCase().includes('tile') ||
         String(prodMeta.scenario_name || '').toLowerCase().includes('tile')
-      ) && (rawPcs > 1 || String(prodMeta.scenario_name || '').toLowerCase().includes('tile'))
+      ) && (rawPcs > 1 || String(prodMeta.scenario_name || '').toLowerCase().includes('tile')))
     );
     const pcsPerBox = rawPcs > 1 ? rawPcs : (isTile ? 4 : 1);
 
@@ -158,33 +160,39 @@ const PrintInvoice = () => {
     let totalLineSqm = 0;
 
     if (isTile) {
-      const boxes = Math.floor(qty);
-      const loose = Math.round((qty - boxes) * pcsPerBox);
+      const boxes = item.boxQty !== undefined ? Number(item.boxQty) : Math.floor(qty);
+      const loose = item.loosePcs !== undefined ? Number(item.loosePcs) : Math.round((qty - boxes) * pcsPerBox);
 
-      const sqmBoxMatch = desc.match(/(\d+(?:\.\d+)?)\s*sq\.m\s*\/\s*box/i);
-      if (sqmBoxMatch) {
-        perBoxSqm = Number(sqmBoxMatch[1]);
+      if (Number(item.totalSqm || 0) > 0) {
+        totalLineSqm = Number(item.totalSqm);
+        perBoxSqm = Number(item.sqmPerBox || 1.44);
         perPieceSqm = pcsPerBox > 0 ? perBoxSqm / pcsPerBox : 0;
       } else {
-        const inMatch = desc.match(/Size:\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*in/i);
-        const cmMatch = desc.match(/Size:\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*cm/i) ||
-                        sku.match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
-        if (inMatch) {
-          const hIn = Number(inMatch[1]) || 24;
-          const wIn = Number(inMatch[2]) || 24;
-          perPieceSqm = (hIn * 0.025) * (wIn * 0.025);
-          perBoxSqm = perPieceSqm * pcsPerBox;
-        } else if (cmMatch) {
-          const hCm = Number(cmMatch[1]) || 60;
-          const wCm = Number(cmMatch[2]) || 60;
-          perPieceSqm = (hCm * wCm) / 10000;
-          perBoxSqm = perPieceSqm * pcsPerBox;
+        const sqmBoxMatch = desc.match(/(\d+(?:\.\d+)?)\s*sq\.m\s*\/\s*box/i);
+        if (sqmBoxMatch) {
+          perBoxSqm = Number(sqmBoxMatch[1]);
+          perPieceSqm = pcsPerBox > 0 ? perBoxSqm / pcsPerBox : 0;
         } else {
-          perPieceSqm = (24 * 0.025) * (24 * 0.025);
-          perBoxSqm = perPieceSqm * pcsPerBox;
+          const inMatch = desc.match(/Size:\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*in/i);
+          const cmMatch = desc.match(/Size:\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*cm/i) ||
+                          sku.match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
+          if (inMatch) {
+            const hIn = Number(inMatch[1]) || 24;
+            const wIn = Number(inMatch[2]) || 24;
+            perPieceSqm = (hIn * 0.025) * (wIn * 0.025);
+            perBoxSqm = perPieceSqm * pcsPerBox;
+          } else if (cmMatch) {
+            const hCm = Number(cmMatch[1]) || 60;
+            const wCm = Number(cmMatch[2]) || 60;
+            perPieceSqm = (hCm * wCm) / 10000;
+            perBoxSqm = perPieceSqm * pcsPerBox;
+          } else {
+            perPieceSqm = (24 * 0.025) * (24 * 0.025);
+            perBoxSqm = perPieceSqm * pcsPerBox;
+          }
         }
+        totalLineSqm = (boxes * perBoxSqm) + (loose * perPieceSqm);
       }
-      totalLineSqm = (boxes * perBoxSqm) + (loose * perPieceSqm);
 
       if (boxes > 0 && loose > 0) {
         qtyDisplay = `${boxes} Box + ${loose} Pcs`;

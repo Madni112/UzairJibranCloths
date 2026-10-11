@@ -114,6 +114,7 @@ const BulkProductUpload = () => {
           'PRODUCT',
           'NAME',
           'CATEGORY',
+          'CARTEGORY',
           'PRICE',
           'SALES',
           'PURCHASE',
@@ -256,9 +257,9 @@ const BulkProductUpload = () => {
             rowIndex,
             code: cleanCode,
             productName: cleanName,
-            category: String(row['CATEGORY'] || row['LEAF CATEGORY'] || row['LEAF_CATEGORY'] || '').trim(),
-            subCategory: String(row['SUB CATEGORY'] || row['SUB CAT'] || row['SUB_CATEGORY'] || '').trim(),
-            parentCat: String(row['PARENT CAT'] || row['PARENT CATEGORY'] || row['PARENT_CAT'] || row['PARENT_CATEGORY'] || row['SUB SUB CATEGORY'] || '').trim(),
+            category: String(row['CATEGORY'] || row['CARTEGORY'] || row['LEAF CATEGORY'] || row['LEAF CARTEGORY'] || row['LEAF_CATEGORY'] || row['LEAF_CARTEGORY'] || '').trim(),
+            subCategory: String(row['SUB CATEGORY'] || row['SUB CARTEGORY'] || row['SUB CAT'] || row['SUB_CATEGORY'] || row['SUB_CARTEGORY'] || '').trim(),
+            parentCat: String(row['PARENT CAT'] || row['PARENT CATEGORY'] || row['PARENT CARTEGORY'] || row['PARENT_CAT'] || row['PARENT_CATEGORY'] || row['PARENT_CARTEGORY'] || row['SUB SUB CATEGORY'] || row['SUB SUB CARTEGORY'] || '').trim(),
             brand: String(row['BRAND'] || row['BIN'] || '').trim(),
             purchasePrice: isNaN(pPrice) ? 0 : pPrice,
             retailPrice: isNaN(rPrice) ? 0 : rPrice,
@@ -492,6 +493,7 @@ const BulkProductUpload = () => {
           }
           if (r.category) updatePayload.category = r.category;
           if (r.subCategory) updatePayload.sub_category = r.subCategory;
+          if (r.parentCat) updatePayload.sub_sub_category = r.parentCat;
           if (r.brand) {
             updatePayload.bin = r.brand;
             updatePayload.brand = r.brand;
