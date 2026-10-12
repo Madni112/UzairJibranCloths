@@ -211,7 +211,7 @@ const OpeningStockList = () => {
                     </td>
 
                     <td className="py-5 px-4 text-center font-black text-black dark:text-white">
-                      {totalQty.toLocaleString()}
+                      {totalQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
                     </td>
 
                     <td className="py-5 px-4 text-center">
@@ -302,7 +302,7 @@ const OpeningStockList = () => {
                           <p className="font-semibold text-slate-800 dark:text-white">{r.itemName || r.product_name}</p>
                           {(r.skuCode || r.item_code) && <p className="text-[10px] font-mono text-primary font-bold">{r.skuCode || r.item_code}</p>}
                         </td>
-                        <td className="py-2.5 px-3 text-center font-bold text-black dark:text-white">{qty.toLocaleString()}</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-black dark:text-white">{qty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300">Rs. {cost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Rs. {amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                         <td className="py-2.5 pl-3 text-center font-mono text-xs text-danger">{r.expiryDate || r.expiry_date || '—'}</td>
@@ -317,7 +317,7 @@ const OpeningStockList = () => {
                   Total {viewBatch.length} Item{viewBatch.length > 1 ? 's' : ''}
                 </span>
                 <span className="text-slate-700 dark:text-slate-200">
-                  Total Qty: <span className="text-black dark:text-white">{viewBatch.reduce((sum, r) => sum + (Number(r.qty ?? r.quantity) || 0), 0).toLocaleString()}</span>
+                  Total Qty: <span className="text-black dark:text-white">{viewBatch.reduce((sum, r) => sum + (Number(r.qty ?? r.quantity) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 3 })}</span>
                   <span className="mx-2 text-slate-300 dark:text-strokedark">|</span>
                   Total Valuation: <span className="text-emerald-600 dark:text-emerald-400 font-mono">Rs. {viewBatch.reduce((sum, r) => sum + (Number(r.amount ?? r.total_amount ?? 0) || (Number(r.qty ?? r.quantity) || 0) * (Number(r.purchase_price ?? r.rate ?? r.rp) || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </span>

@@ -44,7 +44,7 @@ const AddOpeningStock = () => {
                 const { data: locData } = await supabase.from('inventory_locations').select('*');
                 if (locData) setLocations(locData);
 
-                const { data: prodData } = await supabase.from('products').select('id, product_name, purchase_price, retail_price, mrp, item_sr_no, uom, current_stock');
+                const { data: prodData } = await supabase.from('products').select('id, product_name, purchase_price, retail_price, mrp, item_sr_no, uom, current_stock, category, sub_sub_category, product_description, pieces_per_box, pcs_per_box, pieces_per_packing');
                 if (prodData) setProducts(prodData);
             } catch (err: any) {
                 console.error('Metadata fetch error:', err.message);
@@ -78,12 +78,35 @@ const AddOpeningStock = () => {
         }, 0);
     };
 
+
+    const isTileProduct = (p: any) => {
+        if (!p) return false;
+        const cat = String(p.category || p.sub_sub_category || '').toLowerCase();
+        const desc = String(p.product_description || '').toLowerCase();
+        const name = String(p.product_name || p.itemName || '').toLowerCase();
+        const uom = String(p.uom || '').toLowerCase();
+        return cat.includes('tile') || desc.includes('[tile') || desc.includes('box:') || name.includes('tile') || uom === 'box';
+    };
+
+    const getProductPiecesPerBox = (p: any) => {
+        if (!p) return 4;
+        const raw = Number(p.pieces_per_box ?? p.pcs_per_box ?? p.pieces_per_packing ?? 0);
+        if (raw >= 1) return raw;
+        const match = String(p.product_description || '').match(/Box:\s*(\d+)\s*pcs/i);
+        if (match && Number(match[1]) > 0) return Number(match[1]);
+        return 4;
+    };
+
     const emptyItemRow = () => ({
         itemCode: '',
         itemName: '',
         qty: 1,
         purchasePrice: 0,
-        expiryDate: ''
+        expiryDate: '',
+        isTileItem: false,
+        boxQty: 1,
+        loosePcs: 0,
+        piecesPerBox: 4
     });
 
     const fmtMoney = (val: number) =>
@@ -107,7 +130,7 @@ const AddOpeningStock = () => {
         items: Yup.array().of(
             Yup.object().shape({
                 itemName: Yup.string().required('Select a product'),
-                qty: Yup.number().typeError('Number only').min(1, 'Min 1').required('Required'),
+                qty: Yup.number().typeError('Number only').min(0.001, 'Min 0.001').required('Required'),
                 purchasePrice: Yup.number().typeError('Number only').min(0, 'Min 0').required('Required'),
                 expiryDate: Yup.string().nullable()
             })
@@ -239,13 +262,29 @@ const AddOpeningStock = () => {
             location: first.location || '',
             openingDate: first.openingDate || first.opening_date || todayStr(),
             batchNumber: first.batchNumber || first.batch_number || '',
-            items: stockBatch.map((r: any) => ({
-                itemCode: r.skuCode || r.item_code || r.itemCode || '',
-                itemName: r.itemName || r.product_name || '',
-                qty: Number(r.qty ?? r.quantity) || 1,
-                purchasePrice: Number(r.purchase_price ?? r.rate ?? r.rp ?? r.purchasePrice) || 0,
-                expiryDate: r.expiryDate || r.expiry_date || ''
-            }))
+            items: stockBatch.map((r: any) => {
+                const pMatch = products.find((p: any) =>
+                    p.product_name === (r.itemName || r.product_name) ||
+                    (p.item_sr_no && p.item_sr_no === (r.skuCode || r.item_code))
+                );
+                const isTile = isTileProduct(pMatch || r);
+                const pcsPerBox = getProductPiecesPerBox(pMatch || r);
+                const totalQty = Number(r.qty ?? r.quantity) || 1;
+                const bQty = Math.floor(totalQty);
+                const lPcs = Math.round((totalQty - bQty) * pcsPerBox);
+
+                return {
+                    itemCode: r.skuCode || r.item_code || r.itemCode || '',
+                    itemName: r.itemName || r.product_name || '',
+                    qty: totalQty,
+                    purchasePrice: Number(r.purchase_price ?? r.rate ?? r.rp ?? r.purchasePrice) || 0,
+                    expiryDate: r.expiryDate || r.expiry_date || '',
+                    isTileItem: isTile,
+                    piecesPerBox: pcsPerBox,
+                    boxQty: bQty,
+                    loosePcs: lPcs
+                };
+            })
         };
     };
 
@@ -342,12 +381,24 @@ const AddOpeningStock = () => {
                 );
 
                 const applyProduct = (p: any, index: number) => {
+                    const isTile = isTileProduct(p);
+                    const pcsPerBox = getProductPiecesPerBox(p);
                     const updated = [...values.items];
+                    const currentItem = updated[index];
+                    const bQty = isTile ? (currentItem?.boxQty !== undefined ? Number(currentItem.boxQty) : 1) : 1;
+                    const lPcs = isTile ? (Number(currentItem?.loosePcs) || 0) : 0;
+                    const totalBoxes = isTile ? Number((bQty + (lPcs / pcsPerBox)).toFixed(3)) : 1;
+
                     updated[index] = {
                         ...updated[index],
                         itemName: p.product_name,
                         itemCode: p.item_sr_no || `SKU-${p.id}`,
-                        purchasePrice: Number(p.purchase_price) || 0
+                        purchasePrice: Number(p.purchase_price) || 0,
+                        isTileItem: isTile,
+                        piecesPerBox: pcsPerBox,
+                        boxQty: bQty,
+                        loosePcs: lPcs,
+                        qty: totalBoxes > 0 ? totalBoxes : 1
                     };
                     setFieldValue('items', updated);
                     setOpenProductRow(null);
@@ -405,7 +456,7 @@ const AddOpeningStock = () => {
                                                 <tr className="bg-slate-50 dark:bg-meta-4/60 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-left">
                                                     <th className="py-2.5 px-2 w-10 text-center border-b border-stroke dark:border-strokedark">S#</th>
                                                     <th className="py-2.5 px-2 border-b border-stroke dark:border-strokedark w-72">Product *</th>
-                                                    <th className="py-2.5 px-2 border-b border-stroke dark:border-strokedark w-28 text-center">Qty *</th>
+                                                    <th className="py-2.5 px-2 border-b border-stroke dark:border-strokedark w-44 text-center">Qty / Packaging *</th>
                                                     <th className="py-2.5 px-2 border-b border-stroke dark:border-strokedark w-32 text-right">Unit Cost (PKR) *</th>
                                                     <th className="py-2.5 px-2 border-b border-stroke dark:border-strokedark w-36">Expiry (Opt)</th>
                                                     <th className="py-2.5 px-2 border-b border-stroke dark:border-strokedark w-36 text-right">Line Amount</th>
@@ -541,17 +592,68 @@ const AddOpeningStock = () => {
                                                                 </div>
                                                             </td>
 
-                                                            {/* Qty */}
+                                                            {/* Qty / Packaging */}
                                                             <td className="py-2 px-2">
-                                                                <input
-                                                                    type="number"
-                                                                    name={`items.${index}.qty`}
-                                                                    min="1"
-                                                                    onKeyDown={blockInvalidChar}
-                                                                    onChange={handleChange}
-                                                                    value={item.qty}
-                                                                    className={`w-full rounded border px-2.5 h-9 bg-transparent text-xs text-right font-bold text-black dark:text-white outline-none focus:border-primary ${lineError?.qty ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`}
-                                                                />
+                                                                {item.isTileItem ? (
+                                                                    <div className="space-y-1">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <div className="flex-1 min-w-[65px]">
+                                                                                <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">Box(es)</label>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    value={item.boxQty ?? ''}
+                                                                                    placeholder="Boxes"
+                                                                                    onKeyDown={blockInvalidChar}
+                                                                                    onChange={(e) => {
+                                                                                        const bVal = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                                                        const pcsPerBox = item.piecesPerBox || 4;
+                                                                                        const lVal = Math.max(0, Number(item.loosePcs || 0));
+                                                                                        const totalBoxes = Number((bVal + (lVal / pcsPerBox)).toFixed(3));
+                                                                                        setFieldValue(`items.${index}.boxQty`, bVal);
+                                                                                        setFieldValue(`items.${index}.qty`, totalBoxes);
+                                                                                    }}
+                                                                                    className="w-full rounded border border-stroke dark:border-strokedark px-2 h-8 bg-transparent text-xs text-right font-bold text-black dark:text-white outline-none focus:border-primary"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-[65px]">
+                                                                                <label className="block text-[9px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tight">Loose Pcs</label>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    max={(item.piecesPerBox || 4) - 1}
+                                                                                    value={item.loosePcs ?? ''}
+                                                                                    placeholder="Pcs"
+                                                                                    onKeyDown={blockInvalidChar}
+                                                                                    onChange={(e) => {
+                                                                                        const pcsPerBox = item.piecesPerBox || 4;
+                                                                                        const lVal = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                                                        const bVal = Math.max(0, Number(item.boxQty || 0));
+                                                                                        const totalBoxes = Number((bVal + (lVal / pcsPerBox)).toFixed(3));
+                                                                                        setFieldValue(`items.${index}.loosePcs`, lVal);
+                                                                                        setFieldValue(`items.${index}.qty`, totalBoxes);
+                                                                                    }}
+                                                                                    className="w-full rounded border border-teal-300 dark:border-teal-700 px-2 h-8 bg-teal-50/40 dark:bg-teal-950/20 text-xs text-right font-bold text-teal-800 dark:text-teal-300 outline-none focus:border-teal-600"
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 text-right leading-tight">
+                                                                            = <strong className="text-slate-800 dark:text-slate-200">{item.qty} Box</strong>
+                                                                            <span className="text-[9px] text-slate-400 block">({((Number(item.boxQty || 0) * (item.piecesPerBox || 4)) + Number(item.loosePcs || 0))} Pcs total)</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <input
+                                                                        type="number"
+                                                                        step="any"
+                                                                        name={`items.${index}.qty`}
+                                                                        min="0.001"
+                                                                        onKeyDown={blockInvalidChar}
+                                                                        onChange={handleChange}
+                                                                        value={item.qty}
+                                                                        className={`w-full rounded border px-2.5 h-9 bg-transparent text-xs text-right font-bold text-black dark:text-white outline-none focus:border-primary ${lineError?.qty ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`}
+                                                                    />
+                                                                )}
                                                                 {lineTouched?.qty && lineError?.qty && <p className="text-red-500 text-[10px] mt-1 font-semibold">{String(lineError.qty)}</p>}
                                                             </td>
 
@@ -668,24 +770,37 @@ const AddOpeningStock = () => {
     // ------------------------------------------------------------
     // SINGLE-RECORD (Edit mode): unchanged legacy form
     // ------------------------------------------------------------
-    const getSingleInitialValues = () => ({
-        stockNo: editData?.stockNo || '',
-        skuCode: editData?.skuCode || editData?.item_code || '',
-        itemName: editData?.itemName || editData?.product_name || '',
-        batchNumber: editData?.batchNumber || editData?.batch_number || '',
-        location: editData?.location || '',
-        qty: Number(editData?.qty ?? editData?.quantity) || 1,
-        purchasePrice: Number(editData?.purchasePrice ?? editData?.purchase_price ?? editData?.rate ?? editData?.rp) || 0,
-        amount: Number(editData?.amount ?? editData?.total_amount) || 0,
-        openingDate: editData?.openingDate || editData?.opening_date || todayStr(),
-        expiryDate: editData?.expiryDate || editData?.expiry_date || ''
-    });
+    const getSingleInitialValues = () => {
+        const singleMatch = products.find((p: any) => p.product_name === (editData?.itemName || editData?.product_name));
+        const isTile = isTileProduct(singleMatch || editData);
+        const pcsPerBox = getProductPiecesPerBox(singleMatch || editData);
+        const totalQty = Number(editData?.qty ?? editData?.quantity) || 1;
+        const bQty = Math.floor(totalQty);
+        const lPcs = Math.round((totalQty - bQty) * pcsPerBox);
+
+        return {
+            stockNo: editData?.stockNo || '',
+            skuCode: editData?.skuCode || editData?.item_code || '',
+            itemName: editData?.itemName || editData?.product_name || '',
+            batchNumber: editData?.batchNumber || editData?.batch_number || '',
+            location: editData?.location || '',
+            qty: totalQty,
+            purchasePrice: Number(editData?.purchasePrice ?? editData?.purchase_price ?? editData?.rate ?? editData?.rp) || 0,
+            amount: Number(editData?.amount ?? editData?.total_amount) || 0,
+            openingDate: editData?.openingDate || editData?.opening_date || todayStr(),
+            expiryDate: editData?.expiryDate || editData?.expiry_date || '',
+            isTileItem: isTile,
+            piecesPerBox: pcsPerBox,
+            boxQty: bQty,
+            loosePcs: lPcs
+        };
+    };
 
     const singleValidationSchema = Yup.object().shape({
         itemName: Yup.string().required('Required'),
         batchNumber: Yup.string().required('Required'),
         location: Yup.string().required('Required'),
-        qty: Yup.number().min(1, 'Min 1').required('Required'),
+        qty: Yup.number().min(0.001, 'Min 0.001').required('Required'),
         purchasePrice: Yup.number().min(0, 'Min 0').required('Required'),
         openingDate: Yup.string().required('Required'),
         expiryDate: Yup.string().nullable(),
@@ -890,8 +1005,19 @@ const AddOpeningStock = () => {
                                         const selectedProd = products.find(p => p.product_name === e.target.value);
                                         setFieldValue('itemName', e.target.value);
                                         if (selectedProd) {
+                                            const isTile = isTileProduct(selectedProd);
+                                            const pcsPerBox = getProductPiecesPerBox(selectedProd);
                                             setFieldValue('skuCode', selectedProd.item_sr_no || `SKU-${selectedProd.id}`);
                                             setFieldValue('purchasePrice', selectedProd.purchase_price || 0);
+                                            setFieldValue('isTileItem', isTile);
+                                            setFieldValue('piecesPerBox', pcsPerBox);
+                                            if (isTile) {
+                                                const curQty = Number(values.qty) || 1;
+                                                const bQ = Math.floor(curQty);
+                                                const lP = Math.round((curQty - bQ) * pcsPerBox);
+                                                setFieldValue('boxQty', bQ);
+                                                setFieldValue('loosePcs', lP);
+                                            }
                                         }
                                     }}
                                     className={`w-full rounded border px-3 h-10 bg-transparent text-xs font-bold outline-none focus:border-primary dark:bg-boxdark text-black dark:text-white ${touched.itemName && errors.itemName ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`}
@@ -926,8 +1052,59 @@ const AddOpeningStock = () => {
                             </div>
 
                             <div>
-                                <label className="mb-2 block text-xs font-semibold text-gray-500">Opening Stock Quantity *</label>
-                                <input type="number" name="qty" min="1" onKeyDown={blockInvalidChar} onChange={handleChange} value={values.qty} className={`w-full rounded border px-3 h-10 bg-transparent text-xs text-right font-bold text-black dark:text-white ${touched.qty && errors.qty ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`} />
+                                <label className="mb-2 block text-xs font-semibold text-gray-500">
+                                    {values.isTileItem ? 'Opening Stock Quantity (Boxes & Loose Pcs) *' : 'Opening Stock Quantity *'}
+                                </label>
+                                {values.isTileItem ? (
+                                    <div className="space-y-2">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Box(es)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={values.boxQty ?? ''}
+                                                    placeholder="Boxes"
+                                                    onKeyDown={blockInvalidChar}
+                                                    onChange={(e) => {
+                                                        const bVal = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                        const pcsPerBox = values.piecesPerBox || 4;
+                                                        const lVal = Math.max(0, Number(values.loosePcs || 0));
+                                                        const totalBoxes = Number((bVal + (lVal / pcsPerBox)).toFixed(3));
+                                                        setFieldValue('boxQty', bVal);
+                                                        setFieldValue('qty', totalBoxes);
+                                                    }}
+                                                    className="w-full rounded border border-stroke dark:border-strokedark px-3 h-10 bg-transparent text-xs text-right font-bold text-black dark:text-white outline-none focus:border-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-teal-600 uppercase">Loose Pcs</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max={(values.piecesPerBox || 4) - 1}
+                                                    value={values.loosePcs ?? ''}
+                                                    placeholder="Pcs"
+                                                    onKeyDown={blockInvalidChar}
+                                                    onChange={(e) => {
+                                                        const pcsPerBox = values.piecesPerBox || 4;
+                                                        const lVal = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                        const bVal = Math.max(0, Number(values.boxQty || 0));
+                                                        const totalBoxes = Number((bVal + (lVal / pcsPerBox)).toFixed(3));
+                                                        setFieldValue('loosePcs', lVal);
+                                                        setFieldValue('qty', totalBoxes);
+                                                    }}
+                                                    className="w-full rounded border border-teal-300 dark:border-teal-700 px-3 h-10 bg-teal-50/40 dark:bg-teal-950/20 text-xs text-right font-bold text-teal-800 dark:text-teal-300 outline-none focus:border-teal-600"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="text-xs font-mono text-slate-500 text-right">
+                                            = <strong className="text-slate-800 dark:text-slate-200">{values.qty} Boxes</strong> ({((Number(values.boxQty || 0) * (values.piecesPerBox || 4)) + Number(values.loosePcs || 0))} Pcs total)
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <input type="number" step="any" name="qty" min="0.001" onKeyDown={blockInvalidChar} onChange={handleChange} value={values.qty} className={`w-full rounded border px-3 h-10 bg-transparent text-xs text-right font-bold text-black dark:text-white ${touched.qty && errors.qty ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`} />
+                                )}
                                 {touched.qty && errors.qty && <p className="text-red-500 text-[10px] mt-1 font-semibold">{String(errors.qty)}</p>}
                             </div>
 

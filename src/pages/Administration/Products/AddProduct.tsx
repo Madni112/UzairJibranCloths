@@ -1,15 +1,23 @@
 // Helper: parse tile dimensions (h × w) from sub_category, description, or SKU
 const parseTileDimensions = (data: any) => {
-  if (!data) return { h: 24, w: 24 };
+  if (!data) return { h: 60, w: 60 };
   const text = `${data?.sub_category || ''} ${data?.product_description || ''} ${data?.item_sr_no || ''}`;
   const match = text.match(/(\d+(?:\.\d+)?)\s*(?:[xX×*])\s*(\d+(?:\.\d+)?)/);
   if (match) {
     return {
-      h: Number(match[1]) || 24,
-      w: Number(match[2]) || 24
+      h: Number(match[1]) || 60,
+      w: Number(match[2]) || 60
     };
   }
-  return { h: 24, w: 24 };
+  return { h: 60, w: 60 };
+};
+
+const parseTileUnit = (data: any) => {
+  if (!data) return 'cm';
+  const text = `${data?.product_description || ''} ${data?.item_sr_no || ''}`;
+  if (/\b(?:in|inch|inches)\b/i.test(text)) return 'in';
+  if (/\b(?:m|meter|meters)\b/i.test(text) && !/\b(?:sq\.?m|m²)\b/i.test(text)) return 'm';
+  return 'cm';
 };
 
 const parsePiecesPerBox = (data: any) => {
@@ -336,6 +344,7 @@ const AddProduct = () => {
             itemSrNo: editData.item_sr_no || '',
             sroScheduleNo: editData.sro_schedule_no || '',
                         // Tile specific fields dynamically parsed from existing record
+            tileDimensionUnit: parseTileUnit(editData),
             tileHeight: parseTileDimensions(editData).h,
             tileWidth: parseTileDimensions(editData).w,
             tileThickness: (() => {
@@ -368,8 +377,9 @@ const AddProduct = () => {
             itemSrNo: '',
             sroScheduleNo: '',
             // Tile specific defaults
-            tileHeight: 24,
-            tileWidth: 24,
+            tileDimensionUnit: 'cm',
+            tileHeight: 60,
+            tileWidth: 60,
             tileThickness: '',
             piecesPerBox: 4,
             finishType: '',
@@ -398,10 +408,21 @@ const AddProduct = () => {
             if (isTileCategory) {
               const h = Number(values.tileHeight) || 0;
               const w = Number(values.tileWidth) || 0;
-              // 1 inch = 0.025 meters; exact sq.m = (h * 0.025) * (w * 0.025)
-              const sqMetersPerTile = (h > 0 && w > 0) ? (h * 0.025) * (w * 0.025) : 0;
+              const unit = values.tileDimensionUnit || 'cm';
+              let sqMetersPerTile = 0;
+              let unitLabel = 'cm';
+              if (unit === 'in') {
+                unitLabel = 'in';
+                sqMetersPerTile = (h > 0 && w > 0) ? (h * 0.0254) * (w * 0.0254) : 0;
+              } else if (unit === 'm') {
+                unitLabel = 'm';
+                sqMetersPerTile = (h > 0 && w > 0) ? h * w : 0;
+              } else {
+                unitLabel = 'cm';
+                sqMetersPerTile = (h > 0 && w > 0) ? (h * w) / 10000 : 0;
+              }
               const totalSqMetersPerBox = sqMetersPerTile * pcs;
-              const tileSizeFormatted = `${h} × ${w} in`;
+              const tileSizeFormatted = `${h} × ${w} ${unitLabel}`;
 
               finalDescription = `[TILE PRODUCT] Size: ${tileSizeFormatted} | Box: ${pcs} pcs (${totalSqMetersPerBox.toFixed(4)} sq.m / box) | Finish: ${values.finishType}${values.tilePrint ? ` | Print: ${values.tilePrint}` : ''}${values.tileThickness ? ` | Thickness: ${values.tileThickness}` : ''}${values.weightPerBox ? ` | Wt: ${values.weightPerBox}kg` : ''}`;
               finalUom = values.uom || 'BOX';
@@ -515,14 +536,25 @@ const AddProduct = () => {
           {({ handleChange, values, errors, touched, setFieldValue }) => {
             const isTileCategory = String(values.subSubCategory || '').trim().toLowerCase().includes('tile');
 
-            // Tile Live Calculations (Inches to sq.m)
+            // Tile Live Calculations
             const tileH = Number(values.tileHeight) || 0;
             const tileW = Number(values.tileWidth) || 0;
             const tilePcs = Number(values.piecesPerBox) || 1;
-            // 1 inch = 0.025 meters; exact sq.m = (h * 0.025) * (w * 0.025)
-            const sqMetersPerTile = (tileH > 0 && tileW > 0) ? (tileH * 0.025) * (tileW * 0.025) : 0;
+            const unit = values.tileDimensionUnit || 'cm';
+            let sqMetersPerTile = 0;
+            let unitSuffix = 'cm';
+            if (unit === 'in') {
+              unitSuffix = 'in';
+              sqMetersPerTile = (tileH > 0 && tileW > 0) ? (tileH * 0.0254) * (tileW * 0.0254) : 0;
+            } else if (unit === 'm') {
+              unitSuffix = 'm';
+              sqMetersPerTile = (tileH > 0 && tileW > 0) ? tileH * tileW : 0;
+            } else {
+              unitSuffix = 'cm';
+              sqMetersPerTile = (tileH > 0 && tileW > 0) ? (tileH * tileW) / 10000 : 0;
+            }
             const totalSqMetersPerBox = sqMetersPerTile * tilePcs;
-            const tileSizeFormatted = `${tileH} × ${tileW} in`;
+            const tileSizeFormatted = `${tileH} × ${tileW} ${unitSuffix}`;
 
             const numSale = Number(values.retailPrice) || 0;
             const numPurchase = Number(values.purchasePrice) || 0;
@@ -1110,55 +1142,61 @@ const AddProduct = () => {
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div className="flex items-center gap-2 text-teal-700 dark:text-teal-400 font-bold text-sm">
                         <MdSquareFoot className="text-xl" />
-                        <span>Tile Sizing (Inches) & Box Packaging Setup</span>
+                        <span>Tile Sizing & Box Packaging Setup</span>
                       </div>
-                      <span className="text-xs text-slate-400 font-mono">Unit: Inches (in) | Area: Square Meters (sq.m)</span>
+                      <span className="text-xs text-slate-400 font-mono">
+                        Unit: {values.tileDimensionUnit === 'in' ? 'Inches (in)' : values.tileDimensionUnit === 'm' ? 'Meters (m)' : 'Centimeters (cm)'} | Area: Square Meters (sq.m)
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                      {/* Dimension Unit - Fixed Static */}
+                      {/* Dimension Unit - Dropdown (Defaults to Centimeters) */}
                       <div>
                         <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
                           Dimension Unit
                         </label>
-                        <input
-                          type="text"
-                          readOnly
-                          value="Inches (in)"
-                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 bg-slate-100 dark:bg-slate-800 outline-none text-xs font-bold text-teal-700 dark:text-teal-400 cursor-not-allowed"
-                        />
+                        <select
+                          name="tileDimensionUnit"
+                          value={values.tileDimensionUnit || 'cm'}
+                          onChange={handleChange}
+                          className="w-full rounded-xl border border-teal-500/50 dark:border-teal-500/50 p-2.5 bg-teal-50/30 dark:bg-teal-950/20 outline-none focus:border-teal-600 text-xs font-bold text-teal-800 dark:text-teal-300 cursor-pointer"
+                        >
+                          <option value="cm">Centimeters (cm)</option>
+                          <option value="in">Inches (in)</option>
+                          <option value="m">Meters (m)</option>
+                        </select>
                       </div>
 
-                      {/* Height (in) */}
+                      {/* Height */}
                       <div>
                         <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
-                          Tile Height (in) *
+                          Tile Height ({values.tileDimensionUnit === 'in' ? 'in' : values.tileDimensionUnit === 'm' ? 'm' : 'cm'}) *
                         </label>
                         <input
                           type="number"
                           step="any"
-                          min="0.1"
+                          min="0.01"
                           name="tileHeight"
                           value={values.tileHeight}
                           onChange={handleChange}
-                          placeholder="e.g. 12 or 24"
+                          placeholder={values.tileDimensionUnit === 'in' ? 'e.g. 12 or 24' : values.tileDimensionUnit === 'm' ? 'e.g. 0.6 or 1.2' : 'e.g. 30 or 60'}
                           className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 bg-slate-50/50 dark:bg-slate-800/80 outline-none focus:border-teal-600 text-xs font-mono font-bold text-slate-900 dark:text-white"
                         />
                       </div>
 
-                      {/* Width (in) */}
+                      {/* Width */}
                       <div>
                         <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
-                          Tile Width (in) *
+                          Tile Width ({values.tileDimensionUnit === 'in' ? 'in' : values.tileDimensionUnit === 'm' ? 'm' : 'cm'}) *
                         </label>
                         <input
                           type="number"
                           step="any"
-                          min="0.1"
+                          min="0.01"
                           name="tileWidth"
                           value={values.tileWidth}
                           onChange={handleChange}
-                          placeholder="e.g. 24 or 48"
+                          placeholder={values.tileDimensionUnit === 'in' ? 'e.g. 12 or 24' : values.tileDimensionUnit === 'm' ? 'e.g. 0.6 or 1.2' : 'e.g. 60 or 120'}
                           className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 bg-slate-50/50 dark:bg-slate-800/80 outline-none focus:border-teal-600 text-xs font-mono font-bold text-slate-900 dark:text-white"
                         />
                       </div>
