@@ -309,7 +309,7 @@ export const LeavePage: React.FC = () => {
     (!fromDate || a.from >= fromDate) && (!toDate || a.from <= toDate) &&
     (!search.trim() || `${a.number || ''} ${a.employeeName || ''} ${a.employeeCode || ''} ${a.designation || ''} ${a.leaveTypeName || ''} ${a.reason || ''}`
       .toLowerCase().includes(search.trim().toLowerCase()))),
-  [rows, fromDate, toDate, search]);
+    [rows, fromDate, toDate, search]);
 
   const visible = useMemo(() => {
     const list = status ? inWindow.filter(a => a.status === status) : inWindow;
@@ -338,7 +338,7 @@ export const LeavePage: React.FC = () => {
 
   const balances = useMemo(() => allBalances.filter(b =>
     !search.trim() || `${b.code} ${b.name} ${b.designation}`.toLowerCase().includes(search.trim().toLowerCase())),
-  [allBalances, search]);
+    [allBalances, search]);
 
   const balanceTotals = useMemo(() => {
     const entitled = balances.reduce((sum, b) => sum + b.rows.reduce((s, r) => s + r.allowed, 0), 0);
@@ -352,11 +352,11 @@ export const LeavePage: React.FC = () => {
 
   const typesScoped = useMemo(() => types.filter(t =>
     !search.trim() || `${t.code} ${t.name} ${t.description}`.toLowerCase().includes(search.trim().toLowerCase())),
-  [types, search]);
+    [types, search]);
 
   const typesVisible = useMemo(() => typeState
     ? typesScoped.filter(t => (typeState === 'Active') === t.isActive) : typesScoped,
-  [typesScoped, typeState]);
+    [typesScoped, typeState]);
 
   const typeTotals = useMemo(() => ({
     perYear: typesVisible.reduce((s, t) => s + t.daysPerYear, 0),
@@ -517,7 +517,7 @@ export const LeavePage: React.FC = () => {
       setError('To Date falls on a Friday (weekly holiday). Please choose a working day.');
       return;
     }
-    
+
     // Check if Other is picked and custom type entered
     const isOther = String(draft.leaveTypeName || '').toLowerCase().includes('other') || draft.leaveTypeId === 3;
     if (isOther && !String(draft.customType || '').trim()) {
@@ -592,7 +592,7 @@ export const LeavePage: React.FC = () => {
   };
 
   const isOtherSelected = draft && (
-    draft.leaveTypeId === 3 || 
+    draft.leaveTypeId === 3 ||
     String(draft.leaveTypeName || '').toLowerCase().includes('other') ||
     types.find(t => t.id === draft.leaveTypeId)?.name.toLowerCase().includes('other')
   );
@@ -600,8 +600,8 @@ export const LeavePage: React.FC = () => {
   const subtitle = activeFilters.length
     ? activeFilters.join(' · ')
     : tab === 'Applications' ? 'Every leave application on the book'
-    : tab === 'Leave Types' ? `Leave categories configured`
-    : `Staff leave balances and annual allowances`;
+      : tab === 'Leave Types' ? `Leave categories configured`
+        : `Staff leave balances and annual allowances`;
 
   return (
     <div className="space-y-6">
@@ -645,7 +645,7 @@ export const LeavePage: React.FC = () => {
           <SearchBox key={searchEpoch}
             placeholder={tab === 'Applications' ? 'Search by application #, staff, designation or reason'
               : tab === 'Balances' ? 'Search staff by code, name or designation'
-              : 'Search leave types by code, name or description'}
+                : 'Search leave types by code, name or description'}
             onSearch={setSearch} />
           {tab === 'Applications' && <StatusPills value={status} onChange={setStatus} counts={statusCounts} />}
           {tab === 'Leave Types' && <StatusPills value={typeState} onChange={setTypeState} counts={typeStateCounts} />}
@@ -657,8 +657,7 @@ export const LeavePage: React.FC = () => {
 
       {/* Alert Notifications */}
       {(error || hub.error || notice) && (
-        <div className={`text-xs font-semibold rounded-md px-4 py-3 flex items-center justify-between shadow-sm ${
-          error || hub.error ? 'text-red-700 bg-red-50 border border-red-200 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300' : 'text-green-800 bg-green-50 border border-green-200 dark:bg-green-950/40 dark:border-green-900 dark:text-green-300'}`}>
+        <div className={`text-xs font-semibold rounded-md px-4 py-3 flex items-center justify-between shadow-sm ${error || hub.error ? 'text-red-700 bg-red-50 border border-red-200 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300' : 'text-green-800 bg-green-50 border border-green-200 dark:bg-green-950/40 dark:border-green-900 dark:text-green-300'}`}>
           <span>{error || hub.error || notice}</span>
           <button type="button" onClick={() => { setError(''); setNotice(''); }} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
         </div>
@@ -840,20 +839,18 @@ export const LeavePage: React.FC = () => {
               const isOver = requestedDays > remaining;
               return (
                 <div className="col-span-full">
-                  <div className={`p-2.5 rounded-lg border flex flex-wrap items-center justify-between gap-2 text-xs ${
-                    isOver 
-                      ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100' 
+                  <div className={`p-2.5 rounded-lg border flex flex-wrap items-center justify-between gap-2 text-xs ${isOver
+                      ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100'
                       : 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-slate-700 dark:text-slate-300'
-                  }`}>
+                    }`}>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-600 dark:text-gray-300">Annual Quota Remaining:</span>
-                      <span className={`font-mono font-bold px-2 py-0.5 rounded text-xs ${
-                        remaining <= 0 
-                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' 
-                          : remaining <= 3 
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' 
-                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                      }`}>
+                      <span className={`font-mono font-bold px-2 py-0.5 rounded text-xs ${remaining <= 0
+                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                          : remaining <= 3
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        }`}>
                         {remaining} of {allowed} Days Left ({taken} used)
                       </span>
                     </div>
@@ -1119,7 +1116,7 @@ export const LeavePage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-black dark:text-white">{b.name}</td>
                       <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">{b.designation || '-'}</td>
-                      
+
                       {/* Annual Entitled */}
                       <td className="py-3.5 px-4 text-center">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-slate-100 dark:bg-slate-800 text-black dark:text-white">
@@ -1981,9 +1978,8 @@ export const LeavePage: React.FC = () => {
                                 return (
                                   <tr
                                     key={d}
-                                    className={`transition hover:bg-primary/5 dark:hover:bg-meta-4/40 ${
-                                      fri ? 'bg-purple-50/30 dark:bg-purple-950/10' : ''
-                                    }`}
+                                    className={`transition hover:bg-primary/5 dark:hover:bg-meta-4/40 ${fri ? 'bg-purple-50/30 dark:bg-purple-950/10' : ''
+                                      }`}
                                   >
                                     <td className="py-2 px-4 font-mono font-bold text-black dark:text-white">
                                       <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-gray-100 dark:bg-meta-4 text-gray-800 dark:text-gray-200 text-xs">
