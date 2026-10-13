@@ -621,25 +621,36 @@ const AddOpeningStock = () => {
                                                                                 <input
                                                                                     type="number"
                                                                                     min="0"
-                                                                                    max={(item.piecesPerBox || 4) - 1}
                                                                                     value={item.loosePcs ?? ''}
                                                                                     placeholder="Pcs"
                                                                                     onKeyDown={blockInvalidChar}
                                                                                     onChange={(e) => {
                                                                                         const pcsPerBox = item.piecesPerBox || 4;
-                                                                                        const lVal = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                                                                        const bVal = Math.max(0, Number(item.boxQty || 0));
-                                                                                        const totalBoxes = Number((bVal + (lVal / pcsPerBox)).toFixed(3));
-                                                                                        setFieldValue(`items.${index}.loosePcs`, lVal);
-                                                                                        setFieldValue(`items.${index}.qty`, totalBoxes);
+                                                                                        if (e.target.value === '') {
+                                                                                            const bVal = Math.max(0, Number(item.boxQty || 0));
+                                                                                            setFieldValue(`items.${index}.loosePcs`, '');
+                                                                                            setFieldValue(`items.${index}.qty`, bVal);
+                                                                                            return;
+                                                                                        }
+                                                                                        const rawLoose = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                                                        const currentBoxes = Math.max(0, Number(item.boxQty || 0));
+                                                                                        if (rawLoose >= pcsPerBox) {
+                                                                                            const extraBoxes = Math.floor(rawLoose / pcsPerBox);
+                                                                                            const remLoose = rawLoose % pcsPerBox;
+                                                                                            const finalBoxes = currentBoxes + extraBoxes;
+                                                                                            const totalBoxes = Number((finalBoxes + (remLoose / pcsPerBox)).toFixed(3));
+                                                                                            setFieldValue(`items.${index}.boxQty`, finalBoxes);
+                                                                                            setFieldValue(`items.${index}.loosePcs`, remLoose === 0 ? 0 : remLoose);
+                                                                                            setFieldValue(`items.${index}.qty`, totalBoxes);
+                                                                                        } else {
+                                                                                            const totalBoxes = Number((currentBoxes + (rawLoose / pcsPerBox)).toFixed(3));
+                                                                                            setFieldValue(`items.${index}.loosePcs`, rawLoose);
+                                                                                            setFieldValue(`items.${index}.qty`, totalBoxes);
+                                                                                        }
                                                                                     }}
                                                                                     className="w-full rounded border border-teal-300 dark:border-teal-700 px-2 h-8 bg-teal-50/40 dark:bg-teal-950/20 text-xs text-right font-bold text-teal-800 dark:text-teal-300 outline-none focus:border-teal-600"
                                                                                 />
                                                                             </div>
-                                                                        </div>
-                                                                        <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 text-right leading-tight">
-                                                                            = <strong className="text-slate-800 dark:text-slate-200">{item.qty} Box</strong>
-                                                                            <span className="text-[9px] text-slate-400 block">({((Number(item.boxQty || 0) * (item.piecesPerBox || 4)) + Number(item.loosePcs || 0))} Pcs total)</span>
                                                                         </div>
                                                                     </div>
                                                                 ) : (
@@ -661,6 +672,7 @@ const AddOpeningStock = () => {
                                                             <td className="py-2 px-2">
                                                                 <input
                                                                     type="number"
+                                                                    step="any"
                                                                     name={`items.${index}.purchasePrice`}
                                                                     min="0"
                                                                     onKeyDown={blockInvalidChar}
@@ -1082,24 +1094,36 @@ const AddOpeningStock = () => {
                                                 <input
                                                     type="number"
                                                     min="0"
-                                                    max={(values.piecesPerBox || 4) - 1}
                                                     value={values.loosePcs ?? ''}
                                                     placeholder="Pcs"
                                                     onKeyDown={blockInvalidChar}
                                                     onChange={(e) => {
                                                         const pcsPerBox = values.piecesPerBox || 4;
-                                                        const lVal = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                                        const bVal = Math.max(0, Number(values.boxQty || 0));
-                                                        const totalBoxes = Number((bVal + (lVal / pcsPerBox)).toFixed(3));
-                                                        setFieldValue('loosePcs', lVal);
-                                                        setFieldValue('qty', totalBoxes);
+                                                        if (e.target.value === '') {
+                                                            const bVal = Math.max(0, Number(values.boxQty || 0));
+                                                            setFieldValue('loosePcs', '');
+                                                            setFieldValue('qty', bVal);
+                                                            return;
+                                                        }
+                                                        const rawLoose = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                        const currentBoxes = Math.max(0, Number(values.boxQty || 0));
+                                                        if (rawLoose >= pcsPerBox) {
+                                                            const extraBoxes = Math.floor(rawLoose / pcsPerBox);
+                                                            const remLoose = rawLoose % pcsPerBox;
+                                                            const finalBoxes = currentBoxes + extraBoxes;
+                                                            const totalBoxes = Number((finalBoxes + (remLoose / pcsPerBox)).toFixed(3));
+                                                            setFieldValue('boxQty', finalBoxes);
+                                                            setFieldValue('loosePcs', remLoose === 0 ? 0 : remLoose);
+                                                            setFieldValue('qty', totalBoxes);
+                                                        } else {
+                                                            const totalBoxes = Number((currentBoxes + (rawLoose / pcsPerBox)).toFixed(3));
+                                                            setFieldValue('loosePcs', rawLoose);
+                                                            setFieldValue('qty', totalBoxes);
+                                                        }
                                                     }}
                                                     className="w-full rounded border border-teal-300 dark:border-teal-700 px-3 h-10 bg-teal-50/40 dark:bg-teal-950/20 text-xs text-right font-bold text-teal-800 dark:text-teal-300 outline-none focus:border-teal-600"
                                                 />
                                             </div>
-                                        </div>
-                                        <div className="text-xs font-mono text-slate-500 text-right">
-                                            = <strong className="text-slate-800 dark:text-slate-200">{values.qty} Boxes</strong> ({((Number(values.boxQty || 0) * (values.piecesPerBox || 4)) + Number(values.loosePcs || 0))} Pcs total)
                                         </div>
                                     </div>
                                 ) : (
@@ -1110,7 +1134,7 @@ const AddOpeningStock = () => {
 
                             <div>
                                 <label className="mb-2 block text-xs font-semibold text-gray-500">Purchase Price / Unit Cost (PKR) *</label>
-                                <input type="number" name="purchasePrice" min="0" onKeyDown={blockInvalidChar} onChange={handleChange} value={values.purchasePrice} className={`w-full rounded border px-3 h-10 bg-slate-50/50 dark:bg-meta-4/20 text-xs text-right font-mono font-bold text-black dark:text-white ${touched.purchasePrice && errors.purchasePrice ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`} />
+                                <input type="number" step="any" name="purchasePrice" min="0" onKeyDown={blockInvalidChar} onChange={handleChange} value={values.purchasePrice} className={`w-full rounded border px-3 h-10 bg-slate-50/50 dark:bg-meta-4/20 text-xs text-right font-mono font-bold text-black dark:text-white ${touched.purchasePrice && errors.purchasePrice ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`} />
                                 {touched.purchasePrice && errors.purchasePrice && <p className="text-red-500 text-[10px] mt-1 font-semibold">{String(errors.purchasePrice)}</p>}
                             </div>
 
