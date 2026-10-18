@@ -1017,7 +1017,7 @@ const NewInvoice = () => {
             invoice_number: editData.invoice_no || values.invoiceNo,
             customer_name: customerFinalName,
             total_amount: calculatedGrandTotal,
-            item_count: (values.items || []).length,
+            item_count: allMergedItems.length,
             payment_term: runningBalanceTerm,
             warehouse: values.dispatchWarehouse,
             event: `Updated sales invoice ${editData.invoice_no || values.invoiceNo} for ${customerFinalName}`
@@ -1027,17 +1027,21 @@ const NewInvoice = () => {
         // 4. Update products.current_stock (Restore old, Deduct new)
         const oldItems = typeof editData.items === 'string' ? JSON.parse(editData.items || '[]') : (editData.items || []);
         for (const oldItem of oldItems) {
+          if (!oldItem.itemName || !oldItem.itemName.trim()) continue;
           const { data: prod } = await supabase.from('products').select('id, current_stock').ilike('product_name', oldItem.itemName).maybeSingle();
           if (prod) await supabase.from('products').update({ current_stock: Number(prod.current_stock) + Number(oldItem.qty || 0) }).eq('id', prod.id);
         }
-        for (const newItem of values.items) {
+        for (const newItem of allMergedItems) {
+          if (!newItem.itemName || !newItem.itemName.trim()) continue;
           const { data: prod } = await supabase.from('products').select('id, current_stock').ilike('product_name', newItem.itemName).maybeSingle();
           if (prod) await supabase.from('products').update({ current_stock: Number(prod.current_stock) - Number(newItem.qty || 0) }).eq('id', prod.id);
         }
 
         // 5. Sync DCs (Recalculate remaining uncovered quantities, delete old pending, create new only if needed)
         const remainingItemsByWarehouse: Record<string, any[]> = {};
-        for (const item of values.items) {
+        for (const item of allMergedItems) {
+          if (!item.itemName || !item.itemName.trim()) continue;
+          if (Number(item.qty || 0) <= 0) continue;
           const wh = (item.warehouse || values.dispatchWarehouse || 'Main Warehouse').trim();
           const key = `${item.skuCode}_${wh}`;
           const covered = coveredQtys[key] || 0;
@@ -1060,7 +1064,10 @@ const NewInvoice = () => {
               disAmt: Number(proratedDisAmt.toFixed(2)),
               distPer: Number(item.discountPer) || 0,
               discount: 0,
-              notes: item.notes || ''
+              notes: item.notes || '',
+              isTileItem: Boolean(item.isTileItem),
+              boxQty: item.boxQty,
+              loosePcs: item.loosePcs
             });
           }
         }
@@ -1178,7 +1185,7 @@ const NewInvoice = () => {
             invoice_number: values.invoiceNo,
             customer_name: customerFinalName,
             total_amount: calculatedGrandTotal,
-            item_count: (values.items || []).length,
+            item_count: allMergedItems.length,
             payment_term: runningBalanceTerm,
             warehouse: values.dispatchWarehouse,
             event: `Created sales invoice ${values.invoiceNo} for ${customerFinalName}`
@@ -1189,7 +1196,9 @@ const NewInvoice = () => {
         try {
           // Group invoice items by warehouse destination
           const itemsByWarehouse: Record<string, any[]> = {};
-          (values.items || []).forEach((item: any) => {
+          (allMergedItems || []).forEach((item: any) => {
+            if (!item.itemName || !item.itemName.trim()) return;
+            if (Number(item.qty || 0) <= 0) return;
             const wh = (item.warehouse || values.dispatchWarehouse || 'Main Warehouse').trim();
             if (!itemsByWarehouse[wh]) itemsByWarehouse[wh] = [];
             itemsByWarehouse[wh].push({
@@ -1202,7 +1211,10 @@ const NewInvoice = () => {
               disAmt: Number(item.discountAmt) || 0,
               distPer: Number(item.discountPer) || 0,
               discount: 0,
-              notes: item.notes || ''
+              notes: item.notes || '',
+              isTileItem: Boolean(item.isTileItem),
+              boxQty: item.boxQty,
+              loosePcs: item.loosePcs
             });
           });
 
@@ -1265,7 +1277,8 @@ const NewInvoice = () => {
         }
 
         // Update products.current_stock only — warehouse_inventory retired
-        for (const item of values.items) {
+        for (const item of allMergedItems) {
+          if (!item.itemName || !item.itemName.trim()) continue;
           const { data: prod } = await supabase.from('products').select('id, current_stock').ilike('product_name', item.itemName).maybeSingle();
           if (prod) await supabase.from('products').update({ current_stock: Number(prod.current_stock) - Number(item.qty) }).eq('id', prod.id);
         }
@@ -1333,103 +1346,114 @@ const NewInvoice = () => {
   };
 
   const handleFinalCustomerModalSubmit = async () => {
-    if (!pendingFormValues) return;
+    if (!pendingFormValues || loading) return;
+    setLoading(true);
 
-    // Calculate if sale is on credit
-    const returnVal = (pendingFormValues.returnItems || []).reduce(
-      (acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0
-    );
-    const grossTotal = (pendingFormValues.items || []).reduce((acc: number, item: any) => {
-      return acc + calculateLineTotals(item, pendingFormValues.taxScenario, pendingFormValues.applyFbrTax).netTotal;
-    }, 0) + Number(pendingFormValues.transportCharges || 0) + Number(pendingFormValues.additionalCharges || 0) - Number(pendingFormValues.overallDiscount || 0);
+    try {
+      // Calculate if sale is on credit
+      const returnVal = (pendingFormValues.returnItems || []).reduce(
+        (acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0
+      );
+      const tileVal = (pendingFormValues.showTileSection ? (pendingFormValues.tileItems || []) : []).reduce(
+        (acc: number, t: any) => acc + Number(t.totalAmount || 0), 0
+      );
+      const grossTotal = (pendingFormValues.items || []).reduce((acc: number, item: any) => {
+        return acc + calculateLineTotals(item, pendingFormValues.taxScenario, pendingFormValues.applyFbrTax).netTotal;
+      }, 0) + tileVal + Number(pendingFormValues.transportCharges || 0) + Number(pendingFormValues.additionalCharges || 0) - Number(pendingFormValues.overallDiscount || 0);
 
-    const netPayable = grossTotal - returnVal;
-    const currentSubtotal = Math.max(0, netPayable);
+      const netPayable = grossTotal - returnVal;
+      const currentSubtotal = Math.max(0, netPayable);
 
-    const totalPaidNow = pendingFormValues.settlementMode === 'Cash'
-      ? Number(pendingFormValues.cashAmountPaid || 0)
-      : (pendingFormValues.settlementMode === 'Bank' ? Number(pendingFormValues.bankAmountPaid || 0) : (Number(pendingFormValues.cashAmountPaid || 0) + Number(pendingFormValues.bankAmountPaid || 0)));
-    const remainingBal = Math.max(0, currentSubtotal - totalPaidNow);
-    const isOnCredit = remainingBal > 0.01 || netPayable < -0.01;
+      const totalPaidNow = pendingFormValues.settlementMode === 'Cash'
+        ? Number(pendingFormValues.cashAmountPaid || 0)
+        : (pendingFormValues.settlementMode === 'Bank' ? Number(pendingFormValues.bankAmountPaid || 0) : (Number(pendingFormValues.cashAmountPaid || 0) + Number(pendingFormValues.bankAmountPaid || 0)));
+      const remainingBal = Math.max(0, currentSubtotal - totalPaidNow);
+      const isOnCredit = remainingBal > 0.01 || netPayable < -0.01;
 
-    let finalCustomerName = '';
+      let finalCustomerName = '';
 
-    if (customerModalType === 'recorded') {
-      if (!selectedRecordedCustomer) {
-        toast.error('Please select an existing customer account from the list.');
-        return;
-      }
-      finalCustomerName = selectedRecordedCustomer;
-    } else {
-      const cleanName = walkinName.trim();
-      const cleanPhone = walkinPhone.trim();
-
-      if (isOnCredit && (!cleanName || cleanName.toLowerCase() === 'walk-in customer')) {
-        toast.error(`Customer Name is required for credit sales (Outstanding balance: Rs. ${remainingBal.toLocaleString()}) to maintain customer directory record.`);
-        return;
-      }
-
-      finalCustomerName = cleanName || 'Walk-in Customer';
-
-      // If user specified a custom walk-in customer name
-      if ((recordWalkinCustomer || isOnCredit) && cleanName && cleanName.toLowerCase() !== 'walk-in customer') {
-        try {
-          const { data: existing } = await supabase
-            .from('customers')
-            .select('id')
-            .ilike('customerName', cleanName)
-            .maybeSingle();
-
-          if (!existing) {
-            const { error: custErr } = await supabase.from('customers').insert([{
-              customerName: cleanName,
-              customer_code: null,
-              customercode: null,
-              primaryphone: cleanPhone || '-',
-              phone: cleanPhone || '-',
-              company: 'Retail Walk-in'
-            }]);
-
-            if (custErr) {
-              console.error('Customer insert warning:', custErr);
-            } else {
-              toast.success(`Customer "${cleanName}" saved to directory!`);
-            }
-          }
-        } catch (e: any) {
-          console.error('Customer registration error:', e);
+      if (customerModalType === 'recorded') {
+        if (!selectedRecordedCustomer) {
+          toast.error('Please select an existing customer account from the list.');
+          setLoading(false);
+          return;
         }
-      } 
-      // If user did not provide a custom name, auto-create / link to unified "Walk-in Customer" profile
-      else if (!cleanName || cleanName.toLowerCase() === 'walk-in customer') {
-        try {
-          const { data: existingWalkin } = await supabase
-            .from('customers')
-            .select('id')
-            .ilike('customerName', 'Walk-in Customer')
-            .maybeSingle();
+        finalCustomerName = selectedRecordedCustomer;
+      } else {
+        const cleanName = walkinName.trim();
+        const cleanPhone = walkinPhone.trim();
 
-          if (!existingWalkin) {
-            const { error: walkinErr } = await supabase.from('customers').insert([{
-              customerName: 'Walk-in Customer',
-              customer_code: 'WALK-IN',
-              customercode: 'WALK-IN',
-              primaryphone: '-',
-              phone: '-',
-              company: 'Counter Walk-in / Direct Retail'
-            }]);
+        if (isOnCredit && (!cleanName || cleanName.toLowerCase() === 'walk-in customer')) {
+          toast.error(`Customer Name is required for credit sales (Outstanding balance: Rs. ${remainingBal.toLocaleString()}) to maintain customer directory record.`);
+          setLoading(false);
+          return;
+        }
 
-            if (walkinErr) {
-              console.error('Walk-in Customer profile auto-creation warning:', walkinErr);
+        finalCustomerName = cleanName || 'Walk-in Customer';
+
+        // If user specified a custom walk-in customer name
+        if ((recordWalkinCustomer || isOnCredit) && cleanName && cleanName.toLowerCase() !== 'walk-in customer') {
+          try {
+            const { data: existing } = await supabase
+              .from('customers')
+              .select('id')
+              .ilike('customerName', cleanName)
+              .maybeSingle();
+
+            if (!existing) {
+              const { error: custErr } = await supabase.from('customers').insert([{
+                customerName: cleanName,
+                customer_code: null,
+                customercode: null,
+                primaryphone: cleanPhone || '-',
+                phone: cleanPhone || '-',
+                company: 'Retail Walk-in'
+              }]);
+
+              if (custErr) {
+                console.error('Customer insert warning:', custErr);
+              } else {
+                toast.success(`Customer "${cleanName}" saved to directory!`);
+              }
             }
+          } catch (e: any) {
+            console.error('Customer registration error:', e);
           }
-        } catch (e: any) {
-          console.error('Walk-in customer lookup error:', e);
+        } 
+        // If user did not provide a custom name, auto-create / link to unified "Walk-in Customer" profile
+        else if (!cleanName || cleanName.toLowerCase() === 'walk-in customer') {
+          try {
+            const { data: existingWalkin } = await supabase
+              .from('customers')
+              .select('id')
+              .ilike('customerName', 'Walk-in Customer')
+              .maybeSingle();
+
+            if (!existingWalkin) {
+              const { error: walkinErr } = await supabase.from('customers').insert([{
+                customerName: 'Walk-in Customer',
+                customer_code: 'WALK-IN',
+                customercode: 'WALK-IN',
+                primaryphone: '-',
+                phone: '-',
+                company: 'Counter Walk-in / Direct Retail'
+              }]);
+
+              if (walkinErr) {
+                console.error('Walk-in Customer profile auto-creation warning:', walkinErr);
+              }
+            }
+          } catch (e: any) {
+            console.error('Walk-in customer lookup error:', e);
+          }
         }
       }
+
+      await executeInvoicePersistence(pendingFormValues, finalCustomerName, bypassNegativeStockWarning);
+    } catch (e: any) {
+      console.error(e);
+      setLoading(false);
     }
-
-    await executeInvoicePersistence(pendingFormValues, finalCustomerName, bypassNegativeStockWarning);
   };
 
   if (initialLoading) return <div className="flex h-48 items-center justify-center"><Spinner /></div>;
