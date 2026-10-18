@@ -111,8 +111,8 @@ const NewInvoice = () => {
       if (match && Number(match[1]) > 0) pcsPerBox = Number(match[1]);
       else pcsPerBox = 4;
     }
-    const boxes = Math.floor(totStock / pcsPerBox);
-    const loose = totStock % pcsPerBox;
+    const boxes = Math.floor(totStock);
+    const loose = Math.round((totStock - boxes) * pcsPerBox);
     return { totStock, boxes, loose, pcsPerBox };
   };
 
@@ -792,7 +792,7 @@ const NewInvoice = () => {
         const pcsPerBox = Math.max(1, Number(tItem.piecesPerBox) || 4);
         const reqPcs = (Number(tItem.boxQty || 0) * pcsPerBox) + Number(tItem.loosePcs || 0);
 
-        let maxAllowed = Number(tItem.availableQty || 0);
+        let maxAllowedPcs = Math.round(Number(tItem.availableQty || 0) * pcsPerBox);
         if (editData && editData.items) {
           const oldItems = typeof editData.items === 'string' ? JSON.parse(editData.items || '[]') : (editData.items || []);
           const original = oldItems.find((oi: any) => oi.skuCode === tItem.skuCode && (oi.warehouse || editData.dispatch_warehouse || 'Main Warehouse') === (tItem.warehouse || values.dispatchWarehouse || 'Main Warehouse'));
@@ -800,17 +800,17 @@ const NewInvoice = () => {
             const origPcs = original.isTileItem
               ? ((Number(original.boxQty || 0) * pcsPerBox) + Number(original.loosePcs || 0))
               : Math.round(Number(original.qty || 0) * pcsPerBox);
-            maxAllowed += origPcs;
+            maxAllowedPcs += origPcs;
           }
         }
 
         const priorUsed = consumedInInvoice[itemKey] || 0;
-        const availableForRow = Math.max(0, maxAllowed - priorUsed);
+        const availableForRowPcs = Math.max(0, maxAllowedPcs - priorUsed);
 
-        if (!bypassNegativeCheck && reqPcs > availableForRow) {
-          const avBoxes = Math.floor(availableForRow / pcsPerBox);
-          const avLoose = availableForRow % pcsPerBox;
-          toast.error(`Insufficient tile stock for ${tItem.itemName} (Tile Row #${i + 1}). Max Available: ${avBoxes} Boxes + ${avLoose} Pcs (${availableForRow} Pcs total).`);
+        if (!bypassNegativeCheck && reqPcs > availableForRowPcs) {
+          const avBoxes = Math.floor(availableForRowPcs / pcsPerBox);
+          const avLoose = availableForRowPcs % pcsPerBox;
+          toast.error(`Insufficient tile stock for ${tItem.itemName} (Tile Row #${i + 1}). Max Available: ${avBoxes} Boxes${avLoose > 0 ? ` + ${avLoose} Pcs` : ''} (${availableForRowPcs} Pcs total).`);
           setLoading(false);
           return;
         }
@@ -2985,8 +2985,10 @@ const NewInvoice = () => {
                                   const pcsPerBox = Math.max(1, Number(tItem.piecesPerBox) || 4);
                                   const sqmPerBox = Math.max(0.01, Number(tItem.sqmPerBox) || 1.44);
                                   const currentStockVal = Number(tItem.availableQty || 0);
-                                  const availBoxes = Math.floor(currentStockVal / pcsPerBox);
-                                  const availLoose = currentStockVal % pcsPerBox;
+                                  const availBoxes = Math.floor(currentStockVal);
+                                  const availLoose = Math.round((currentStockVal - availBoxes) * pcsPerBox);
+                                  const totalAvailPieces = Math.round(currentStockVal * pcsPerBox);
+                                  const totalAvailSqm = Number((currentStockVal * sqmPerBox).toFixed(2));
                                   const itemLineSqm = Number(tItem.totalSqm) > 0
                                     ? Number(tItem.totalSqm)
                                     : Number(((Number(tItem.boxQty || 0) * sqmPerBox) + ((Number(tItem.loosePcs || 0) / pcsPerBox) * sqmPerBox)).toFixed(2));
@@ -3213,8 +3215,8 @@ const NewInvoice = () => {
                                               {filteredWhs.map((wh, wIdx) => {
                                                 const pcsPerBox = Math.max(1, Number(tItem.piecesPerBox) || 4);
                                                 const whStock = tItem.itemName ? getItemWarehouseStock(tItem.itemName, wh) : null;
-                                                const whBoxes = whStock !== null ? Math.floor(whStock / pcsPerBox) : 0;
-                                                const whLoose = whStock !== null ? (whStock % pcsPerBox) : 0;
+                                                const whBoxes = whStock !== null ? Math.floor(whStock) : 0;
+                                                const whLoose = whStock !== null ? Math.round((whStock - whBoxes) * pcsPerBox) : 0;
                                                 const hasStock = whStock !== null && whStock > 0;
                                                 return (
                                                   <div
@@ -3255,13 +3257,13 @@ const NewInvoice = () => {
                                       {/* STOCK IN WAREHOUSE */}
                                       <td className="p-2 w-32 text-center">
                                         <div className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                          {availBoxes} Boxes + {availLoose} Pcs
+                                          {availBoxes} Boxes{availLoose > 0 ? ` + ${availLoose} Pcs` : ''}
                                         </div>
                                         <div className="text-[10px] text-teal-700 dark:text-teal-300 font-mono font-bold">
-                                          {((availBoxes * sqmPerBox) + ((availLoose / pcsPerBox) * sqmPerBox)).toFixed(2)} m²
+                                          {totalAvailSqm.toFixed(2)} m²
                                         </div>
                                         <div className="text-[10px] text-slate-400 font-mono">
-                                          ({currentStockVal} Total Pcs)
+                                          ({totalAvailPieces} Total Pcs)
                                         </div>
                                       </td>
 
