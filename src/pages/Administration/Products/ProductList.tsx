@@ -573,6 +573,23 @@ const ProductList = () => {
     const isZeroStock = currentStock <= 0;
     const isLowStock = minAlert > 0 && currentStock <= minAlert && !isZeroStock;
 
+    const isTile = Boolean(
+      (String(product.category || '').toLowerCase().includes('tile') ||
+        String(product.scenario_name || '').toLowerCase().includes('tile')) ||
+      Number(product.pieces_per_box || product.pcs_per_box || product.pieces_per_packing || 0) > 1
+    );
+    const rawPcs = Number(product.pieces_per_box || product.pcs_per_box || product.pieces_per_packing || 0);
+    const pcsPerBox = rawPcs > 1 ? rawPcs : (isTile ? 4 : 1);
+    const isTileWithPieces = isTile && pcsPerBox > 1;
+
+    let tileBoxes = 0;
+    let tileLoosePcs = 0;
+    if (isTileWithPieces) {
+      const totalPieces = Math.round(currentStock * pcsPerBox);
+      tileBoxes = Math.floor(totalPieces / pcsPerBox);
+      tileLoosePcs = totalPieces % pcsPerBox;
+    }
+
     let badgeClass = 'bg-green-500/15 text-green-600 dark:bg-green-950/40 dark:text-green-400 border border-green-500/30';
     if (isZeroStock) {
       badgeClass = 'bg-red-600/20 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-600/40 font-black';
@@ -606,11 +623,24 @@ const ProductList = () => {
           {Number(product.retail_price || product.mrp || 0).toFixed(2)}
         </td>
         <td className="py-3.5 px-4 text-center">
-          <span className={`font-black text-xs px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${badgeClass}`}>
-            {currentStock.toLocaleString()} {product.uom || 'PCS'}
-            {isLowStock && <MdWarning size={14} className="text-amber-600 dark:text-amber-400 inline shrink-0" />}
-          </span>
-          <button onClick={() => handleOpenBreakdown(product)} className="text-[9px] font-sans text-green-600 dark:text-green-400 hover:underline cursor-pointer block mx-auto mt-0.5">View Breakdown</button>
+          <div className="inline-flex flex-col items-center">
+            <span className={`font-black text-xs px-2.5 py-1 ${isTileWithPieces && tileLoosePcs > 0 ? 'rounded-xl' : 'rounded-full'} inline-flex items-center gap-1 ${badgeClass}`}>
+              {isTileWithPieces ? (
+                <span className="flex flex-col items-center leading-tight">
+                  <span>{tileBoxes.toLocaleString()} {tileBoxes === 1 ? 'Box' : 'Boxes'}</span>
+                  {tileLoosePcs > 0 && (
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      + {tileLoosePcs} pcs
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span>{currentStock.toLocaleString()} {product.uom || 'PCS'}</span>
+              )}
+              {isLowStock && <MdWarning size={14} className="text-amber-600 dark:text-amber-400 inline shrink-0" />}
+            </span>
+            <button onClick={() => handleOpenBreakdown(product)} className="text-[9px] font-sans text-green-600 dark:text-green-400 hover:underline cursor-pointer block mx-auto mt-0.5">View Breakdown</button>
+          </div>
         </td>
         <td className="py-3.5 px-4 text-center">
           <TableActions
