@@ -1166,6 +1166,19 @@ const NewInvoice = () => {
 
         toast.success('Sales Invoice changes compiled and DCs synced successfully!');
       } else {
+        // Concurrency guard: Ensure this invoice number wasn't already inserted in parallel
+        const { data: duplicateCheck } = await supabase
+          .from('sales_invoices')
+          .select('id')
+          .ilike('invoice_no', values.invoiceNo.trim())
+          .maybeSingle();
+
+        if (duplicateCheck) {
+          toast.error(`Invoice #${values.invoiceNo} has already been recorded!`);
+          setLoading(false);
+          return;
+        }
+
         const { data: insertedInvoice, error: invoiceError } = await supabase
           .from('sales_invoices')
           .insert([databasePayload])
