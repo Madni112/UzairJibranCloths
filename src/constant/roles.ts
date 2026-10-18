@@ -47,6 +47,8 @@ export const ROLE_PRESETS: Record<string, RolePreset> = {
       '/Delivery-Challan/List',
       '/Sales/Shop-Dispatch/List',
       '/Purchase/Purchases/List',
+      '/Purchase/GRN/List',
+      '/Purchase/GRN/Add',
       '/Purchase/Inward-Challan/List',
       '/Purchase/Shop-Receiving',
       '/Purchase/Purchase-Receipt/List',

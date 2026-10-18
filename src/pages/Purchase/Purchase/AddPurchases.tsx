@@ -33,7 +33,33 @@ const AddPurchases = () => {
   const [defaultPurchaseNo, setDefaultPurchaseNo] = useState('');
 
   const location = useLocation();
+
+    const handleApplyGrn = (grn: any, setFieldValue: any) => {
+      if (!grn) return;
+      setFieldValue('grnId', grn.id);
+      if (grn.vendor_name) setFieldValue('supplierName', grn.vendor_name);
+      if (grn.receipt_date) setFieldValue('purchaseDate', grn.receipt_date);
+      if (grn.grn_items && grn.grn_items.length > 0) {
+        const mappedItems = grn.grn_items.map((gi: any) => {
+          const prod = productList.find(p => String(p.product_name || '').trim().toLowerCase() === String(gi.product_name || '').trim().toLowerCase());
+          const qtyToBill = Number(gi.accepted_qty != null ? gi.accepted_qty : gi.qty || 1);
+          return {
+            itemName: gi.product_name,
+            qty: qtyToBill,
+            uom: gi.uom || prod?.uom || 'Nos',
+            purchasePrice: Number(prod?.purchase_price || 0),
+            taxPercent: 0,
+            warehouse: gi.warehouse_name || locations[0]?.name || 'Main Warehouse',
+            remarks: ''
+          };
+        });
+        setFieldValue('items', mappedItems);
+        toast.success(`Imported ${mappedItems.length} items from ${grn.grn_no}! Enter prices to complete bill.`);
+      }
+    };
+
   const navigate = useNavigate();
+  const formikRef = React.useRef<any>(null);
 
   const editData = location.state?.purchaseRecord;
   const isEditMode = !!editData;
@@ -71,7 +97,20 @@ const AddPurchases = () => {
         setDefaultPurchaseNo(String((count || 0) + 1).padStart(2, '0'));
 
         const { data: grnData } = await supabase.from('grn_receipts').select('*, grn_items(*)').in('status', ['Confirm', 'Partially Received']).order('created_at', { ascending: false });
-        if (grnData) setPendingGrns(grnData);
+        if (grnData) {
+            setPendingGrns(grnData);
+            const importId = location.state?.importGrnId;
+            if (importId) {
+              const matchedGrn = grnData.find((g: any) => g.id === importId);
+              if (matchedGrn) {
+                setTimeout(() => {
+                  if (formikRef.current) {
+                    handleApplyGrn(matchedGrn, formikRef.current.setFieldValue);
+                  }
+                }, 300);
+              }
+            }
+          }
 
         if (vendorError) throw vendorError;
 
@@ -244,6 +283,7 @@ const AddPurchases = () => {
         </div>
 
         <Formik
+            innerRef={formikRef}
           initialValues={formInitialValues}
           validationSchema={validationSchema}
           enableReinitialize={true}

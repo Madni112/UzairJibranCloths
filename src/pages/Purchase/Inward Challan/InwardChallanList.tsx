@@ -8,6 +8,8 @@ import { useAuth } from '../../../Context/Auth';
 import { useModal } from '../../../Context/Modal';
 import VerifyInward from './VerifyInward';
 import InwardChallanHistory from './InwardChallanHistory';
+import ReceiveGrnModal from '../GRN/ReceiveGrnModal';
+import { MdAddCircle } from 'react-icons/md';
 
 interface InwardChallanListProps {
   locationFilter?: 'SHOP' | 'WAREHOUSE' | 'ALL';
@@ -161,6 +163,13 @@ const InwardChallanList: React.FC<InwardChallanListProps> = ({ locationFilter = 
           <p className="text-gray-400 mt-0.5">Approve incoming goods and update physical inventory for your location</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => showModal(<ReceiveGrnModal defaultLocation={locationFilter} onClose={() => { hideModal(); fetchPendingInwards(); }} />, "Receive Goods (GRN)", undefined, "max-w-2xl")}
+            className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition shadow-sm w-full sm:w-auto"
+          >
+            <MdAddCircle size={18} />
+            + Receive GRN
+          </button>
           <button
             onClick={openHistoryModal}
             className="flex items-center justify-center gap-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-meta-4 dark:hover:bg-meta-4/80 px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 transition w-full sm:w-auto"

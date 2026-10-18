@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-hot-toast';
@@ -12,6 +12,8 @@ import { MdInventory, MdArrowBack } from 'react-icons/md';
 const AddGRN = () => {
   const { tenantId } = useAuth();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const prefLoc = searchParams.get('prefLoc');
   const [loading, setLoading] = useState(false);
   const [metadataLoading, setMetadataLoading] = useState(true);
   const [vendors, setVendors] = useState<any[]>([]);
@@ -67,7 +69,25 @@ const AddGRN = () => {
 
         if (venRes.data) setVendors(venRes.data);
         if (prodRes.data) setProductList(prodRes.data);
-        if (locRes.data) setLocations(locRes.data);
+        if (locRes.data) {
+          setLocations(locRes.data);
+          let defaultWhName = "";
+          if (prefLoc === 'SHOP') {
+            const shopLoc = locRes.data.find((l: any) => String(l.name).toUpperCase().includes('SHOP'));
+            defaultWhName = shopLoc ? shopLoc.name : (locRes.data[0]?.name || '');
+          } else if (prefLoc === 'WAREHOUSE') {
+            const whLoc = locRes.data.find((l: any) => !String(l.name).toUpperCase().includes('SHOP'));
+            defaultWhName = whLoc ? whLoc.name : (locRes.data[0]?.name || '');
+          } else {
+            defaultWhName = locRes.data[0]?.name || '';
+          }
+          if (!id && defaultWhName) {
+            setInitialValues(prev => ({
+              ...prev,
+              items: prev.items.map(it => ({ ...it, warehouseName: it.warehouseName || defaultWhName }))
+            }));
+          }
+        }
 
         if (id) {
           const { data: grn, error: grnErr } = await supabase.from('grn_receipts').select('*').eq('id', id).single();
@@ -86,11 +106,16 @@ const AddGRN = () => {
             items: items.map((i: any) => {
               const matchedProd = prodRes.data?.find(p => p.product_name === i.product_name);
               return {
+                id: i.id,
                 itemName: i.product_name,
                 skuCode: matchedProd ? (matchedProd.item_sr_no || `SKU-${matchedProd.id}`) : '',
                 qty: i.qty,
                 uom: i.uom,
-                warehouseName: i.warehouse_name
+                warehouseName: i.warehouse_name,
+                accepted_qty: i.accepted_qty,
+                rejected_qty: i.rejected_qty,
+                hold_qty: i.hold_qty,
+                reject_reason: i.reject_reason
               };
             })
           });
@@ -205,12 +230,16 @@ const AddGRN = () => {
               }
 
               // 4. Insert New Items
-              const itemsToInsert = values.items.map(item => ({
+              const itemsToInsert = values.items.map((item: any) => ({
                 grn_id: grnIdToUse,
                 product_name: item.itemName,
                 warehouse_name: item.warehouseName,
                 qty: Number(item.qty),
-                uom: item.uom
+                uom: item.uom,
+                accepted_qty: item.accepted_qty ?? null,
+                rejected_qty: Number(item.rejected_qty || 0),
+                hold_qty: item.accepted_qty != null ? Number(item.hold_qty || 0) : Number(item.qty),
+                reject_reason: item.reject_reason || null
               }));
 
               const { error: itemsError } = await supabase.from('grn_items').insert(itemsToInsert);

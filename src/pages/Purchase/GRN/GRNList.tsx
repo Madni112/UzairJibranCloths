@@ -6,6 +6,8 @@ import Spinner from '../../../ui/Spinner';
 import { MdInventory, MdEvent, MdBusiness, MdDelete, MdEdit, MdSearch, MdVisibility } from 'react-icons/md';
 import { useModal } from '../../../Context/Modal';
 import VerifyInward from '../Inward Challan/VerifyInward';
+import ReceiveGrnModal from './ReceiveGrnModal';
+import { MdShoppingCart, MdAddCircle } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 const GRNList = () => {
@@ -86,10 +88,11 @@ const GRNList = () => {
                     <p className="text-sm text-gray-500 mt-1">Manage physical inventory receipts from vendors</p>
                 </div>
                 <button
-                    onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Purchase/GRN/Add`)}
-                    className="mt-4 sm:mt-0 px-4 py-2 bg-primary text-white font-bold rounded shadow hover:bg-opacity-90"
+                    onClick={() => showModal(<ReceiveGrnModal onClose={() => { hideModal(); fetchGRNs(); }} />, "Receive Goods (GRN)", undefined, "max-w-2xl")}
+                    className="mt-4 sm:mt-0 px-4 py-2 bg-emerald-600 text-white font-bold rounded shadow hover:bg-emerald-700 flex items-center gap-2 text-sm"
                 >
-                    + Log New GRN
+                    <MdAddCircle size={18} />
+                    + Receive GRN
                 </button>
             </div>
 
@@ -184,6 +187,15 @@ const GRNList = () => {
                                                 >
                                                     <MdVisibility size={16} />
                                                 </button>
+                                                {grn.status !== 'Billed' && (
+                                                    <button 
+                                                        onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Purchase/Purchases/Add`, { state: { importGrnId: grn.id } })}
+                                                        className="p-1.5 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 transition"
+                                                        title="Make Purchase Bill (Enter Prices)"
+                                                    >
+                                                        <MdShoppingCart size={16} />
+                                                    </button>
+                                                )}
                                                 <button 
                                                     onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Purchase/GRN/Edit/${grn.id}`)}
                                                     className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 transition"
