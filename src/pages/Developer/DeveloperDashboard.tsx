@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { createClient } from '@supabase/supabase-js';
 import Spinner from '../../ui/Spinner';
 import DarkModeSwitcher from '../../components/Header/DarkModeSwitcher';
+import { isThemeColorPickerEnabled, setThemeColorPickerEnabled } from '../../constant/themeConfig';
 import {
   MdDashboard,
   MdPeople,
@@ -351,6 +352,19 @@ const PermissionTreeEditor: React.FC<{
 };
 
 const DeveloperDashboard: React.FC = () => {
+  const [colorPickerEnabled, setColorPickerEnabled] = useState<boolean>(isThemeColorPickerEnabled());
+
+  const toggleThemeColorPicker = () => {
+    const next = !colorPickerEnabled;
+    setColorPickerEnabled(next);
+    setThemeColorPickerEnabled(next);
+    toast.success(
+      next
+        ? 'Theme Color Palette is now VISIBLE in Navbar Profile'
+        : 'Theme Color Palette is now HIDDEN from Navbar Profile'
+    );
+  };
+
   const navigate = useNavigate();
 
   // Developer Session State

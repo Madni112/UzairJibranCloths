@@ -177,3 +177,16 @@ export function getSavedAccentColor(): string {
   if (typeof window === 'undefined') return DEFAULT_THEME_COLOR;
   return localStorage.getItem('zoaib_ali_accent_color') || DEFAULT_THEME_COLOR;
 }
+
+export function isThemeColorPickerEnabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  const stored = localStorage.getItem('show_navbar_theme_color_picker');
+  return stored !== 'false';
+}
+
+export function setThemeColorPickerEnabled(enabled: boolean) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('show_navbar_theme_color_picker', enabled ? 'true' : 'false');
+    window.dispatchEvent(new Event('theme_color_picker_visibility_changed'));
+  }
+}

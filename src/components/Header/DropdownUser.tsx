@@ -10,6 +10,7 @@ import {
   PRESET_THEME_COLORS,
   applyAccentColor,
   getSavedAccentColor,
+  isThemeColorPickerEnabled,
 } from '../../constant/themeConfig';
 
 const DropdownUser = () => {
@@ -18,6 +19,17 @@ const DropdownUser = () => {
   const [profile, setProfile] = useState<any>();
   const [imageError, setImageError] = useState(false);
   const [accentColor, setAccentColor] = useState<string>(getSavedAccentColor());
+  const [pickerEnabled, setPickerEnabled] = useState<boolean>(isThemeColorPickerEnabled());
+
+  useEffect(() => {
+    const handler = () => setPickerEnabled(isThemeColorPickerEnabled());
+    window.addEventListener('theme_color_picker_visibility_changed', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('theme_color_picker_visibility_changed', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, []);
 
   useEffect(() => {
     const user = localStorage.getItem('user');
@@ -134,7 +146,7 @@ const DropdownUser = () => {
           </div>
 
           {/* ACCENT COLOR THEME PICKER (TOGGLEABLE) */}
-          {SHOW_THEME_COLOR_PICKER && (
+          {SHOW_THEME_COLOR_PICKER && pickerEnabled && (
             <div className="px-4 py-3 bg-white dark:bg-boxdark border-b border-stroke dark:border-strokedark">
               <div className="flex items-center justify-between mb-2.5">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
