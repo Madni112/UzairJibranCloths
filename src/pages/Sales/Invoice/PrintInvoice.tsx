@@ -404,8 +404,8 @@ const PrintInvoice = () => {
               Tiles, Sanitary Ware & Building Material Specialists
             </p>
             <div className="flex items-center gap-4 text-[11px] text-slate-600 mt-2 font-medium">
-              <span className="flex items-center gap-1"><FiMapPin size={12} className="text-emerald-600" /> Main Showroom & Warehouse, Pakistan</span>
-              <span className="flex items-center gap-1"><FiPhone size={12} className="text-emerald-600" /> 0312-8039911</span>
+              <span className="flex items-center gap-1"><FiMapPin size={12} className="text-emerald-600" /> Saddar Bazar, Hyderabad</span>
+              <span className="flex items-center gap-1"><FiPhone size={12} className="text-emerald-600" /> Tel: 2782644 45 46</span>
             </div>
           </div>
 
