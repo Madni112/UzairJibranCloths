@@ -263,6 +263,59 @@ const PrintInvoice = () => {
     ? new Date(invoice.sale_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : new Date(invoice.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+  // ── Gatepass Formatting Helper ──────────────────────────────────────────
+  const formatGatePass = (gpRaw?: string, itemsList?: any[], defaultWh?: string) => {
+    if (!gpRaw) return '';
+    const str = String(gpRaw).trim();
+    if (!str || str === '---' || str === 'N/A') return '';
+
+    const normalizeWh = (whName: string) => {
+      const clean = (whName || '').trim();
+      const upper = clean.replace(/[-_\s]/g, '').toUpperCase();
+      if (upper === 'SHOP') return 'Shop';
+      if (upper === 'A39') return 'A39';
+      if (upper.includes('FATEH')) return 'Fateh Chowk';
+      return clean;
+    };
+
+    if (str.includes(':')) {
+      return str
+        .split('|')
+        .map(part => {
+          const [wh, num] = part.split(':').map(s => s?.trim());
+          if (!num) return part.trim();
+          return `${normalizeWh(wh || '')}-${num}`;
+        })
+        .join(' | ');
+    }
+
+    if (str.includes('-')) return str;
+
+    const itemWh = (itemsList && itemsList[0]?.warehouse) || defaultWh || 'Shop';
+    return `${normalizeWh(itemWh)}-${str}`;
+  };
+
+  const gatePassFormatted = formatGatePass(invoice.gate_pass_no, items, invoice.dispatch_warehouse);
+
+  // ── Warehouse Bin Resolution ───────────────────────────────────────────
+  const formatWhDisplayName = (wh: string) => {
+    const upper = (wh || '').replace(/[-_\s]/g, '').toUpperCase();
+    if (upper === 'SHOP') return 'Shop';
+    if (upper === 'A39') return 'A-39';
+    if (upper.includes('FATEH')) return 'Fateh Chowk';
+    return wh;
+  };
+
+  const itemWarehouses = Array.from(
+    new Set(
+      items.map((i: any) => i.warehouse).filter(Boolean)
+    )
+  );
+  const rawWh = invoice.dispatch_warehouse?.trim();
+  const displayedWarehouse = (rawWh && rawWh !== 'Main Warehouse')
+    ? formatWhDisplayName(rawWh)
+    : (itemWarehouses.length > 0 ? itemWarehouses.map(w => formatWhDisplayName(w)).join(', ') : (rawWh || '---'));
+
   // ── Number to Words Helper ───────────────────────────────────────────────
   const numberToWords = (num: number): string => {
     if (num === 0) return 'Zero';
@@ -360,6 +413,11 @@ const PrintInvoice = () => {
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 min-w-[220px] text-right font-mono">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Commercial Voucher</div>
             <div className="text-xl font-black text-slate-950 tracking-tight">{invoiceNo}</div>
+            {gatePassFormatted && (
+              <div className="text-[11px] font-medium text-slate-500 font-mono tracking-tight mt-0.5">
+                {gatePassFormatted}
+              </div>
+            )}
             <div className="text-[11px] text-slate-600 font-sans mt-1">
               Date: <b className="text-slate-900 font-mono">{saleDateFormatted}</b>
             </div>
@@ -383,7 +441,7 @@ const PrintInvoice = () => {
               <div className="text-slate-600 text-[11px]">{customerInfo.company}</div>
             )}
             <div className="mt-1 text-slate-600 text-[11px]">
-              Phone / Contact: <b className="text-slate-800 font-mono">{customerInfo?.primaryPhone || 'Walk-in Customer'}</b>
+              Phone / Contact: <b className="text-slate-800 font-mono">{(!customerInfo?.primaryPhone || customerInfo.primaryPhone === 'N/A') ? '---' : customerInfo.primaryPhone}</b>
             </div>
             {customerInfo?.address && (
               <div className="text-slate-500 text-[11px]">Address: {customerInfo.address}</div>
@@ -398,7 +456,7 @@ const PrintInvoice = () => {
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div>
                 <span className="text-slate-500 block">Warehouse Bin:</span>
-                <b className="text-slate-900">{invoice.dispatch_warehouse || 'Main Warehouse'}</b>
+                <b className="text-slate-900">{displayedWarehouse}</b>
               </div>
               <div>
                 <span className="text-slate-500 block">Sales Officer:</span>
@@ -406,12 +464,18 @@ const PrintInvoice = () => {
               </div>
               <div>
                 <span className="text-slate-500 block">Transport Carrier:</span>
-                <b className="text-slate-900">{invoice.transport_name || 'Customer Transport'}</b>
+                <b className="text-slate-900">
+                  {(!invoice.transport_name || invoice.transport_name === 'No Transport (Handover)' || invoice.transport_name === 'Customer Transport' || invoice.transport_name === 'N/A')
+                    ? '---'
+                    : invoice.transport_name}
+                </b>
               </div>
-              <div>
-                <span className="text-slate-500 block">Delivery Challan:</span>
-                <b className="text-slate-900 font-mono">{invoice.dc_no || 'Direct Dispatch'}</b>
-              </div>
+              {invoice.dc_no && invoice.dc_no !== 'Direct Dispatch' && invoice.dc_no !== 'N/A' && (
+                <div>
+                  <span className="text-slate-500 block">Delivery Challan:</span>
+                  <b className="text-slate-900 font-mono">{invoice.dc_no}</b>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -542,16 +606,6 @@ const PrintInvoice = () => {
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-200 text-[10px] text-slate-500 space-y-1">
-              <div>
-                • Payment Received Via:{' '}
-                <b>
-                  {cashPaid > 0 && bankPaid > 0
-                    ? `Split Payment (Cash: Rs. ${cashPaid.toLocaleString()} + Bank: Rs. ${bankPaid.toLocaleString()}${invoice.selected_bank ? ` via ${invoice.selected_bank}` : ''})`
-                    : invoice.selected_bank || bankPaid > 0
-                    ? `Bank Online (${invoice.selected_bank || 'Direct Wire'})`
-                    : 'Counter Cash'}
-                </b>
-              </div>
               <div>• Status: <b>{invoice.receipt_status || (remainingDebt <= 0 ? 'Full Paid' : 'Credit Balance')}</b></div>
             </div>
           </div>

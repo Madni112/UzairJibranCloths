@@ -22,17 +22,31 @@ const GRNList = () => {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const handleDelete = async (id: string, status: string, items: any[]) => {
-        if (!window.confirm('Are you sure you want to delete this GRN? This action cannot be undone.')) return;
+        if (status === 'Billed') {
+            toast.error('Cannot delete this GRN! It has already been converted into a Purchase Bill.');
+            return;
+        }
+
+        const anyReceived = (items || []).some(
+            (i: any) => Number(i.accepted_qty || 0) > 0 || Number(i.rejected_qty || 0) > 0
+        );
+
+        if (anyReceived) {
+            toast.error('Cannot delete this GRN! Items have already been received/inspected into stock. Please raise a Purchase Return instead to adjust inventory.');
+            return;
+        }
+
+        if (!window.confirm('Are you sure you want to delete this pending GRN? No items have been received yet, so it will be safely removed.')) return;
         
         try {
             setDeletingId(id);
             
-            // warehouse_inventory retired — formula-based stock is source of truth
-
+            // Delete child items first for clean cascade
+            await supabase.from('grn_items').delete().eq('grn_id', id);
             const { error } = await supabase.from('grn_receipts').delete().eq('id', id);
             if (error) throw error;
             
-            toast.success('GRN deleted successfully and inventory reverted.');
+            toast.success('Pending GRN deleted successfully.');
             setGrns(prev => prev.filter(g => g.id !== id));
         } catch (err: any) {
             toast.error('Failed to delete GRN: ' + err.message);
@@ -203,14 +217,33 @@ const GRNList = () => {
                                                 >
                                                     <MdEdit size={16} />
                                                 </button>
-                                                <button 
-                                                    onClick={() => handleDelete(grn.id, grn.status, grn.grn_items)}
-                                                    disabled={deletingId === grn.id}
-                                                    className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 transition disabled:opacity-50"
-                                                    title="Delete"
-                                                >
-                                                    <MdDelete size={16} />
-                                                </button>
+                                                {(() => {
+                                                    const isBilled = grn.status === 'Billed';
+                                                    const hasReceived = (grn.grn_items || []).some(
+                                                        (i: any) => Number(i.accepted_qty || 0) > 0 || Number(i.rejected_qty || 0) > 0
+                                                    );
+                                                    const isLocked = isBilled || hasReceived;
+                                                    return (
+                                                        <button 
+                                                            onClick={() => handleDelete(grn.id, grn.status, grn.grn_items)}
+                                                            disabled={deletingId === grn.id}
+                                                            className={`p-1.5 rounded transition ${
+                                                                isLocked
+                                                                    ? 'bg-slate-100 text-slate-400 dark:bg-meta-4/20 dark:text-slate-500 hover:bg-slate-200 cursor-not-allowed'
+                                                                    : 'bg-red-50 text-red-600 rounded hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 cursor-pointer'
+                                                            } disabled:opacity-50`}
+                                                            title={
+                                                                isBilled 
+                                                                    ? "Locked: GRN is already Billed" 
+                                                                    : hasReceived 
+                                                                        ? "Locked: Items already received into stock (Cannot Delete)" 
+                                                                        : "Delete Pending GRN"
+                                                            }
+                                                        >
+                                                            <MdDelete size={16} />
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
                                     </tr>
