@@ -5,9 +5,11 @@ import { useEffect } from 'react';
 import { initializeSocket } from './service/socket';
 import { AuthProvider } from './Context/Auth';
 import Alert from './pages/Alert';
+import { applyAccentColor, getSavedAccentColor } from './constant/themeConfig';
 
 function App() {
   useEffect(() => {
+    applyAccentColor(getSavedAccentColor());
     initializeSocket();
   }, []);
   return (
