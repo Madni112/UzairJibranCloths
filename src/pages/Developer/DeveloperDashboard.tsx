@@ -1350,6 +1350,22 @@ const DeveloperDashboard: React.FC = () => {
             </button>
           </div>
 
+          
+          {/* Theme Color Picker Toggle */}
+          <button
+            type="button"
+            onClick={toggleThemeColorPicker}
+            title={colorPickerEnabled ? 'Theme Color Palette is Visible in Navbar' : 'Theme Color Palette is Hidden from Navbar'}
+            className={`py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+              colorPickerEnabled
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 opacity-75'
+            }`}
+          >
+            <MdPalette size={16} />
+            <span>Theme Colors: {colorPickerEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
           <ul className="flex items-center gap-2 list-none m-0">
             <DarkModeSwitcher />
           </ul>
