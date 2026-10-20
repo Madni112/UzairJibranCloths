@@ -5,7 +5,6 @@ import { toast } from 'react-hot-toast';
 import { createClient } from '@supabase/supabase-js';
 import Spinner from '../../ui/Spinner';
 import DarkModeSwitcher from '../../components/Header/DarkModeSwitcher';
-import { isThemeColorPickerEnabled, setThemeColorPickerEnabled } from '../../constant/themeConfig';
 import {
   MdDashboard,
   MdPeople,
@@ -45,8 +44,19 @@ import {
   MdLink,
   MdGroup,
   MdSwapHoriz,
+  MdDelete,
+  MdAdd,
+  MdTune,
 } from 'react-icons/md';
 import { ROLE_PRESETS, RolePreset, getModulesForRole } from '../../constant/roles';
+import {
+  getModulePermissions,
+  setModulePermissions,
+  isReadOnlyModule,
+  cleanBaseModuleId,
+  PermissionAction,
+  PermissionLevel,
+} from '../../utils/permissionUtils';
 
 export interface PermissionSubNode {
   id: string;
@@ -62,90 +72,139 @@ export interface PermissionNode {
 export const PERMISSION_TREE: PermissionNode[] = [
   {
     id: 'dashboards',
-    label: 'Dashboards',
+    label: 'Home & Core Dashboards',
     children: [
-      { id: 'dashboard', label: 'Main / Executive Dashboard' },
+      { id: '/', label: 'Home (Operations & Quick Launchpad)' },
+      { id: '/dashboard', label: 'Executive BI & Deep Analytics' },
       { id: '/Dashboard/Salesman', label: 'Salesman Dashboard' },
       { id: '/Dashboard/Warehouse', label: 'Warehouse (Location) Dashboard' },
     ],
   },
   {
-    id: 'administration',
-    label: 'Administration',
+    id: 'crm',
+    label: 'CRM & Customer Inquiries',
     children: [
-      { id: '/Administration/Categories/List', label: 'Categories' },
-      { id: '/Administration/Surface-Finish', label: 'Brand / Surface Finish' },
-      { id: '/Administration/UOM/List', label: 'UOM (Units of Measure)' },
-      { id: '/Administration/Products/List', label: 'Products' },
-      { id: '/Administration/Products/Bulk-Upload', label: 'Bulk Product Upload' },
-      { id: '/Administration/Locations/List', label: 'Locations' },
-      { id: '/Administration/Transportation/List', label: 'Transportation' },
-      { id: '/Administration/StockTransfer/List', label: 'Stock Transfer' },
-      { id: '/company', label: 'Company Profile' },
-    ],
-  },
-  {
-    id: 'registration',
-    label: 'Registration',
-    children: [
-      { id: '/Registration/Chart-of-Account/List', label: 'Chart of Account' },
-      { id: '/Registration/Vouchers/List', label: 'Financial Vouchers' },
-      { id: '/Registration/Bank-Account/BankAccountList', label: 'Bank Accounts' },
-      { id: '/Inventory/OpeningStock/List', label: 'Opening Stock' },
+      { id: '/crm/leads', label: 'Leads & Demand Capture' },
+      { id: '/crm/quotations', label: 'Quotations' },
+      { id: '/Sales/Customers/List', label: 'Customers Directory' },
+      { id: '/Sales/Salesman/List', label: 'Salesmen Ledger' },
+      { id: '/crm/due-list', label: 'Customer Due List' },
+      { id: '/crm/follow-ups', label: 'Follow-ups' },
+      { id: '/crm/recovery-history', label: 'Recovery History' },
     ],
   },
   {
     id: 'sales',
-    label: 'Sales',
+    label: 'Sales Operations',
     children: [
-      { id: '/Sales/Invoice/List', label: 'Sales Invoice' },
-      { id: '/Sales/InvoiceReceipt/List', label: 'Invoice Receipts' },
+      { id: '/Sales/Invoice/List', label: 'Sales Invoices' },
+      { id: '/sales/orders', label: 'Sales Orders' },
+      { id: '/sales/price-lists', label: 'Customer Price Lists' },
+      { id: '/Sales/Delivery-Challan/List', label: 'Delivery Challan (A-39 WDQ)' },
+      { id: '/Sales/Shop-Dispatch/List', label: 'Shop Dispatch Queue (SDQ)' },
       { id: '/Sales/Sales-Return/List', label: 'Sales Returns' },
       { id: '/Sales-Return/Debit-Notes/List', label: 'Debit Notes' },
       { id: '/Sales/Sales-Return-Receipt/List', label: 'Sales Return Receipts' },
-      { id: '/Sales/Customers/List', label: 'Customers Directory' },
-      { id: '/Sales/Salesman/List', label: 'Salesmen Ledger' },
-      { id: '/Sales/Delivery-Challan/List', label: 'Delivery Challan (A-39 WDQ)' },
-      { id: '/Sales/Shop-Dispatch/List', label: 'Shop Dispatch Queue (SHOP SDQ)' },
+      { id: '/Registration/InvoiceReceipt/List', label: 'Invoice Receipts' },
     ],
   },
   {
     id: 'purchase',
-    label: 'Purchase',
+    label: 'Purchase & Vendor Procurement',
     children: [
-      { id: '/Purchase/Purchases/List', label: 'Purchases (PO & Invoices)' },
-      { id: '/Purchase/Inward-Challan/List', label: 'Inward Challan (A-39 Warehouse)' },
-      { id: '/Purchase/Shop-Receiving', label: 'Shop Receiving Queue (SHOP)' },
-      { id: '/Purchase/Purchase-Receipt/List', label: 'Purchase Receipts' },
+      { id: '/Purchase/Purchases/List', label: 'Supplier Purchases (PO & Invoices)' },
+      { id: '/purchase/orders', label: 'Purchase Orders' },
+      { id: '/purchase/quotations', label: 'Supplier Quotations' },
+      { id: '/Purchase/GRN/List', label: 'Goods Receiving Note (GRN)' },
+      { id: '/Purchase/Inward-Challan/List', label: 'A-39 Inward Challans (Receiving)' },
+      { id: '/Purchase/Shop-Receiving', label: 'Shop Incoming Stock Receiving' },
       { id: '/Purchase/Purchase-Return/List', label: 'Purchase Returns' },
       { id: '/Purchase/Purchase-Return-Receipt/List', label: 'Purchase Return Receipts' },
-      { id: '/Purchase/Vendor/List', label: 'Vendors Directory' },
+      { id: '/Purchase/Purchase-Receipt/List', label: 'Vendor Payment Receipts' },
+      { id: '/purchase/vendor-ledger', label: 'Vendor Ledger' },
+      { id: '/Purchase/Vendor/List', label: 'Suppliers / Vendors Directory' },
     ],
   },
   {
-    id: 'warehouse',
-    label: 'Warehouse & Logistics (A-39 & SHOP)',
+    id: 'pos',
+    label: 'POS (Point of Sale)',
     children: [
-      { id: '/Sales/Delivery-Challan/List', label: 'A-39 Outward Delivery Challan (WDQ)' },
-      { id: '/Sales/Shop-Dispatch/List', label: 'Shop Counter Dispatch Queue (SDQ)' },
-      { id: '/Purchase/Inward-Challan/List', label: 'A-39 Supplier Inward Challan (Receiving)' },
-      { id: '/Purchase/Shop-Receiving', label: 'Shop Incoming Stock Receiving' },
+      { id: '/pos/terminal', label: 'POS Terminal' },
+      { id: '/pos/register', label: 'POS Shift Register' },
+      { id: '/pos/hold-orders', label: 'Hold Orders Queue' },
+      { id: '/pos/barcode-generator', label: 'Barcode Generator' },
+    ],
+  },
+  {
+    id: 'inventory',
+    label: 'Inventory, Stock & Warehouses',
+    children: [
+      { id: '/inventory/warehouse-terminal', label: 'Warehouse Terminal' },
+      { id: '/Administration/Products/List', label: 'Item Master / Products' },
+      { id: '/Administration/Products/Bulk-Upload', label: 'Bulk Product Upload' },
+      { id: '/Administration/StockTransfer/List', label: 'Inter-Warehouse Stock Transfers' },
+      { id: '/inventory/stock-adjustments', label: 'Stock Adjustments' },
+      { id: '/inventory/stock-audits', label: 'Stock Audits & Reconciliation' },
+      { id: '/inventory/adjustment-types', label: 'Adjustment Reason Codes' },
+      { id: '/inventory/stock-ledger', label: 'Stock Movement Ledger' },
+      { id: '/inventory/scheduled-valuations', label: 'Scheduled Valuations' },
       { id: '/Warehouse/Return-Challan', label: 'A-39 Customer Return Challans' },
       { id: '/Warehouse/Shop-Return', label: 'Shop Return Receiving Queue' },
-      { id: '/Administration/StockTransfer/List', label: 'Inter-Warehouse Stock Transfers' },
+      { id: '/Inventory/OpeningStock/List', label: 'Opening Stock Balance' },
+    ],
+  },
+  {
+    id: 'accounts',
+    label: 'Accounts & Finance',
+    children: [
+      { id: '/Registration/Chart-of-Account/List', label: 'Chart of Accounts' },
+      { id: '/Registration/Vouchers/List', label: 'Financial Vouchers' },
+      { id: '/registration/journal-vouchers', label: 'Journal Vouchers (JV)' },
+      { id: '/Registration/Bank-Account/BankAccountList', label: 'Bank Accounts' },
+      { id: '/registration/bank-reconciliation', label: 'Bank Reconciliation (BRS)' },
+      { id: '/registration/trial-balance', label: 'Trial Balance' },
+      { id: '/Registration/Multi-Invoice-Receipt/Add', label: 'Multi-Invoice Receipt' },
+    ],
+  },
+  {
+    id: 'administration',
+    label: 'Classification & Settings',
+    children: [
+      { id: '/Administration/Categories/List', label: 'Categories' },
+      { id: '/administration/subcategories', label: 'Sub-Categories' },
+      { id: '/Administration/Surface-Finish', label: 'Brand' },
+      { id: '/administration/tile-dimensions', label: 'Tile Dimensions Matrix' },
+      { id: '/Administration/UOM/List', label: 'Units of Measure (UOM)' },
+      { id: '/Administration/Locations/List', label: 'Locations / Warehouses' },
+      { id: '/Administration/Transportation/List', label: 'Transportation & Couriers' },
+      { id: '/administration/drivers', label: 'Drivers & Fleet Directory' },
+      { id: '/company', label: 'Company Profile' },
     ],
   },
   {
     id: 'reports',
-    label: 'Reports',
+    label: 'Reports & Analytics',
     children: [
       { id: '/Reports/Reports-Dashboard', label: 'Reports Dashboard' },
       { id: '/Reports/Sales-Report', label: 'Sales Reports' },
       { id: '/Reports/Purchase-Report', label: 'Purchase Reports' },
       { id: '/Reports/Stock-Report', label: 'Stock Reports' },
       { id: '/Reports/Holding-Report', label: 'Holding Reports' },
-      { id: '/Reports/Account-Report', label: 'Account Reports' },
-      { id: '/Reports/Balance-Sheet', label: 'Balance Sheet' },
+      { id: '/Reports/Account-Report', label: 'Account Ledger Reports' },
+      { id: '/Reports/Balance-Sheet', label: 'Balance Sheet & P&L' },
+    ],
+  },
+  {
+    id: 'hr',
+    label: 'Human Resources (HR)',
+    children: [
+      { id: '/Human-Resources/Employees', label: 'Employees Directory' },
+      { id: '/Human-Resources/Attendance', label: 'Daily Attendance Sheet' },
+      { id: '/Human-Resources/Salary-Sheet', label: 'Monthly Salary Sheet' },
+      { id: '/Human-Resources/Salary-Structure', label: 'Salary Structure' },
+      { id: '/Human-Resources/Pay-Heads', label: 'Pay Heads' },
+      { id: '/Human-Resources/Leaves', label: 'Leave Policy & Approvals' },
+      { id: '/Human-Resources/Loans', label: 'Employee Loans & Advances' },
     ],
   },
 ];
@@ -178,7 +237,9 @@ const BACKUP_DEV_EMAIL = 'developer@noorhorizontechnologies.com';
 const BACKUP_DEV_PASSWORD = 'NoorHorizon@5923';
 
 /**
- * Hierarchical Permission Tree Selector Component with Group Expand/Collapse & Toggle All
+ * Hierarchical Granular Permission Tree Selector Component
+ * Supports: Untick (None), View Only, Full Access (Tick), and Custom (View, Add, Edit, Delete).
+ * Read-only pages (Dashboards, Reports, Ledgers) stay as simple Enabled / Disabled toggles.
  */
 const PermissionTreeEditor: React.FC<{
   selectedIds: string[];
@@ -186,12 +247,15 @@ const PermissionTreeEditor: React.FC<{
 }> = ({ selectedIds, onChange }) => {
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
     dashboards: true,
-    administration: true,
-    registration: true,
+    crm: true,
     sales: true,
     purchase: true,
-    warehouse: true,
+    pos: true,
+    inventory: true,
+    accounts: true,
+    administration: true,
     reports: true,
+    hr: true,
   });
 
   const toggleExpand = (nodeId: string) => {
@@ -199,51 +263,87 @@ const PermissionTreeEditor: React.FC<{
   };
 
   const handleToggleParent = (node: PermissionNode) => {
-    if (!node.children) {
-      const isSelected = selectedIds.includes(node.id);
-      onChange(isSelected ? selectedIds.filter(id => id !== node.id) : [...selectedIds, node.id]);
+    if (!node.children || node.children.length === 0) {
+      const isSelected = selectedIds.some(id => cleanBaseModuleId(id) === node.id);
+      onChange(isSelected ? selectedIds.filter(id => cleanBaseModuleId(id) !== node.id) : [...selectedIds, node.id]);
       return;
     }
 
     const childIds = node.children.map(c => c.id);
-    const allSelected = childIds.every(id => selectedIds.includes(id));
+    const allFull = childIds.every(id => getModulePermissions(selectedIds, id).level === 'full');
 
-    if (allSelected) {
-      onChange(selectedIds.filter(id => id !== node.id && !childIds.includes(id)));
+    if (allFull) {
+      // Remove all tokens for these children and the parent category
+      const cleaned = selectedIds.filter(id => {
+        const base = cleanBaseModuleId(id);
+        return !childIds.includes(base) && base !== node.id;
+      });
+      onChange(cleaned);
     } else {
-      const newIds = Array.from(new Set([...selectedIds, node.id, ...childIds]));
-      onChange(newIds);
+      // Grant full access to all children and the parent
+      const cleaned = selectedIds.filter(id => {
+        const base = cleanBaseModuleId(id);
+        return !childIds.includes(base) && base !== node.id;
+      });
+      onChange(Array.from(new Set([...cleaned, node.id, ...childIds])));
     }
   };
 
-  const handleToggleChild = (childId: string, parentNode: PermissionNode) => {
-    const isSelected = selectedIds.includes(childId);
-    let nextIds = isSelected
-      ? selectedIds.filter(id => id !== childId)
-      : [...selectedIds, childId];
+  const handleLevelChange = (moduleId: string, parentNode: PermissionNode, level: PermissionLevel) => {
+    let nextIds = setModulePermissions(selectedIds, moduleId, level, {
+      view: true,
+      add: false,
+      edit: false,
+      delete: false,
+    });
 
     if (parentNode.children) {
-      const anyChildActive = parentNode.children.some(c => nextIds.includes(c.id));
-      if (anyChildActive) {
-        if (!nextIds.includes(parentNode.id)) {
-          nextIds.push(parentNode.id);
-        }
-      } else {
-        nextIds = nextIds.filter(id => id !== parentNode.id);
+      const anyActive = parentNode.children.some(c => {
+        const baseClean = c.id.toLowerCase();
+        return nextIds.some(id => cleanBaseModuleId(id).toLowerCase() === baseClean);
+      });
+      const parentIncluded = nextIds.some(id => cleanBaseModuleId(id).toLowerCase() === parentNode.id.toLowerCase());
+      if (anyActive && !parentIncluded) {
+        nextIds = [...nextIds, parentNode.id];
+      } else if (!anyActive && parentIncluded) {
+        nextIds = nextIds.filter(id => cleanBaseModuleId(id).toLowerCase() !== parentNode.id.toLowerCase());
       }
     }
 
     onChange(nextIds);
   };
 
+  const handleCustomActionToggle = (
+    moduleId: string,
+    action: PermissionAction,
+    currentPerm: ReturnType<typeof getModulePermissions>
+  ) => {
+    const nextActions = {
+      view: currentPerm.canView,
+      add: currentPerm.canAdd,
+      edit: currentPerm.canEdit,
+      delete: currentPerm.canDelete,
+      [action]: !currentPerm[action === 'view' ? 'canView' : action === 'add' ? 'canAdd' : action === 'edit' ? 'canEdit' : 'canDelete'],
+    };
+
+    // If unchecking view while other actions are checked, keep view enabled
+    if (!nextActions.view && (nextActions.add || nextActions.edit || nextActions.delete)) {
+      nextActions.view = true;
+    }
+
+    const nextIds = setModulePermissions(selectedIds, moduleId, 'custom', nextActions);
+    onChange(nextIds);
+  };
+
   return (
-    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+    <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
       {PERMISSION_TREE.map(node => {
         const hasChildren = Boolean(node.children && node.children.length > 0);
         const isExpanded = expandedNodes[node.id];
 
         if (!hasChildren) {
-          const isChecked = selectedIds.includes(node.id);
+          const perm = getModulePermissions(selectedIds, node.id);
+          const isChecked = perm.hasAccess;
           return (
             <div
               key={node.id}
@@ -269,10 +369,10 @@ const PermissionTreeEditor: React.FC<{
         }
 
         const childIds = node.children!.map(c => c.id);
-        const selectedChildrenCount = childIds.filter(id => selectedIds.includes(id)).length;
+        const activeChildrenCount = childIds.filter(id => getModulePermissions(selectedIds, id).hasAccess).length;
         const totalChildren = childIds.length;
-        const allSelected = selectedChildrenCount === totalChildren && totalChildren > 0;
-        const partiallySelected = selectedChildrenCount > 0 && selectedChildrenCount < totalChildren;
+        const allFull = childIds.every(id => getModulePermissions(selectedIds, id).level === 'full');
+        const partiallyActive = activeChildrenCount > 0 && !allFull;
 
         return (
           <div
@@ -293,7 +393,7 @@ const PermissionTreeEditor: React.FC<{
                 )}
                 <span>{node.label}</span>
                 <span className="text-[10px] bg-gray-200 dark:bg-meta-4 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-mono">
-                  {selectedChildrenCount} / {totalChildren} active
+                  {activeChildrenCount} / {totalChildren} active
                 </span>
               </button>
 
@@ -301,43 +401,240 @@ const PermissionTreeEditor: React.FC<{
                 type="button"
                 onClick={() => handleToggleParent(node)}
                 className={`text-[11px] px-2.5 py-1 rounded font-semibold transition cursor-pointer flex items-center gap-1 ${
-                  allSelected
+                  allFull
                     ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                    : partiallySelected
+                    : partiallyActive
                     ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
                     : 'bg-white dark:bg-boxdark text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white border border-stroke dark:border-strokedark'
                 }`}
               >
-                {allSelected ? (
+                {allFull ? (
                   <>
-                    <MdCheckCircle className="text-xs text-emerald-600" /> All Selected
+                    <MdCheckCircle className="text-xs text-emerald-600" /> All Full Access
                   </>
                 ) : (
-                  'Toggle All'
+                  'Toggle All (Full)'
                 )}
               </button>
             </div>
 
             {/* EXPANDED SUB-PAGES / CATEGORIES */}
             {isExpanded && (
-              <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-50/50 dark:bg-meta-4/10">
+              <div className="p-3 space-y-2.5 bg-gray-50/50 dark:bg-meta-4/10">
                 {node.children!.map(child => {
-                  const isChildChecked = selectedIds.includes(child.id);
+                  const isReadOnly = isReadOnlyModule(child.id);
+                  const perm = getModulePermissions(selectedIds, child.id);
+
+                  if (isReadOnly) {
+                    // Simple Enabled / Disabled Toggle for Read-Only items (Dashboards, Reports, Ledgers)
+                    return (
+                      <div
+                        key={child.id}
+                        className={`p-2.5 rounded-xl border transition flex items-center justify-between gap-3 ${
+                          perm.hasAccess
+                            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800/60'
+                            : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${perm.hasAccess ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                          <span className="text-xs font-semibold text-black dark:text-white truncate">
+                            {child.label}
+                          </span>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
+                            Read-Only
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleLevelChange(child.id, node, perm.hasAccess ? 'none' : 'full')}
+                          className={`text-xs px-3 py-1 rounded-lg font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                            perm.hasAccess
+                              ? 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
+                              : 'bg-gray-100 dark:bg-meta-4 text-gray-500 hover:text-black dark:hover:text-white border border-stroke dark:border-strokedark'
+                          }`}
+                        >
+                          {perm.hasAccess ? (
+                            <>
+                              <MdCheckCircle className="text-sm" /> Enabled
+                            </>
+                          ) : (
+                            'Disabled'
+                          )}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // CRUD Module with 4-way granular selector: Unticked | View Only | Full Access | Custom
                   return (
                     <div
                       key={child.id}
-                      onClick={() => handleToggleChild(child.id, node)}
-                      className={`p-2.5 rounded-lg border text-xs font-medium flex items-center justify-between transition cursor-pointer ${
-                        isChildChecked
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-400 text-emerald-700 dark:text-emerald-300 font-semibold'
-                          : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark text-gray-700 dark:text-gray-300 hover:border-emerald-500'
+                      className={`p-2.5 rounded-xl border transition space-y-2 ${
+                        perm.level === 'full'
+                          ? 'bg-emerald-50/40 dark:bg-emerald-950/15 border-emerald-300/80 dark:border-emerald-800/60'
+                          : perm.level === 'view'
+                          ? 'bg-sky-50/40 dark:bg-sky-950/15 border-sky-300/80 dark:border-sky-800/60'
+                          : perm.level === 'custom'
+                          ? 'bg-amber-50/40 dark:bg-amber-950/15 border-amber-300/80 dark:border-amber-800/60'
+                          : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark'
                       }`}
                     >
-                      <span className="truncate">{child.label}</span>
-                      {isChildChecked ? (
-                        <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-sm shrink-0 ml-2" />
-                      ) : (
-                        <div className="w-3.5 h-3.5 rounded-full border border-stroke dark:border-strokedark shrink-0 ml-2" />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        {/* Title & Status */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              perm.level === 'full'
+                                ? 'bg-emerald-500'
+                                : perm.level === 'view'
+                                ? 'bg-sky-500'
+                                : perm.level === 'custom'
+                                ? 'bg-amber-500'
+                                : 'bg-gray-300 dark:bg-gray-600'
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-black dark:text-white truncate">
+                            {child.label}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                              perm.level === 'full'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
+                                : perm.level === 'view'
+                                ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300'
+                                : perm.level === 'custom'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                                : 'bg-gray-100 text-gray-500 dark:bg-meta-4 dark:text-gray-400'
+                            }`}
+                          >
+                            {perm.level === 'full'
+                              ? 'Full Access'
+                              : perm.level === 'view'
+                              ? 'Only View'
+                              : perm.level === 'custom'
+                              ? 'Custom'
+                              : 'Unticked'}
+                          </span>
+                        </div>
+
+                        {/* 4-Way Segmented Control */}
+                        <div className="inline-flex items-center p-0.5 bg-gray-100 dark:bg-meta-4 rounded-lg border border-stroke dark:border-strokedark shrink-0 self-start sm:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => handleLevelChange(child.id, node, 'none')}
+                            className={`px-2 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                              perm.level === 'none'
+                                ? 'bg-white dark:bg-boxdark text-gray-800 dark:text-gray-200 shadow-xs'
+                                : 'text-gray-500 hover:text-black dark:hover:text-white'
+                            }`}
+                            title="No access to this module"
+                          >
+                            Unticked
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleLevelChange(child.id, node, 'view')}
+                            className={`px-2 py-1 text-[11px] font-bold rounded-md transition cursor-pointer flex items-center gap-1 ${
+                              perm.level === 'view'
+                                ? 'bg-sky-600 text-white shadow-xs'
+                                : 'text-gray-500 hover:text-sky-600 dark:hover:text-sky-400'
+                            }`}
+                            title="Can view list, but add/edit/delete disabled"
+                          >
+                            <MdVisibility className="text-xs" /> Only View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleLevelChange(child.id, node, 'full')}
+                            className={`px-2 py-1 text-[11px] font-bold rounded-md transition cursor-pointer flex items-center gap-1 ${
+                              perm.level === 'full'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400'
+                            }`}
+                            title="Full access (View, Add, Edit, Delete)"
+                          >
+                            <MdCheckCircle className="text-xs" /> Full
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleLevelChange(child.id, node, 'custom')}
+                            className={`px-2 py-1 text-[11px] font-bold rounded-md transition cursor-pointer flex items-center gap-1 ${
+                              perm.level === 'custom'
+                                ? 'bg-amber-600 text-white shadow-xs'
+                                : 'text-gray-500 hover:text-amber-600 dark:hover:text-amber-400'
+                            }`}
+                            title="Pick exact actions (Only add, only edit, etc.)"
+                          >
+                            <MdTune className="text-xs" /> Custom
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Custom Sub-Bar: Visible only when Custom is chosen */}
+                      {perm.level === 'custom' && (
+                        <div className="pt-2 border-t border-dashed border-amber-200 dark:border-amber-900/50 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mr-1">
+                            Actions:
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCustomActionToggle(child.id, 'view', perm)}
+                            className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 transition cursor-pointer border ${
+                              perm.canView
+                                ? 'bg-sky-500 text-white border-sky-600 shadow-2xs'
+                                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark text-gray-400 hover:border-sky-400'
+                            }`}
+                          >
+                            <MdVisibility className="text-xs" />
+                            <span>View</span>
+                            {perm.canView && <MdCheck className="text-xs" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCustomActionToggle(child.id, 'add', perm)}
+                            className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 transition cursor-pointer border ${
+                              perm.canAdd
+                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark text-gray-400 hover:border-emerald-400'
+                            }`}
+                          >
+                            <MdAdd className="text-xs" />
+                            <span>Add / Create</span>
+                            {perm.canAdd && <MdCheck className="text-xs" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCustomActionToggle(child.id, 'edit', perm)}
+                            className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 transition cursor-pointer border ${
+                              perm.canEdit
+                                ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark text-gray-400 hover:border-amber-400'
+                            }`}
+                          >
+                            <MdEdit className="text-xs" />
+                            <span>Edit / Update</span>
+                            {perm.canEdit && <MdCheck className="text-xs" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCustomActionToggle(child.id, 'delete', perm)}
+                            className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 transition cursor-pointer border ${
+                              perm.canDelete
+                                ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
+                                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark text-gray-400 hover:border-rose-400'
+                            }`}
+                          >
+                            <MdDelete className="text-xs" />
+                            <span>Delete</span>
+                            {perm.canDelete && <MdCheck className="text-xs" />}
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -352,19 +649,6 @@ const PermissionTreeEditor: React.FC<{
 };
 
 const DeveloperDashboard: React.FC = () => {
-  const [colorPickerEnabled, setColorPickerEnabled] = useState<boolean>(isThemeColorPickerEnabled());
-
-  const toggleThemeColorPicker = () => {
-    const next = !colorPickerEnabled;
-    setColorPickerEnabled(next);
-    setThemeColorPickerEnabled(next);
-    toast.success(
-      next
-        ? 'Theme Color Palette is now VISIBLE in Navbar Profile'
-        : 'Theme Color Palette is now HIDDEN from Navbar Profile'
-    );
-  };
-
   const navigate = useNavigate();
 
   // Developer Session State
@@ -387,6 +671,92 @@ const DeveloperDashboard: React.FC = () => {
   const [selectedPartnerNames, setSelectedPartnerNames] = useState<string[]>([]);
   const [syncBidirectional, setSyncBidirectional] = useState(true);
   const [savingLinks, setSavingLinks] = useState(false);
+
+  // Salesman Login Assign Modal State
+  const [salesmanToAssignLogin, setSalesmanToAssignLogin] = useState<any | null>(null);
+  const [assignLoginEmail, setAssignLoginEmail] = useState('');
+  const [assignLoginPassword, setAssignLoginPassword] = useState('');
+  const [assignLoginRole, setAssignLoginRole] = useState('Salesman');
+  const [isAssigningLogin, setIsAssigningLogin] = useState(false);
+
+  const handleOpenAssignLoginModal = (salesman: any) => {
+    setSalesmanToAssignLogin(salesman);
+    const cleanPrefix = (salesman.name || 'salesman').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const suggestedEmail = salesman.email || `${cleanPrefix}@nhtenterprise.com`;
+    setAssignLoginEmail(suggestedEmail);
+    setAssignLoginPassword('');
+    setAssignLoginRole('Salesman');
+  };
+
+  const handleSaveSalesmanLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!salesmanToAssignLogin || !assignLoginEmail || !assignLoginPassword) {
+      toast.error('Please enter email and password');
+      return;
+    }
+
+    try {
+      setIsAssigningLogin(true);
+      const cleanSlug = salesmanToAssignLogin.name.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '-');
+      const roleModules = ROLE_PRESETS[assignLoginRole]?.modules || ROLE_PRESETS['Salesman'].modules;
+
+      const secondaryAuthClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || 'https://zzjxukhrhvmuxxznjbos.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1rECaTLSxzwonvR12iOOKQ_XEI8wqCb',
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+
+      const { data: authData, error: authError } = await secondaryAuthClient.auth.signUp({
+        email: assignLoginEmail.trim(),
+        password: assignLoginPassword,
+        options: {
+          data: {
+            name: salesmanToAssignLogin.name.trim(),
+            full_name: salesmanToAssignLogin.name.trim(),
+            role: assignLoginRole,
+            tenant_id: cleanSlug,
+            business_name: 'NHT ENTERPRISE',
+            allowed_modules: roleModules,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      // Upsert into tenants table
+      await supabase.from('tenants').upsert([
+        {
+          name: salesmanToAssignLogin.name.trim(),
+          slug: cleanSlug,
+          email: assignLoginEmail.trim(),
+          business_activity: assignLoginRole,
+          seller_address: 'NHT ENTERPRISE Headquarters',
+          allowed_modules: roleModules,
+        },
+      ], { onConflict: 'slug' });
+
+      // Link user_id and email in salesmen table
+      const userId = authData?.user?.id;
+      const { error: smErr } = await supabase
+        .from('salesmen')
+        .update({
+          user_id: userId,
+          email: assignLoginEmail.trim()
+        })
+        .eq('id', salesmanToAssignLogin.id);
+
+      if (smErr) throw smErr;
+
+      toast.success(`Login credentials created & linked for "${salesmanToAssignLogin.name}"!`);
+      setSalesmanToAssignLogin(null);
+      await fetchSalesmenData();
+      await fetchDevData();
+    } catch (err: any) {
+      toast.error('Failed to create login: ' + err.message);
+    } finally {
+      setIsAssigningLogin(false);
+    }
+  };
 
   const fetchSalesmenData = async () => {
     try {
@@ -608,35 +978,7 @@ const DeveloperDashboard: React.FC = () => {
           created_at: t.created_at || new Date().toISOString(),
         }));
       } else {
-        formattedEmployees = [
-          {
-            id: '1',
-            name: 'Zoaib Ali (Super Admin)',
-            slug: 'zoaib-admin',
-            email: 'admin@zoaibalicompany.com',
-            role: 'Super Admin',
-            allowed_modules: ROLE_PRESETS['Super Admin'].modules,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            name: 'Warehouse Manager',
-            slug: 'warehouse-mgr',
-            email: 'warehouse@zoaibalicompany.com',
-            role: 'Warehouse Manager',
-            allowed_modules: ROLE_PRESETS['Warehouse Manager'].modules,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: '3',
-            name: 'Finance & Accounts',
-            slug: 'accountant',
-            email: 'accountant@zoaibalicompany.com',
-            role: 'Accountant',
-            allowed_modules: ROLE_PRESETS['Accountant'].modules,
-            created_at: new Date().toISOString(),
-          },
-        ];
+        formattedEmployees = [];
       }
 
       setEmployees(formattedEmployees);
@@ -684,8 +1026,8 @@ const DeveloperDashboard: React.FC = () => {
       // 1. Create User in Supabase Auth with allowed modules and role
       // Create a secondary client so we don't log out the active session
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://wpzwntbgpeiiclytuuht.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_IpW1ssWRf1_q6-J0hvXTzA_kVDyZcjy',
+        import.meta.env.VITE_SUPABASE_URL || 'https://zzjxukhrhvmuxxznjbos.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1rECaTLSxzwonvR12iOOKQ_XEI8wqCb',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
       
@@ -698,7 +1040,7 @@ const DeveloperDashboard: React.FC = () => {
             full_name: newEmployee.name.trim(),
             role: newEmployee.role,
             tenant_id: cleanSlug,
-            business_name: 'Zoaib Ali & Company',
+            business_name: 'NHT ENTERPRISE',
             allowed_modules: newEmployee.modules,
           },
         },
@@ -708,19 +1050,39 @@ const DeveloperDashboard: React.FC = () => {
 
       // 2. Record employee in tenants table
       try {
-        await supabase.from('tenants').upsert([
+        const { error: tenantErr } = await supabase.from('tenants').upsert([
           {
             name: newEmployee.name.trim(),
             slug: cleanSlug,
             email: newEmployee.email.trim(),
             business_activity: newEmployee.role,
-            seller_address: 'Zoaib Ali & Company Headquarters',
+            seller_address: 'NHT ENTERPRISE Headquarters',
             allowed_modules: newEmployee.modules,
             location_id: newEmployee.role === 'Warehouse Manager' && newEmployee.location_id ? Number(newEmployee.location_id) : null,
           },
         ], { onConflict: 'slug' });
-      } catch (err) {
-        console.warn('Tenants table upsert:', err);
+
+        if (tenantErr) {
+          console.warn('Upsert fallback to insert:', tenantErr);
+          const { error: insertErr } = await supabase.from('tenants').insert([
+            {
+              name: newEmployee.name.trim(),
+              slug: cleanSlug,
+              email: newEmployee.email.trim(),
+              business_activity: newEmployee.role,
+              seller_address: 'NHT ENTERPRISE Headquarters',
+              allowed_modules: newEmployee.modules,
+              location_id: newEmployee.role === 'Warehouse Manager' && newEmployee.location_id ? Number(newEmployee.location_id) : null,
+            },
+          ]);
+          if (insertErr) {
+            console.error('Tenants table insert error:', insertErr);
+            toast.error(`Auth user created, but could not save profile to 'tenants' table: ${insertErr.message}`);
+          }
+        }
+      } catch (err: any) {
+        console.error('Tenants table upsert exception:', err);
+        toast.error(`Profile record error: ${err.message || err}`);
       }
 
       // 3. Auto-link Salesman role to Salesmen directory
@@ -734,7 +1096,6 @@ const DeveloperDashboard: React.FC = () => {
           console.warn('Salesmen table insert:', err);
         }
       }
-
 
       setCreatedResult({
         name: newEmployee.name.trim(),
@@ -752,7 +1113,9 @@ const DeveloperDashboard: React.FC = () => {
         location_id: '',
         modules: ROLE_PRESETS['Warehouse Manager'].modules,
       });
-      fetchDevData();
+
+      await fetchDevData();
+      setActiveTab('employees');
     } catch (err: any) {
       toast.error('Registration failed: ' + err.message);
     } finally {
@@ -829,6 +1192,20 @@ const DeveloperDashboard: React.FC = () => {
       toast.error('Update failed: ' + e.message);
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (emp: EmployeeAccount) => {
+    if (!window.confirm(`Are you sure you want to delete employee "${emp.name}"?`)) {
+      return;
+    }
+    try {
+      const { error } = await supabase.from('tenants').delete().eq('id', emp.id);
+      if (error) throw error;
+      toast.success(`Employee account "${emp.name}" removed successfully.`);
+      fetchDevData();
+    } catch (err: any) {
+      toast.error('Failed to delete employee: ' + err.message);
     }
   };
 
@@ -1231,7 +1608,7 @@ const DeveloperDashboard: React.FC = () => {
               <MdSecurity />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-black dark:text-white">Master Role & Dev Console</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Employee Access & Roles Control for Zoaib Ali & Company</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Employee Access & Roles Control for NHT ENTERPRISE</p>
           </div>
 
           {authError && (
@@ -1294,7 +1671,7 @@ const DeveloperDashboard: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-black dark:text-white tracking-tight">Zoaib Ali & Company</h1>
+              <h1 className="text-xl font-black text-black dark:text-white tracking-tight">NHT ENTERPRISE</h1>
               <span className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
                 Employee Role & Access Control
               </span>
@@ -1349,22 +1726,6 @@ const DeveloperDashboard: React.FC = () => {
               <MdHistory /> Logs {logs.length > 0 && `(${logs.length})`}
             </button>
           </div>
-
-          
-          {/* Theme Color Picker Toggle */}
-          <button
-            type="button"
-            onClick={toggleThemeColorPicker}
-            title={colorPickerEnabled ? 'Theme Color Palette is Visible in Navbar' : 'Theme Color Palette is Hidden from Navbar'}
-            className={`py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-              colorPickerEnabled
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700 opacity-75'
-            }`}
-          >
-            <MdPalette size={16} />
-            <span>Theme Colors: {colorPickerEnabled ? 'ON' : 'OFF'}</span>
-          </button>
 
           <ul className="flex items-center gap-2 list-none m-0">
             <DarkModeSwitcher />
@@ -1482,35 +1843,66 @@ const DeveloperDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stroke dark:divide-strokedark">
-                  {employees.map(emp => (
-                    <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition">
-                      <td className="p-4 font-bold text-black dark:text-white flex items-center gap-2">
-                        <MdBadge className="text-emerald-600 text-base shrink-0" />
-                        <span>{emp.name}</span>
-                      </td>
-                      <td className="p-4">
-                        <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 px-2.5 py-1 rounded-md text-[11px] font-bold">
-                          {emp.role || 'Staff'}
-                        </span>
-                      </td>
-                      <td className="p-4 font-mono text-gray-600 dark:text-gray-400">
-                        {emp.email || '—'}
-                      </td>
-                      <td className="p-4">
-                        <span className="bg-gray-100 dark:bg-meta-4 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-mono border border-stroke dark:border-strokedark font-bold">
-                          {emp.allowed_modules?.length || 0} pages allowed
-                        </span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <button
-                          onClick={() => handleOpenEditModal(emp)}
-                          className="inline-flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs"
-                        >
-                          <MdEdit /> Edit Role & Permissions
-                        </button>
+                  {employees.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 px-4 text-center">
+                        <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                          <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-xl font-bold mb-3">
+                            <MdBadge />
+                          </div>
+                          <h4 className="text-sm font-bold text-black dark:text-white mb-1">No Active Employee Accounts</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                            All previous user accounts have been cleared. You can add new employee accounts with custom roles anytime.
+                          </p>
+                          <button
+                            onClick={() => setActiveTab('create')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                          >
+                            <MdAddCircle /> Add New Employee User
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    employees.map(emp => (
+                      <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition">
+                        <td className="p-4 font-bold text-black dark:text-white flex items-center gap-2">
+                          <MdBadge className="text-emerald-600 text-base shrink-0" />
+                          <span>{emp.name}</span>
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 px-2.5 py-1 rounded-md text-[11px] font-bold">
+                            {emp.role || 'Staff'}
+                          </span>
+                        </td>
+                        <td className="p-4 font-mono text-gray-600 dark:text-gray-400">
+                          {emp.email || '—'}
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-gray-100 dark:bg-meta-4 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-mono border border-stroke dark:border-strokedark font-bold">
+                            {emp.allowed_modules?.length || 0} pages allowed
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleOpenEditModal(emp)}
+                              className="inline-flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs"
+                            >
+                              <MdEdit /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEmployee(emp)}
+                              className="inline-flex items-center gap-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-500/30 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs"
+                              title="Delete employee account"
+                            >
+                              <MdDelete /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1555,6 +1947,7 @@ const DeveloperDashboard: React.FC = () => {
                       <th className="p-4">Invoice Prefix</th>
                       <th className="p-4">Phone / Area</th>
                       <th className="p-4">Linked Partner Salesmen</th>
+                      <th className="p-4">Login Account</th>
                       <th className="p-4 text-center">Action</th>
                     </tr>
                   </thead>
@@ -1562,6 +1955,7 @@ const DeveloperDashboard: React.FC = () => {
                     {salesmenList.map((sm: any) => {
                       const partners: string[] = Array.isArray(sm.linked_salesmen) ? sm.linked_salesmen : [];
                       const hasPartners = partners.length > 0;
+                      const hasLogin = !!(sm.user_id || sm.email);
 
                       return (
                         <tr key={sm.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition">
@@ -1605,14 +1999,40 @@ const DeveloperDashboard: React.FC = () => {
                               </span>
                             )}
                           </td>
+                          <td className="p-4">
+                            {hasLogin ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md w-fit">
+                                  <MdCheck className="text-xs" /> Active Login
+                                </span>
+                                <span className="text-[11px] text-gray-500 font-mono truncate max-w-[180px]">{sm.email || 'Linked to Auth'}</span>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md">
+                                No Login Account
+                              </span>
+                            )}
+                          </td>
                           <td className="p-4 text-center">
-                            <button
-                              onClick={() => handleOpenLinkModal(sm)}
-                              className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition shadow-xs"
-                            >
-                              <MdLink className="text-sm" />
-                              <span>{hasPartners ? `Edit Links (${partners.length})` : 'Link Partners'}</span>
-                            </button>
+                            <div className="inline-flex items-center gap-2">
+                              {!hasLogin && (
+                                <button
+                                  onClick={() => handleOpenAssignLoginModal(sm)}
+                                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition shadow-xs"
+                                  title="Create login credentials for this salesman"
+                                >
+                                  <MdVpnKey className="text-sm" />
+                                  <span>Assign Login</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleOpenLinkModal(sm)}
+                                className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition shadow-xs"
+                              >
+                                <MdLink className="text-sm" />
+                                <span>{hasPartners ? `Edit Links (${partners.length})` : 'Link Partners'}</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1648,7 +2068,7 @@ const DeveloperDashboard: React.FC = () => {
                   </p>
                 </div>
                 <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs px-3 py-1 rounded-full border border-emerald-500/20 font-semibold flex items-center gap-1.5">
-                  <MdSecurity /> Zoaib Ali & Company RBAC
+                  <MdSecurity /> NHT ENTERPRISE RBAC
                 </span>
               </div>
 
@@ -2503,6 +2923,118 @@ const DeveloperDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ASSIGN LOGIN CREDENTIALS TO SALESMAN */}
+      {salesmanToAssignLogin && (
+        <div className="fixed inset-0 z-99999 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-stroke dark:border-strokedark">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl font-bold">
+                  <MdVpnKey />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-black dark:text-white flex items-center gap-2">
+                    <span>Assign Login Credentials</span>
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    Generate an official ERP login and role for <strong className="text-black dark:text-white">{salesmanToAssignLogin.name}</strong>.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSalesmanToAssignLogin(null)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-meta-4 transition cursor-pointer"
+              >
+                <MdClose size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveSalesmanLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Salesman Name
+                </label>
+                <input
+                  type="text"
+                  value={salesmanToAssignLogin.name}
+                  disabled
+                  className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-stroke dark:border-strokedark bg-gray-100 dark:bg-meta-4/50 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Login Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={assignLoginEmail}
+                  onChange={e => setAssignLoginEmail(e.target.value)}
+                  placeholder="e.g. salesman@nhtenterprise.com"
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white focus:border-blue-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={assignLoginPassword}
+                  onChange={e => setAssignLoginPassword(e.target.value)}
+                  placeholder="Create a secure password (min 6 chars)"
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white focus:border-blue-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Assigned ERP Role
+                </label>
+                <select
+                  value={assignLoginRole}
+                  onChange={e => setAssignLoginRole(e.target.value)}
+                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white focus:border-blue-500 focus:outline-hidden cursor-pointer"
+                >
+                  {Object.keys(ROLE_PRESETS).map(roleKey => (
+                    <option key={roleKey} value={roleKey}>
+                      {ROLE_PRESETS[roleKey].name} ({ROLE_PRESETS[roleKey].modules.length} modules)
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                  Default: <strong>Salesman</strong> (Includes Quotations, Invoices, Delivery Challans, Customers & Ledger).
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-stroke dark:border-strokedark">
+                <button
+                  type="button"
+                  onClick={() => setSalesmanToAssignLogin(null)}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-gray-100 dark:bg-meta-4 hover:bg-gray-200 dark:hover:bg-meta-4/80 text-black dark:text-white transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigningLogin}
+                  className="px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {isAssigningLogin ? <Spinner color="border-white" size="w-3.5 h-3.5" /> : <MdVpnKey />}
+                  <span>Create & Link Login</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -6,40 +6,120 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import Breadcrumb from '../../../components/Breadcrumbs/Breadcrumb';
+import {
+  MdArrowBack,
+  MdSave,
+  MdPerson,
+  MdPhone,
+  MdEmail,
+  MdLocationOn,
+  MdBusiness,
+  MdAccountBalance,
+  MdCalendarToday,
+  MdPeople,
+  MdCheckCircle,
+  MdInfoOutline,
+  MdCreditCard,
+  MdReceipt,
+  MdNotes,
+  MdLanguage,
+  MdTag,
+  MdArrowForward
+} from 'react-icons/md';
+import { SearchableDropdown } from '../../../components/SearchableDropdown';
 
-const AddCustomer = () => {
+const TIER_OPTIONS = [
+  'Retail / General',
+  'Contractor / Builder',
+  'Wholesaler / Dealer',
+  'Registered Corporate'
+];
+
+const AddCustomer: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<number>(1);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [suggestedCode, setSuggestedCode] = useState<string>('');
   const { tenantId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Extract customer data if passed via navigation (Edit Mode) 
+  // Extract customer data if passed via navigation (Edit Mode)
   const editData = location.state?.customer;
   const isEditMode = !!editData;
 
+  // Safe universal redirect helper that preserves tenant prefix if active
+  const handleNavigateToList = () => {
+    const segments = location.pathname.split('/').filter(Boolean);
+    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+      ? `/${segments[0]}`
+      : (tenantId ? `/${tenantId}` : '');
+    navigate(`${tenantPrefix}/Sales/Customers/List`);
+  };
+
   useEffect(() => {
-    const fetchCompanies = async () => {
-      const { data } = await supabase.from('companies').select('id, name');
-      if (data) setCompanies(data);
+    const fetchInitialMetadata = async () => {
+      try {
+        const [compRes, coaRes, custRes] = await Promise.all([
+          supabase.from('companies').select('id, name'),
+          supabase.from('chart_of_accounts').select('account_code, control_code'),
+          supabase.from('customers').select('customer_code, customerCode, coa_code')
+        ]);
+
+        if (compRes.data) setCompanies(compRes.data);
+
+        // Derive next suggested customer ledger code (1020-xxx)
+        if (!isEditMode) {
+          let maxNum = 0;
+          const coaList = coaRes.data || [];
+          const custList = custRes.data || [];
+
+          coaList.forEach((a: any) => {
+            const match = String(a.account_code || '').match(/1020-(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNum) maxNum = num;
+            }
+          });
+
+          custList.forEach((c: any) => {
+            const code = c.customer_code || c.customerCode || c.coa_code || '';
+            const match = String(code).match(/1020-(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNum) maxNum = num;
+            }
+          });
+
+          const nextCode = `1020-${String(maxNum + 1).padStart(3, '0')}`;
+          setSuggestedCode(nextCode);
+        }
+      } catch (err: any) {
+        console.error('Error loading metadata in AddCustomer:', err);
+      }
     };
-    fetchCompanies();
-  }, []);
+
+    fetchInitialMetadata();
+  }, [isEditMode]);
 
   const validationSchema = Yup.object().shape({
-    customerName: Yup.string().required('Customer / Business Name is required'),
-    primaryPhone: Yup.string().required('Primary Contact Phone is required'),
+    customerName: Yup.string().trim().required('Customer / Business Name is required'),
+    primaryPhone: Yup.string().trim().required('Primary Contact Phone is required'),
   });
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
+      const trimmedName = values.customerName.trim();
+      const companyVal = values.company || '';
+
       // --- DYNAMIC DUPLICATE VALIDATION CHECK ENGINE ---
       let query = supabase
         .from('customers')
-        .select('id')
-        .eq('customerName', values.customerName.trim())
-        .eq('company', values.company || '');
+        .select('id, customerName')
+        .eq('customerName', trimmedName)
+        .eq('company', companyVal);
 
       if (isEditMode) {
         query = query.neq('id', editData.id);
@@ -49,312 +129,769 @@ const AddCustomer = () => {
       if (checkError) throw checkError;
 
       if (existingRecords && existingRecords.length > 0) {
-        toast.error('A customer with this exact name and company selection already exists!');
+        toast.error(`A customer record named "${trimmedName}" with this branch already exists!`);
         setLoading(false);
         return;
       }
 
-      const payload = {
-        ...values,
-        customerName: values.customerName.trim(),
-        customer_code: values.customer_code ? values.customer_code.trim() : (values.customerCode ? values.customerCode.trim() : ''),
-        customerCode: values.customer_code ? values.customer_code.trim() : (values.customerCode ? values.customerCode.trim() : ''),
+      const cleanCode = values.customer_code ? values.customer_code.trim() : '';
+      const parsedOpeningBal = Number(values.openingBalance || 0);
+      const computedBalance = values.balanceNature === 'Credit' ? -Math.abs(parsedOpeningBal) : Math.abs(parsedOpeningBal);
+
+      const regTypeVal = values.registrationType || 'Retail / General';
+      const secPhoneVal = values.secondaryPhone ? values.secondaryPhone.trim() : '';
+
+      const payload: any = {
+        customerName: trimmedName,
+        customer_code: cleanCode,
+        customerCode: cleanCode,
+        coa_code: cleanCode,
         page_no: values.page_no ? String(values.page_no).trim() : '',
+        pageNo: values.page_no ? String(values.page_no).trim() : '',
+        registrationType: regTypeVal,
+        primaryPhone: values.primaryPhone ? values.primaryPhone.trim() : '',
+        phone: values.primaryPhone ? values.primaryPhone.trim() : '',
+        secondaryPhone: secPhoneVal,
+        email: values.email ? values.email.trim() : '',
+        website: values.website ? values.website.trim() : '',
+        province: values.province || 'Sindh',
+        company: companyVal,
+        address: values.address ? values.address.trim() : '',
         ntnNo: values.ntnNo ? values.ntnNo.trim() : '',
         cnicNo: values.cnicNo ? values.cnicNo.trim() : '',
         stRegNo: values.stRegNo ? values.stRegNo.trim() : '',
-        address: values.address ? values.address.trim() : '',
+        notes: values.notes ? values.notes.trim() : '',
+        followUpDate: values.followUpDate || null,
       };
 
-      if (isEditMode) {
-        const { error } = await supabase
-          .from('customers')
-          .update(payload)
-          .eq('id', editData.id);
-
-        if (error) throw error;
-        toast.success('Customer profile updated successfully!');
-        navigate(`${tenantId ? `/${tenantId}` : ''}/Customers/list`);
-      } else {
-        const { error } = await supabase.from('customers').insert([payload]);
-        if (error) throw error;
-        toast.success('Customer registered successfully!');
-        navigate(`${tenantId ? `/${tenantId}` : ''}/Customers/list`);
+      if (!isEditMode && parsedOpeningBal !== 0) {
+        payload.opening_balance = computedBalance;
+        payload.currentBalance = computedBalance;
       }
+
+      let customerRecordId = editData?.id;
+
+      // Self-healing database executor: handles schema cache column casing mismatches automatically
+      const executeSave = async (dataPayload: any) => {
+        if (isEditMode) {
+          return await supabase
+            .from('customers')
+            .update(dataPayload)
+            .eq('id', editData.id);
+        } else {
+          return await supabase
+            .from('customers')
+            .insert([dataPayload])
+            .select('id');
+        }
+      };
+
+      let saveResponse = await executeSave(payload);
+
+      // Auto-fallback if schema cache rejects specific casing (e.g. registrationType -> registrationtype)
+      if (saveResponse.error && (saveResponse.error.code === 'PGRST204' || saveResponse.error.message?.includes('schema cache'))) {
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.registrationType;
+        fallbackPayload.registrationtype = regTypeVal;
+        delete fallbackPayload.secondaryPhone;
+        fallbackPayload.secondaryphone = secPhoneVal;
+        saveResponse = await executeSave(fallbackPayload);
+      }
+
+      if (saveResponse.error) throw saveResponse.error;
+
+      if (isEditMode) {
+        toast.success(`Customer "${trimmedName}" updated successfully!`);
+      } else {
+        if (saveResponse.data && saveResponse.data[0]) {
+          customerRecordId = saveResponse.data[0].id;
+        }
+        toast.success(`Customer "${trimmedName}" registered successfully!`);
+      }
+
+      // --- AUTO-SYNC WITH CHART OF ACCOUNTS (COA) ---
+      if (cleanCode) {
+        try {
+          const coaPayload: any = {
+            category_code: '1. ASSETS',
+            sub_category_code: 'Current Assets',
+            control_code: 'Customers',
+            account_code: cleanCode,
+            account_title: trimmedName,
+            opening_balance: Math.abs(parsedOpeningBal),
+            balance_nature: values.balanceNature || 'Debit',
+            notes: `Customer ledger account for ${trimmedName} (Synced from Customers module)`
+          };
+
+          const { data: existingCOA } = await supabase
+            .from('chart_of_accounts')
+            .select('id')
+            .eq('account_code', cleanCode)
+            .maybeSingle();
+
+          if (existingCOA?.id) {
+            await supabase
+              .from('chart_of_accounts')
+              .update(coaPayload)
+              .eq('id', existingCOA.id);
+          } else {
+            await supabase
+              .from('chart_of_accounts')
+              .insert([coaPayload]);
+          }
+        } catch (coaErr) {
+          console.warn('COA auto-sync note:', coaErr);
+        }
+      }
+
+      handleNavigateToList();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to save customer');
     } finally {
       setLoading(false);
     }
   };
 
+  const validateRequiredFields = (values: any): boolean => {
+    if (!values.customerName || !values.customerName.trim()) {
+      toast.error('Customer / Business Name is required (Step 1: Identity)');
+      setActiveTab(1);
+      return false;
+    }
+    if (!values.primaryPhone || !values.primaryPhone.trim()) {
+      toast.error('Primary Contact Phone is required (Step 2: Contact & Address)');
+      setActiveTab(2);
+      return false;
+    }
+    return true;
+  };
+
   return (
-    <div className="mx-auto max-w-270">
-      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-        <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark flex justify-between items-center">
-          <h3 className="font-semibold text-black dark:text-white text-base">
-            {isEditMode ? `Edit Customer: ${editData.customerName}` : 'New Customer Registration'}
-          </h3>
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* 1. Breadcrumb Navigation */}
+      <Breadcrumb pageName={isEditMode ? 'Edit Customer Profile' : 'New Customer Registration'} />
+
+      {/* 2. Header Action Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-boxdark p-5 rounded-2xl border border-stroke dark:border-strokedark shadow-sm">
+        <div className="flex items-center gap-3.5">
           <button
             type="button"
-            onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Customers/list`)}
-            className="text-sm text-primary hover:underline font-medium cursor-pointer"
+            onClick={handleNavigateToList}
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition shadow-xs cursor-pointer"
+            title="Back to Customer List"
           >
-            {isEditMode ? 'Back to List' : 'See List'}
+            <MdArrowBack size={20} />
           </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                {isEditMode ? `Edit Profile: ${editData.customerName}` : 'Add New Customer'}
+              </h3>
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isEditMode 
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' 
+                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+              }`}>
+                {isEditMode ? 'EDIT MODE' : 'NEW REGISTRATION'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Enter customer commercial profile, contact information, and accounting ledger credentials
+            </p>
+          </div>
         </div>
 
-        <Formik
-          initialValues={editData ? {
-            ...editData,
-            customer_code: editData.customer_code || editData.customerCode || '',
-            page_no: editData.page_no || editData.pageNo || editData.page_number || '',
-          } : {
-            customerName: '',
-            customer_code: '',
-            page_no: '',
-            registrationType: 'Retail / General',
-            ntnNo: '',
-            cnicNo: '',
-            stRegNo: '',
-            primaryPhone: '',
-            email: '',
-            address: '',
-            province: 'Sindh',
-            company: '',
-            website: '',
-            notes: '',
-            followUpDate: ''
-          }}
-          enableReinitialize={true}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ handleChange, values, errors, touched, setFieldValue }) => (
-            <Form className="p-6.5">
-              {/* Primary Fast Customer Registration Info */}
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Customer / Business Name *
-                  </label>
-                  <input
-                    name="customerName"
-                    onChange={handleChange}
-                    value={values.customerName}
-                    placeholder="e.g. Haji Muhammad / Al-Madina Trading"
-                    className={`w-full rounded border bg-transparent text-black dark:text-white p-3 outline-none text-xs font-semibold focus:border-primary ${touched.customerName && errors.customerName ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`}
-                  />
-                  {touched.customerName && errors.customerName && (
-                    <p className="text-red-500 text-[11px] mt-1">{errors.customerName as string}</p>
-                  )}
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <button
+            type="button"
+            onClick={handleNavigateToList}
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <MdPeople size={16} />
+            <span>Customer Directory</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Main Form Canvas */}
+      <Formik
+        initialValues={editData ? {
+          ...editData,
+          customer_code: editData.customer_code || editData.customerCode || editData.coa_code || '',
+          page_no: editData.page_no || editData.pageNo || editData.page_number || '',
+          registrationType: editData.registrationType || 'Retail / General',
+          primaryPhone: editData.primaryPhone || editData.phone || '',
+          secondaryPhone: editData.secondaryPhone || '',
+          email: editData.email || '',
+          address: editData.address || '',
+          province: editData.province || 'Sindh',
+          company: editData.company || '',
+          website: editData.website || '',
+          notes: editData.notes || '',
+          followUpDate: editData.followUpDate || '',
+          openingBalance: editData.opening_balance || editData.openingBalance || editData.currentBalance || '',
+          balanceNature: (editData.currentBalance && editData.currentBalance < 0) ? 'Credit' : 'Debit'
+        } : {
+          customerName: '',
+          customer_code: '',
+          page_no: '',
+          registrationType: 'Retail / General',
+          primaryPhone: '',
+          secondaryPhone: '',
+          email: '',
+          address: '',
+          province: 'Sindh',
+          company: '',
+          website: '',
+          ntnNo: '',
+          cnicNo: '',
+          stRegNo: '',
+          notes: '',
+          followUpDate: '',
+          openingBalance: '',
+          balanceNature: 'Debit'
+        }}
+        enableReinitialize={true}
+        validationSchema={validationSchema}
+        onSubmit={handleSubmit}
+      >
+        {({ handleChange, values, errors, touched, setFieldValue }) => (
+          <Form
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (validateRequiredFields(values)) {
+                handleSubmit(values);
+              }
+            }}
+          >
+
+            {/* Step Wizard Tabs Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-stroke dark:border-strokedark">
+              <button
+                type="button"
+                onClick={() => setActiveTab(1)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === 1
+                    ? 'bg-white dark:bg-boxdark text-primary shadow-xs border border-stroke dark:border-strokedark'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeTab === 1 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>1</span>
+                <span className="truncate">Identity</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(2)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === 2
+                    ? 'bg-white dark:bg-boxdark text-primary shadow-xs border border-stroke dark:border-strokedark'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeTab === 2 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>2</span>
+                <span className="truncate">Contact & Address</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(3)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === 3
+                    ? 'bg-white dark:bg-boxdark text-primary shadow-xs border border-stroke dark:border-strokedark'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeTab === 3 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>3</span>
+                <span className="truncate">Tax & Ledger</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(4)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === 4
+                    ? 'bg-white dark:bg-boxdark text-primary shadow-xs border border-stroke dark:border-strokedark'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeTab === 4 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>4</span>
+                <span className="truncate">Follow-up Notes</span>
+              </button>
+            </div>
+            
+            {/* Card 1: Core Business Profile & Classification */}
+            {activeTab === 1 && (
+              <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-stroke dark:border-strokedark pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-lg">
+                      <MdPerson size={18} />
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                        1. Customer Identity & Classification
+                      </h4>
+                      <p className="text-[11px] text-slate-500">Official business name and classification tier</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-400">* Required Fields</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                      Customer Code (Optional)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Customer Name */}
+                  <div className="md:col-span-2">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Customer / Business Name <span className="text-red-500">*</span>
                     </label>
                     <input
+                      type="text"
+                      name="customerName"
+                      onChange={handleChange}
+                      value={values.customerName}
+                      placeholder="e.g. Haji Muhammad / Al-Madina Trading & Tiles"
+                      className={`w-full rounded-xl border bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-3 text-xs font-semibold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:ring-2 focus:ring-primary/20 ${
+                        touched.customerName && errors.customerName 
+                          ? 'border-red-500 focus:border-red-500' 
+                          : 'border-stroke dark:border-strokedark focus:border-primary'
+                      }`}
+                    />
+                    {touched.customerName && errors.customerName ? (
+                      <p className="text-red-500 text-[11px] mt-1 flex items-center gap-1">
+                        <MdInfoOutline size={12} /> {errors.customerName as string}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Must be unique per business entity to prevent duplicate ledger postings
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Customer Code / Account Code */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                        <MdTag size={14} className="text-primary" />
+                        <span>Customer / Account Code</span>
+                      </label>
+                      {!values.customer_code && suggestedCode && (
+                        <button
+                          type="button"
+                          onClick={() => setFieldValue('customer_code', suggestedCode)}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                          Use Suggested ({suggestedCode})
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
                       name="customer_code"
                       onChange={handleChange}
-                      value={values.customer_code || values.customerCode || ''}
-                      placeholder="e.g. CUST-001 or 1020-001"
-                      className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs font-mono focus:border-primary"
+                      value={values.customer_code || ''}
+                      placeholder={suggestedCode || 'e.g. 1020-001 or CUST-100'}
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Auto-links with Chart of Accounts ledger code under Customers (1020-xxx)
+                    </p>
                   </div>
+
+                  {/* Page Number */}
                   <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                      Page # (Optional)
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Ledger Page # (Optional)
                     </label>
                     <input
+                      type="text"
                       name="page_no"
                       onChange={handleChange}
                       value={values.page_no || ''}
-                      placeholder="e.g. 142 or Pg-12"
-                      className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs font-mono focus:border-primary"
+                      placeholder="e.g. 142 or Pg-25"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Physical ledger book reference number for traditional paper accounting cross-checks
+                    </p>
+                  </div>
+
+                  {/* Customer Category / Type */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Customer Tier / Category
+                    </label>
+                    <SearchableDropdown
+                      value={values.registrationType || 'Retail / General'}
+                      onChange={(val) => setFieldValue('registrationType', val || 'Retail / General')}
+                      options={TIER_OPTIONS}
+                      placeholder="Customer Tier / Category"
+                      allowAll={false}
+                      allowClear={false}
+                    />
+                  </div>
+
+                  {/* Client Business Entity / Branch */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Associated Branch / Business Entity
+                    </label>
+                    <SearchableDropdown
+                      value={values.company || '-- General / NHT ENTERPRISE --'}
+                      onChange={(val) => {
+                        if (!val || val === '-- General / NHT ENTERPRISE --') {
+                          setFieldValue('company', '');
+                        } else {
+                          setFieldValue('company', val);
+                        }
+                      }}
+                      options={['-- General / NHT ENTERPRISE --', ...companies.map((c: any) => c.name)]}
+                      placeholder="Associated Branch / Business Entity"
+                      allowAll={false}
+                      allowClear={true}
                     />
                   </div>
                 </div>
+              </div>
+            )}
 
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Primary Contact Phone *
-                  </label>
-                  <input
-                    name="primaryPhone"
-                    onChange={handleChange}
-                    value={values.primaryPhone}
-                    placeholder="0300-1234567"
-                    className={`w-full rounded border bg-transparent text-black dark:text-white p-3 outline-none text-xs focus:border-primary ${touched.primaryPhone && errors.primaryPhone ? 'border-red-500' : 'border-stroke dark:border-strokedark'}`}
-                  />
-                  {touched.primaryPhone && errors.primaryPhone && (
-                    <p className="text-red-500 text-[11px] mt-1">{errors.primaryPhone as string}</p>
-                  )}
+            {/* Card 2: Contact Information & Location */}
+            {activeTab === 2 && (
+              <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 border-b border-stroke dark:border-strokedark pb-3">
+                  <span className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-lg">
+                    <MdPhone size={18} />
+                  </span>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      2. Contact Information & Delivery Location
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Phone numbers, WhatsApp communication, and physical shipping address</p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Customer Category / Type
-                  </label>
-                  <select
-                    name="registrationType"
-                    onChange={handleChange}
-                    value={values.registrationType || 'Retail / General'}
-                    className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs font-semibold focus:border-primary dark:bg-boxdark"
-                  >
-                    <option value="Retail / General">Retail / Walk-in Customer (Standard)</option>
-                    <option value="Contractor / Builder">Contractor / Builder / Architect</option>
-                    <option value="Wholesaler / Dealer">Wholesaler / Distributor</option>
-                    <option value="Registered Corporate">Corporate / Registered Tax Filer</option>
-                  </select>
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Primary Phone */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Primary Contact Phone <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="primaryPhone"
+                      onChange={handleChange}
+                      value={values.primaryPhone}
+                      placeholder="0300-1234567"
+                      className={`w-full rounded-xl border bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-medium outline-none transition focus:bg-white dark:focus:bg-boxdark focus:ring-2 focus:ring-primary/20 ${
+                        touched.primaryPhone && errors.primaryPhone 
+                          ? 'border-red-500 focus:border-red-500' 
+                          : 'border-stroke dark:border-strokedark focus:border-primary'
+                      }`}
+                    />
+                    {touched.primaryPhone && errors.primaryPhone && (
+                      <p className="text-red-500 text-[11px] mt-1 flex items-center gap-1">
+                        <MdInfoOutline size={12} /> {errors.primaryPhone as string}
+                      </p>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Province / Region
-                  </label>
-                  <select
-                    name="province"
-                    onChange={handleChange}
-                    value={values.province || 'Sindh'}
-                    className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs font-semibold focus:border-primary dark:bg-boxdark"
-                  >
-                    <option value="Sindh">Sindh</option>
-                    <option value="Punjab">Punjab</option>
-                    <option value="Khyber Pakhtunkhwa">Khyber Pakhtunkhwa</option>
-                    <option value="Balochistan">Balochistan</option>
-                    <option value="Islamabad">Islamabad (ICT)</option>
-                    <option value="Azad Jammu and Kashmir">Azad Jammu and Kashmir (AJK)</option>
-                    <option value="Gilgit-Baltistan">Gilgit-Baltistan (GB)</option>
-                  </select>
-                </div>
+                  {/* Secondary Phone */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Secondary Phone / WhatsApp (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="secondaryPhone"
+                      onChange={handleChange}
+                      value={values.secondaryPhone || ''}
+                      placeholder="0312-7654321"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Delivery Address / Location
-                  </label>
-                  <textarea
-                    name="address"
-                    rows={2}
-                    onChange={handleChange}
-                    value={values.address}
-                    placeholder="Shop #, Street, Area / City (e.g. Saddar, Hyderabad)"
-                    className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs focus:border-primary"
-                  />
+                  {/* Email Address */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      onChange={handleChange}
+                      value={values.email || ''}
+                      placeholder="customer@example.com"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {/* Province / Region */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Province / Region
+                    </label>
+                    <select
+                      name="province"
+                      onChange={handleChange}
+                      value={values.province || 'Sindh'}
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-medium outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="Sindh">Sindh</option>
+                      <option value="Punjab">Punjab</option>
+                      <option value="Khyber Pakhtunkhwa">Khyber Pakhtunkhwa</option>
+                      <option value="Balochistan">Balochistan</option>
+                      <option value="Islamabad">Islamabad (ICT)</option>
+                      <option value="Azad Jammu and Kashmir">Azad Jammu and Kashmir (AJK)</option>
+                      <option value="Gilgit-Baltistan">Gilgit-Baltistan (GB)</option>
+                    </select>
+                  </div>
+
+                  {/* Delivery / Site Address */}
+                  <div className="md:col-span-2">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Delivery Address / Warehouse Site
+                    </label>
+                    <textarea
+                      name="address"
+                      rows={2}
+                      onChange={handleChange}
+                      value={values.address || ''}
+                      placeholder="Shop #, Street, Plot / Area, City (e.g. Shop # 14, Ceramic Market, Saddar, Hyderabad)"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white p-3 text-xs outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Optional Corporate & Tax ID Section */}
-              <div className="mt-6 p-4 rounded-lg bg-slate-50 dark:bg-meta-4/10 border border-stroke dark:border-strokedark space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Additional Identity & Tax Details (Optional)
+            {/* Card 3: Taxation, Identity & Opening Ledger Balance */}
+            {activeTab === 3 && (
+              <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 border-b border-stroke dark:border-strokedark pb-3">
+                  <span className="p-2 bg-purple-50 dark:bg-purple-950/40 text-purple-600 rounded-lg">
+                    <MdAccountBalance size={18} />
                   </span>
-                  <span className="text-[11px] text-gray-400 font-sans">
-                    For corporate accounts, CNIC, or NTN records
-                  </span>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      3. Taxation Details & Opening Ledger Balance
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Corporate tax filings, CNIC identity, and initial financial balance</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* CNIC No */}
                   <div>
-                    <label className="mb-1.5 block text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                       CNIC No. (Optional)
                     </label>
                     <input
+                      type="text"
                       name="cnicNo"
                       onChange={handleChange}
-                      value={values.cnicNo}
-                      placeholder="e.g. 41303-1234567-1"
-                      className="w-full rounded border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white p-2.5 outline-none text-xs font-mono focus:border-primary"
+                      value={values.cnicNo || ''}
+                      placeholder="41303-1234567-1"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
 
+                  {/* NTN No */}
                   <div>
-                    <label className="mb-1.5 block text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                       NTN No. (Optional)
                     </label>
                     <input
+                      type="text"
                       name="ntnNo"
                       onChange={handleChange}
-                      value={values.ntnNo}
-                      placeholder="e.g. 1234567-8"
-                      className="w-full rounded border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white p-2.5 outline-none text-xs font-mono focus:border-primary"
+                      value={values.ntnNo || ''}
+                      placeholder="1234567-8"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
 
+                  {/* STRN No */}
                   <div>
-                    <label className="mb-1.5 block text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                       Sales Tax STRN (Optional)
                     </label>
                     <input
+                      type="text"
                       name="stRegNo"
                       onChange={handleChange}
-                      value={values.stRegNo}
-                      placeholder="e.g. 17-00-1234-567-89"
-                      className="w-full rounded border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white p-2.5 outline-none text-xs font-mono focus:border-primary"
+                      value={values.stRegNo || ''}
+                      placeholder="17-00-1234-567-89"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {/* Opening Balance */}
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Opening Balance (PKR)
+                    </label>
+                    <input
+                      type="number"
+                      name="openingBalance"
+                      onChange={handleChange}
+                      value={values.openingBalance || ''}
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Debit = Customer owes you money (Receivable). Credit = You owe customer (Advance / Payable).
+                    </p>
+                  </div>
+
+                  {/* Balance Nature */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Balance Nature
+                    </label>
+                    <select
+                      name="balanceNature"
+                      onChange={handleChange}
+                      value={values.balanceNature || 'Debit'}
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="Debit">Debit (Receivable from Customer)</option>
+                      <option value="Credit">Credit (Advance / Liability to Customer)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Card 4: CRM Follow-Up & Remarks */}
+            {activeTab === 4 && (
+              <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 border-b border-stroke dark:border-strokedark pb-3">
+                  <span className="p-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 rounded-lg">
+                    <MdNotes size={18} />
+                  </span>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      4. Follow-up & Relationship Notes
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Scheduled reminders and customer-specific preferences</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                      <MdCalendarToday size={14} className="text-amber-600" />
+                      <span>Next Follow-up Date</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="followUpDate"
+                      onChange={handleChange}
+                      value={values.followUpDate || ''}
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Internal CRM Notes & Payment Terms
+                    </label>
+                    <input
+                      type="text"
+                      name="notes"
+                      onChange={handleChange}
+                      value={values.notes || ''}
+                      placeholder="e.g. Standard credit limit 15 days, preferred delivery by truck"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 mt-6">
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Client Business Entity / Branch
-                  </label>
-                  <select
-                    name="company"
-                    onChange={handleChange}
-                    value={values.company}
-                    className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs focus:border-primary dark:bg-boxdark"
+            )}
+
+            {/* Bottom Actions Bar */}
+            <div className="flex items-center justify-between pt-4 border-t border-stroke dark:border-strokedark">
+              <div>
+                {activeTab > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(prev => Math.max(1, prev - 1))}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition shadow-xs cursor-pointer flex items-center gap-1.5"
                   >
-                    <option value="">-- General Customer --</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-black dark:text-white">
-                    Follow-up Date
-                  </label>
-                  <input
-                    type="date"
-                    name="followUpDate"
-                    onChange={handleChange}
-                    value={values.followUpDate}
-                    className="w-full rounded border border-stroke dark:border-strokedark bg-transparent text-black dark:text-white p-3 outline-none text-xs focus:border-primary dark:bg-boxdark"
-                  />
-                </div>
+                    <MdArrowBack size={16} />
+                    <span>Previous Step</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleNavigateToList}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition shadow-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
 
-              <div className="pt-5 mt-6 border-t border-stroke dark:border-strokedark flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Customers/list`)}
-                  className="rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 py-3 px-6 font-bold text-slate-700 dark:text-slate-300 transition shadow-sm text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 px-8 font-bold text-white transition disabled:opacity-50 shadow-md text-xs cursor-pointer flex items-center gap-2"
-                >
-                  {loading ? <Spinner color="border-white" size="w-4 h-4" /> : <span>{isEditMode ? 'Update Customer Profile' : 'Save Customer Profile'}</span>}
-                </button>
+              <div className="flex items-center gap-3">
+                {activeTab < 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeTab === 1 && !values.customerName?.trim()) {
+                        toast.error('Customer / Business Name is required (Step 1)');
+                        return;
+                      }
+                      if (activeTab === 2 && !values.primaryPhone?.trim()) {
+                        toast.error('Primary Contact Phone is required (Step 2)');
+                        return;
+                      }
+                      setActiveTab(prev => Math.min(4, prev + 1));
+                    }}
+                    className="px-6 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white font-bold text-xs transition shadow-md cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Next Step</span>
+                    <MdArrowForward size={16} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      if (validateRequiredFields(values)) {
+                        handleSubmit(values);
+                      }
+                    }}
+                    className="px-8 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition shadow-md disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner color="border-white" size="w-4 h-4" />
+                        <span>Saving Profile...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MdSave size={16} />
+                        <span>{isEditMode ? 'Update Customer Profile' : 'Save Customer Profile'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
-            </Form>
-          )}
-        </Formik>
-      </div>
+            </div>
+
+          </Form>
+        )}
+      </Formik>
     </div>
   );
 };
 
 export default AddCustomer;
-

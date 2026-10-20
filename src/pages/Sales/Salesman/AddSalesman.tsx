@@ -5,15 +5,26 @@ import * as Yup from 'yup';
 import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
+import { useAuth } from '../../../Context/Auth';
 
 const AddSalesman = () => {
   const [loading, setLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { tenantId } = useAuth();
+
+  const getListPath = () => {
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+      ? `/${segments[0]}`
+      : (tenantId ? `/${tenantId}` : '');
+    return `${tenantPrefix}/Sales/Salesman/List`;
+  };
 
   // Extract salesman data if passed via navigation (Edit Mode) 
   const editData = location.state?.salesman;
   const isEditMode = !!editData;
+  const initialInvoiceName = editData?.invoice_name || (Array.isArray(editData?.invoice_names) && editData.invoice_names[0]) || '';
 
   const validationSchema = Yup.object().shape({
     name: Yup.string().required('Salesman name is required'),
@@ -73,13 +84,13 @@ const AddSalesman = () => {
 
         if (error) throw error;
         toast.success('Salesman updated successfully!');
-        navigate('/Salesman/list');
+        navigate(getListPath());
       } else {
         // INSERT NEW SALESMAN 
         const { error } = await supabase.from('salesmen').insert([payload]);
         if (error) throw error;
         toast.success('Salesman registered successfully!');
-        navigate('/Salesman/list');
+        navigate(getListPath());
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -96,7 +107,7 @@ const AddSalesman = () => {
             {isEditMode ? `Edit Salesman: ${editData.name}` : 'Add New Salesman'}
           </h3>
           <button
-            onClick={() => navigate('/Salesman/list')}
+            onClick={() => navigate(getListPath())}
             className="text-sm text-primary hover:underline font-medium cursor-pointer"
           >
             {isEditMode ? 'Back to List' : 'See List'}
@@ -104,7 +115,13 @@ const AddSalesman = () => {
         </div>
 
         <Formik
-          initialValues={editData || { name: '', phone: '', area: '', invoice_name: '', commissionRate: 0 }}
+          initialValues={editData ? {
+            name: editData.name || '',
+            phone: editData.phone || '',
+            area: editData.area || '',
+            invoice_name: initialInvoiceName,
+            commissionRate: editData.commissionRate || 0,
+          } : { name: '', phone: '', area: '', invoice_name: '', commissionRate: 0 }}
           enableReinitialize={true}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
@@ -132,7 +149,7 @@ const AddSalesman = () => {
               <div className="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-stroke dark:border-strokedark">
                 <button
                   type="button"
-                  onClick={() => navigate('/Salesman/list')}
+                  onClick={() => navigate(getListPath())}
                   className="rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 py-3 px-6 font-bold text-slate-700 dark:text-slate-300 transition shadow-sm text-xs cursor-pointer"
                 >
                   Cancel

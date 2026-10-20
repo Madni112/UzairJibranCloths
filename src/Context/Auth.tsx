@@ -5,6 +5,7 @@ import * as RoleRoutes from '../Navigation/Roles';
 import { UserRole } from '../constant/auth';
 import { getModulesForRole, ROLE_PRESETS } from '../constant/roles';
 import { toast } from 'react-hot-toast';
+import { getModulePermissions, ModulePermissionState, cleanBaseModuleId } from '../utils/permissionUtils';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -20,6 +21,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   getRoleBasedRoutes: () => any[];
+  allowedModules: string[] | null;
+  can: (path: string, action?: 'view' | 'add' | 'edit' | 'delete') => boolean;
+  getPermissions: (path: string) => ModulePermissionState;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -362,12 +366,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (currentAllowed && Array.isArray(currentAllowed)) {
       const lowerAllowed = currentAllowed.map(m => String(m).toLowerCase().trim());
+      const baseAllowed = currentAllowed.map(m => cleanBaseModuleId(String(m)).toLowerCase().trim());
 
       // Helper to check if a path matches either directly or via aliases
       const matchesPath = (p: string) => {
         if (!p) return false;
         const lp = p.toLowerCase().trim();
-        if (lowerAllowed.includes(lp)) return true;
+        if (lowerAllowed.includes(lp) || baseAllowed.includes(lp)) return true;
 
         // Route aliases mapping
         const aliases: Record<string, string[]> = {
@@ -462,6 +467,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return routes;
   };
 
+  const can = (path: string, action: 'view' | 'add' | 'edit' | 'delete' = 'view'): boolean => {
+    if (role && role.toLowerCase().includes('admin')) return true;
+    const perms = getModulePermissions(allowedModules, path, role);
+    if (action === 'view') return perms.canView;
+    if (action === 'add') return perms.canAdd;
+    if (action === 'edit') return perms.canEdit;
+    if (action === 'delete') return perms.canDelete;
+    return perms.hasAccess;
+  };
+
+  const getPermissions = (path: string): ModulePermissionState => {
+    return getModulePermissions(allowedModules, path, role);
+  };
+
   return (
     <AuthContext.Provider value={{
       isAuthenticated,
@@ -477,6 +496,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       login,
       logout,
       getRoleBasedRoutes,
+      allowedModules,
+      can,
+      getPermissions,
     }}>
       {children}
     </AuthContext.Provider>
@@ -489,4 +511,15 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+export const usePermission = (path: string) => {
+  const { can, getPermissions, role } = useAuth();
+  const isSuperAdmin = Boolean(role && role.toLowerCase().includes('admin'));
+  const perms = getPermissions(path);
+  return {
+    ...perms,
+    isSuperAdmin,
+    can: (action: 'view' | 'add' | 'edit' | 'delete') => can(path, action),
+  };
 };

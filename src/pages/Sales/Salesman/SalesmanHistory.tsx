@@ -11,6 +11,7 @@ const SalesmanHistory = () => {
   const [salesmen, setSalesmen] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true); 
   const navigate = useNavigate(); 
+  const { tenantId } = useAuth(); 
 
   // Datatable search and page handlers
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,6 +137,14 @@ const SalesmanHistory = () => {
     } 
   }; 
 
+  const handleEdit = (salesman: any) => {
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+      ? `/${segments[0]}`
+      : (tenantId ? `/${tenantId}` : '');
+    navigate(`${tenantPrefix}/Sales/Salesman/Add`, { state: { salesman } });
+  }; 
+
   // Live query filter match (including invoice name lookup)
   const filteredSalesmen = salesmen.filter(s => {
     const term = searchTerm.toLowerCase();
@@ -170,7 +179,13 @@ const SalesmanHistory = () => {
         </div>
         <button
           type="button"
-          onClick={() => navigate('/Sales/Salesman/Add')}
+          onClick={() => {
+            const segments = window.location.pathname.split('/').filter(Boolean);
+            const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+              ? `/${segments[0]}`
+              : (tenantId ? `/${tenantId}` : '');
+            navigate(`${tenantPrefix}/Sales/Salesman/Add`);
+          }}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
         >
           <MdPersonAdd size={16} />
@@ -216,13 +231,14 @@ const SalesmanHistory = () => {
               <th className="min-w-[200px] py-4 px-4 font-medium text-black dark:text-white text-sm">Invoice Name</th> 
               <th className="min-w-[140px] py-4 px-4 font-medium text-black dark:text-white text-sm">Phone</th> 
               <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm">Area</th> 
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">Actions</th>
             </tr> 
           </thead> 
           <tbody> 
             {loading ? ( 
-              <tr><td colSpan={5} className="py-12 text-center"><Spinner /></td></tr> 
+              <tr><td colSpan={6} className="py-12 text-center"><Spinner /></td></tr> 
             ) : paginatedSalesmen.length === 0 ? ( 
-              <tr><td colSpan={5} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No salesman records found.</td></tr> 
+              <tr><td colSpan={6} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No salesman records found.</td></tr> 
             ) : ( 
               paginatedSalesmen.map((salesman, idx) => {
                 const serialNumber = startIndex + idx + 1;
@@ -331,6 +347,16 @@ const SalesmanHistory = () => {
                         {salesman.area || 'General'} 
                       </p> 
                     </td> 
+
+                    {/* Actions */}
+                    <td className="py-3.5 px-4 text-center">
+                      <TableActions
+                        onEdit={() => handleEdit(salesman)}
+                        onDelete={() => handleDelete(salesman.id)}
+                        editTitle="Edit Salesman"
+                        deleteTitle="Delete Salesman"
+                      />
+                    </td>
                   </tr> 
                 );
               }) 

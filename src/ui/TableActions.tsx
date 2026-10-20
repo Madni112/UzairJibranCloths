@@ -90,6 +90,9 @@ export interface TableActionsProps {
   onReturn?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onEdit?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onDelete?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canView?: boolean;
   printTitle?: string;
   viewTitle?: string;
   returnTitle?: string;
@@ -105,6 +108,9 @@ export const TableActions: React.FC<TableActionsProps> = ({
   onReturn,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
+  canView = true,
   printTitle,
   viewTitle,
   returnTitle,
@@ -118,7 +124,7 @@ export const TableActions: React.FC<TableActionsProps> = ({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Build the list of active actions
+  // Build the list of active actions based on presence and granular permissions
   const actionList: {
     type: ActionVariant;
     handler: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -126,10 +132,10 @@ export const TableActions: React.FC<TableActionsProps> = ({
   }[] = [];
 
   if (onPrint) actionList.push({ type: 'print', handler: onPrint, title: printTitle || 'Print Record' });
-  if (onView) actionList.push({ type: 'view', handler: onView, title: viewTitle || 'View Details' });
+  if (onView && canView !== false) actionList.push({ type: 'view', handler: onView, title: viewTitle || 'View Details' });
   if (onReturn) actionList.push({ type: 'return', handler: onReturn, title: returnTitle || 'Process Return' });
-  if (onEdit) actionList.push({ type: 'edit', handler: onEdit, title: editTitle || 'Edit Record' });
-  if (onDelete) actionList.push({ type: 'delete', handler: onDelete, title: deleteTitle || 'Delete Record' });
+  if (onEdit && canEdit !== false) actionList.push({ type: 'edit', handler: onEdit, title: editTitle || 'Edit Record' });
+  if (onDelete && canDelete !== false) actionList.push({ type: 'delete', handler: onDelete, title: deleteTitle || 'Delete Record' });
 
   // Determine if we should collapse into a "..." menu
   const shouldCollapse = actionList.length > collapseThreshold;

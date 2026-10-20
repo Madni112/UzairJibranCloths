@@ -4,7 +4,6 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast'; 
 import Spinner from '../../../ui/Spinner'; 
 import TableActions from '../../../ui/TableActions';
-import TablePagination from '../../../components/TablePagination';
 import { useAuth } from '../../../Context/Auth';
 import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
 
@@ -62,8 +61,10 @@ const CustomerHistory = () => {
   };
 
   const getNextSuggestedCode = () => {
-    const custAccounts = coaAccounts.filter(a => a.control_code === 'Customers' || String(a.account_code).startsWith('1020-'));
     let maxNum = 0;
+
+    // 1. Scan Chart of Accounts
+    const custAccounts = coaAccounts.filter(a => a.control_code === 'Customers' || String(a.account_code).startsWith('1020-'));
     custAccounts.forEach(a => {
       const match = String(a.account_code || '').match(/1020-(\d+)/);
       if (match && match[1]) {
@@ -71,6 +72,17 @@ const CustomerHistory = () => {
         if (num > maxNum) maxNum = num;
       }
     });
+
+    // 2. Scan existing customer records
+    customers.forEach((c: any) => {
+      const code = c.customer_code || c.customerCode || c.coa_code || c.account_code || '';
+      const match = String(code).match(/1020-(\d+)/);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+
     return `1020-${String(maxNum + 1).padStart(3, '0')}`;
   };
 
@@ -194,9 +206,13 @@ const CustomerHistory = () => {
         }
       }
 
-      // Try updating customer record with account_code and currentBalance
+      // Update customer record with customer_code, customerCode, coa_code and currentBalance
       try {
-        const custUpdates: any = { account_code: cleanCode, freight_account_code: liabilityCode };
+        const custUpdates: any = {
+          customer_code: cleanCode,
+          customerCode: cleanCode,
+          coa_code: cleanCode
+        };
         if (openingBalanceInput) {
           const bal = Number(openingBalanceInput);
           custUpdates.currentBalance = balanceNatureInput === 'Debit' ? bal : -bal;
@@ -205,13 +221,8 @@ const CustomerHistory = () => {
           .from('customers')
           .update(custUpdates)
           .eq('id', selectedCustomer.id);
-      } catch (_) {
-        try {
-          await supabase
-            .from('customers')
-            .update({ account_code: cleanCode })
-            .eq('id', selectedCustomer.id);
-        } catch (_) {}
+      } catch (err) {
+        console.warn('Customer record sync note:', err);
       }
 
       toast.success(`Asset (${cleanCode}) & Freight Liability (${liabilityCode}) accounts assigned for "${selectedCustomer.customerName}"!`);
@@ -316,8 +327,14 @@ const CustomerHistory = () => {
           <p className="text-xs text-gray-500 mt-0.5">Manage customer directory and assign Chart of Account ledger codes</p>
         </div>
         <button 
-          onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Customers/customer-details`)} 
-          className="bg-primary text-white py-2 px-4 rounded text-sm font-medium hover:bg-opacity-90 transition cursor-pointer shadow-sm" 
+          onClick={() => {
+            const segments = window.location.pathname.split('/').filter(Boolean);
+            const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+              ? `/${segments[0]}`
+              : (tenantId ? `/${tenantId}` : '');
+            navigate(`${tenantPrefix}/Sales/Customers/Add`);
+          }} 
+          className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-xl text-sm font-semibold transition cursor-pointer shadow-sm flex items-center gap-1.5" 
         > 
           + Add New Customer
         </button> 
@@ -464,7 +481,13 @@ const CustomerHistory = () => {
                     {/* 7. Actions */}
                     <td className="py-3.5 px-4 text-center"> 
                       <TableActions
-                        onEdit={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Customers/customer-details`, { state: { customer: c } })}
+                        onEdit={() => {
+                          const segments = window.location.pathname.split('/').filter(Boolean);
+                          const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+                            ? `/${segments[0]}`
+                            : (tenantId ? `/${tenantId}` : '');
+                          navigate(`${tenantPrefix}/Sales/Customers/Add`, { state: { customer: c } });
+                        }}
                         onDelete={() => handleDelete(c.id)}
                         editTitle="Edit Customer"
                         deleteTitle="Delete Customer"
@@ -478,15 +501,36 @@ const CustomerHistory = () => {
         </table> 
       </div> 
 
-      <TablePagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalEntries={totalEntries}
-        startIndex={startIndex}
-        endIndex={endIndex}
-        onPageChange={setCurrentPage}
-        itemName="entries"
-      />
+      {/* CALCULATED DATA COORDS SUMMARY METRIC FOOTER STRIP */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-stroke dark:border-strokedark">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Showing {startIndex + 1} to {endIndex} of {totalEntries} entries
+          {searchTerm && ` (filtered from ${customers.length} total customers)`}
+        </div>
+
+        {/* Dynamic Page Controls Buttons Array Map */}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 font-bold text-teal-600 text-xs">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ── ASSIGN / EDIT ACCOUNT CODE MODAL ── */}
       {showAccountModal && selectedCustomer && (
