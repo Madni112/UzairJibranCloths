@@ -27,7 +27,7 @@ const AddQuotation: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
-  const { tenantId, userName } = useAuth();
+  const { tenantId, userName, businessName } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
@@ -318,7 +318,8 @@ const AddQuotation: React.FC = () => {
         navigate(`${tenantId ? `/${tenantId}` : ''}/crm/quotations/print/${savedId}`);
       } else if (actionAfterSave === 'whatsapp') {
         const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
-        const greeting = `Hello *${customerName}*,\n\nHere is your official Price Quotation from *Zoaib Ali & Company*:\n\n` +
+        const companyLabel = businessName || 'our company';
+        const greeting = `Hello *${customerName}*,\n\nHere is your official Price Quotation from *${companyLabel}*:\n\n` +
           `📄 *Quotation No:* ${quoteNo}\n` +
           `📅 *Date:* ${quoteDate}\n` +
           `⏳ *Valid Until:* ${validUntil}\n` +
@@ -375,21 +376,6 @@ const AddQuotation: React.FC = () => {
               Draft formal price estimates, share directly on WhatsApp or print for customer signing.
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-500">Status:</span>
-          <select
-            value={status}
-            onChange={e => setStatus(e.target.value as any)}
-            className="text-xs font-bold px-3 py-1.5 rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white focus:outline-hidden cursor-pointer"
-          >
-            <option value="Draft">Draft</option>
-            <option value="Sent">Sent to Client</option>
-            <option value="Accepted">Accepted / Confirmed</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Converted to Invoice">Converted to Invoice</option>
-          </select>
         </div>
       </div>
 
@@ -669,15 +655,32 @@ const AddQuotation: React.FC = () => {
 
       {/* Footer Submit Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-xs">
-        <button
-          type="button"
-          onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/crm/quotations`)}
-          className="px-5 py-2.5 rounded-xl border border-stroke dark:border-strokedark text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-meta-4 transition cursor-pointer"
-        >
-          Cancel
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/crm/quotations`)}
+            className="px-5 py-2.5 rounded-xl border border-stroke dark:border-strokedark text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-meta-4 transition cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2 bg-gray-50 dark:bg-meta-4 px-3 py-1.5 rounded-xl border border-stroke dark:border-strokedark">
+            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Status:</span>
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value as any)}
+              className="text-xs font-bold px-2 py-1 rounded-lg border border-stroke dark:border-strokedark bg-white dark:bg-boxdark text-black dark:text-white focus:outline-hidden cursor-pointer"
+            >
+              <option value="Draft">Draft</option>
+              <option value="Sent">Sent to Client</option>
+              <option value="Accepted">Accepted / Confirmed</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Converted to Invoice">Converted to Invoice</option>
+            </select>
+          </div>
+
           <button
             type="button"
             disabled={loading}
