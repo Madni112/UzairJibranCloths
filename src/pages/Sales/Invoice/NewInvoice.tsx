@@ -55,6 +55,10 @@ const NewInvoice = () => {
   const [highlightedTileProdIndex, setHighlightedTileProdIndex] = useState<number>(0);
   const [activeTileWhIndex, setActiveTileWhIndex] = useState<number | null>(null);
   const [highlightedTileWhIndex, setHighlightedTileWhIndex] = useState<number>(0);
+  const [activeTileReturnProdIndex, setActiveTileReturnProdIndex] = useState<number | null>(null);
+  const [highlightedTileReturnProdIndex, setHighlightedTileReturnProdIndex] = useState<number>(0);
+  const [activeTileReturnWhIndex, setActiveTileReturnWhIndex] = useState<number | null>(null);
+  const [highlightedTileReturnWhIndex, setHighlightedTileReturnWhIndex] = useState<number>(0);
 
   const [totalStockMap, setTotalStockMap] = useState<Record<string, number>>({});
 
@@ -213,6 +217,12 @@ const NewInvoice = () => {
       if (!target.closest('.tile-wh-container')) {
         setActiveTileWhIndex(null);
       }
+      if (!target.closest('.tile-return-prod-name-container')) {
+        setActiveTileReturnProdIndex(null);
+      }
+      if (!target.closest('.tile-return-wh-container')) {
+        setActiveTileReturnWhIndex(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -290,6 +300,30 @@ const NewInvoice = () => {
           uom: r.uom || 'PCS',
           amount: Number(r.total || (Number(r.qty || 1) * Number(r.rp ?? r.rate ?? 0)))
         })),
+        showTileReturnSection: (Array.isArray(editData.tile_return_items) && editData.tile_return_items.length > 0) || (Array.isArray(parsedItems[0]?._tileReturnItems) && parsedItems[0]._tileReturnItems.length > 0),
+        tileReturnItems: (
+          Array.isArray(editData.tile_return_items) && editData.tile_return_items.length > 0
+            ? editData.tile_return_items
+            : (Array.isArray(parsedItems[0]?._tileReturnItems) && parsedItems[0]._tileReturnItems.length > 0
+                ? parsedItems[0]._tileReturnItems
+                : [])
+        ).map((t: any, tIdx: number) => ({
+          id: t.id || `tile-return-${tIdx}-${Date.now()}`,
+          skuCode: t.skuCode || t.sku || '',
+          itemName: t.itemName || t.product_name || '',
+          warehouse: t.warehouse || editData.dispatch_warehouse || '',
+          availableQty: Number(t.availableQty || 0),
+          boxQty: Number(t.boxQty ?? t.qty ?? 1),
+          loosePcs: Number(t.loosePcs ?? 0),
+          piecesPerBox: Number(t.piecesPerBox ?? 4),
+          sqmPerBox: Number(t.sqmPerBox ?? 1.44),
+          pricePerBox: Number(t.pricePerBox ?? t.rp ?? 0),
+          pricePerSqm: Number(t.pricePerSqm ?? 0),
+          pricePerPiece: Number(t.pricePerPiece ?? 0),
+          totalAmount: Number(t.totalAmount ?? t.total ?? t.amount ?? 0),
+          totalSqm: Number(t.totalSqm ?? 0),
+          isTileItem: true
+        })),
         showTileSection: (Array.isArray(editData.tile_items) && editData.tile_items.length > 0) || (Array.isArray(parsedItems[0]?._tileItems) && parsedItems[0]._tileItems.length > 0) || parsedItems.some((i: any) => i.isTileItem),
         tileItems: (
           Array.isArray(editData.tile_items) && editData.tile_items.length > 0
@@ -329,6 +363,7 @@ const NewInvoice = () => {
       invoiceNo: '', customerName: '', saleDate: new Date().toISOString().split('T')[0], paymentTerm: 'Cash',
       dispatchWarehouse: '', applyFbrTax: false, showDiscount: false, showOverallDiscount: false, overallDiscount: 0, showAdditionalCharges: false, additionalCharges: 0,
       showReturnSection: false, returnItems: [],
+      showTileReturnSection: false, tileReturnItems: [],
       showTileSection: false, tileItems: [],
       taxScenario: 'Goods at Standard Rate to Registered Buyers',
       salesman: isSalesman ? (matchedSalesman || currentSalesmanName) : '',
@@ -449,6 +484,19 @@ const NewInvoice = () => {
       return hasStandard || hasTile;
     }),
     tileItems: Yup.array().of(
+      Yup.object().shape({
+        itemName: Yup.string().nullable(),
+        warehouse: Yup.string().when('itemName', {
+          is: (val: string) => Boolean(val && val.trim()),
+          then: (s) => s.required('Warehouse is required'),
+          otherwise: (s) => s.nullable()
+        }),
+        boxQty: Yup.number().min(0).nullable(),
+        loosePcs: Yup.number().min(0).nullable(),
+        totalSqm: Yup.number().min(0).nullable()
+      })
+    ).nullable(),
+    tileReturnItems: Yup.array().of(
       Yup.object().shape({
         itemName: Yup.string().nullable(),
         warehouse: Yup.string().when('itemName', {
@@ -674,6 +722,147 @@ const NewInvoice = () => {
     setFieldValue(`tileItems.${tIdx}.totalSqm`, lineSqm);
   };
 
+  const handleTileReturnProductSelection = async (
+    selectedProduct: any,
+    tIdx: number,
+    chosenWarehouse: string,
+    setFieldValue: any,
+    currentTileItem?: any
+  ) => {
+    if (!selectedProduct) {
+      setFieldValue(`tileReturnItems.${tIdx}.itemName`, '');
+      setFieldValue(`tileReturnItems.${tIdx}.skuCode`, '');
+      setFieldValue(`tileReturnItems.${tIdx}.availableQty`, 0);
+      setFieldValue(`tileReturnItems.${tIdx}.pricePerBox`, 0);
+      setFieldValue(`tileReturnItems.${tIdx}.pricePerSqm`, 0);
+      setFieldValue(`tileReturnItems.${tIdx}.pricePerPiece`, 0);
+      setFieldValue(`tileReturnItems.${tIdx}.totalAmount`, 0);
+      setFieldValue(`tileReturnItems.${tIdx}.totalSqm`, 0);
+      return;
+    }
+
+    let pcsPerBox = Number(selectedProduct.pieces_per_box || selectedProduct.pcs_per_box || selectedProduct.pieces_per_packing || 0);
+    if (pcsPerBox <= 1) {
+      const match = String(selectedProduct.product_description || '').match(/Box:\s*(\d+)\s*pcs/i);
+      if (match && Number(match[1]) > 0) pcsPerBox = Number(match[1]);
+      else pcsPerBox = 4;
+    }
+
+    let sqmPerBox = 1.44;
+    const matchSqm = String(selectedProduct.product_description || '').match(/([\d\.]+)\s*sq\.m/i);
+    if (matchSqm && Number(matchSqm[1]) > 0) {
+      sqmPerBox = Number(matchSqm[1]);
+    } else {
+      const dimMatch = String(`${selectedProduct.sub_category || ''} ${selectedProduct.product_description || ''} ${selectedProduct.item_sr_no || ''}`).match(/(\d+(?:\.\d+)?)\s*(?:[xX×*])\s*(\d+(?:\.\d+)?)/);
+      if (dimMatch) {
+        const h = Number(dimMatch[1]) || 60;
+        const w = Number(dimMatch[2]) || 60;
+        sqmPerBox = Number((((h / 100) * (w / 100)) * pcsPerBox).toFixed(2));
+      }
+    }
+
+    const pBox = Number(selectedProduct.retail_price || 0);
+    const pPiece = Number((pBox / pcsPerBox).toFixed(2));
+    const pSqm = Number((pBox / (sqmPerBox || 1)).toFixed(2));
+
+    const boxQty = currentTileItem?.boxQty !== undefined ? Number(currentTileItem.boxQty) : 1;
+    const loosePcs = currentTileItem?.loosePcs !== undefined ? Number(currentTileItem.loosePcs) : 0;
+    const lineTotal = Number(((boxQty * pBox) + (loosePcs * pPiece)).toFixed(2));
+    const lineSqm = Number(((boxQty * sqmPerBox) + ((loosePcs / pcsPerBox) * sqmPerBox)).toFixed(2));
+
+    setFieldValue(`tileReturnItems.${tIdx}.itemName`, selectedProduct.product_name);
+    setFieldValue(`tileReturnItems.${tIdx}.skuCode`, selectedProduct.item_sr_no || `SKU-${selectedProduct.id}`);
+    setFieldValue(`tileReturnItems.${tIdx}.piecesPerBox`, pcsPerBox);
+    setFieldValue(`tileReturnItems.${tIdx}.sqmPerBox`, sqmPerBox);
+    setFieldValue(`tileReturnItems.${tIdx}.pricePerBox`, pBox);
+    setFieldValue(`tileReturnItems.${tIdx}.pricePerPiece`, pPiece);
+    setFieldValue(`tileReturnItems.${tIdx}.pricePerSqm`, pSqm);
+    setFieldValue(`tileReturnItems.${tIdx}.boxQty`, boxQty);
+    setFieldValue(`tileReturnItems.${tIdx}.loosePcs`, loosePcs);
+    setFieldValue(`tileReturnItems.${tIdx}.totalAmount`, lineTotal);
+    setFieldValue(`tileReturnItems.${tIdx}.totalSqm`, lineSqm);
+    setFieldValue(`tileReturnItems.${tIdx}.isTileItem`, true);
+
+    const effectiveWarehouse = (currentTileItem && currentTileItem.warehouse) ? currentTileItem.warehouse : chosenWarehouse;
+    if (effectiveWarehouse) {
+      const availStock = await fetchStockForWarehouse(selectedProduct.product_name, effectiveWarehouse);
+      setFieldValue(`tileReturnItems.${tIdx}.availableQty`, availStock);
+    }
+  };
+
+  const handleTileReturnItemChange = (
+    tIdx: number,
+    field: 'boxQty' | 'loosePcs' | 'pricePerBox' | 'pricePerSqm' | 'pricePerPiece' | 'totalSqm',
+    val: any,
+    tileReturnItems: any[],
+    setFieldValue: any
+  ) => {
+    const item = { ...tileReturnItems[tIdx] };
+    const pcsPerBox = Math.max(1, Number(item.piecesPerBox) || 4);
+    const sqmPerBox = Math.max(0.01, Number(item.sqmPerBox) || 1.44);
+
+    let bQty = Number(item.boxQty || 0);
+    let lPcs = Number(item.loosePcs || 0);
+    let pBox = Number(item.pricePerBox || 0);
+    let pSqm = Number(item.pricePerSqm || 0);
+    let pPiece = Number(item.pricePerPiece || 0);
+    let lineSqm = Number(item.totalSqm || 0);
+
+    if (field === 'boxQty') {
+      bQty = Math.max(0, Number(val) || 0);
+      lineSqm = Number(((bQty * sqmPerBox) + ((lPcs / pcsPerBox) * sqmPerBox)).toFixed(2));
+    } else if (field === 'loosePcs') {
+      let rawLoose = Math.max(0, Number(val) || 0);
+      if (pcsPerBox > 1 && rawLoose >= pcsPerBox) {
+        const extraBoxes = Math.floor(rawLoose / pcsPerBox);
+        const remLoose = rawLoose % pcsPerBox;
+        bQty = bQty + extraBoxes;
+        lPcs = remLoose;
+      } else {
+        lPcs = rawLoose;
+      }
+      lineSqm = Number(((bQty * sqmPerBox) + ((lPcs / pcsPerBox) * sqmPerBox)).toFixed(2));
+    } else if (field === 'totalSqm') {
+      const enteredSqm = Math.max(0, Number(val) || 0);
+      lineSqm = enteredSqm;
+      if (sqmPerBox > 0) {
+        const totalBoxesFloat = enteredSqm / sqmPerBox;
+        bQty = Math.floor(totalBoxesFloat);
+        const remFraction = totalBoxesFloat - bQty;
+        lPcs = Math.round(remFraction * pcsPerBox);
+        if (pcsPerBox > 1 && lPcs >= pcsPerBox) {
+          bQty += Math.floor(lPcs / pcsPerBox);
+          lPcs = lPcs % pcsPerBox;
+        }
+      }
+    } else if (field === 'pricePerBox') {
+      pBox = Math.max(0, Number(val) || 0);
+      pPiece = Number((pBox / pcsPerBox).toFixed(2));
+      pSqm = Number((pBox / sqmPerBox).toFixed(2));
+      lineSqm = Number(((bQty * sqmPerBox) + ((lPcs / pcsPerBox) * sqmPerBox)).toFixed(2));
+    } else if (field === 'pricePerSqm') {
+      pSqm = Math.max(0, Number(val) || 0);
+      pBox = Number((pSqm * sqmPerBox).toFixed(2));
+      pPiece = Number((pBox / pcsPerBox).toFixed(2));
+      lineSqm = Number(((bQty * sqmPerBox) + ((lPcs / pcsPerBox) * sqmPerBox)).toFixed(2));
+    } else if (field === 'pricePerPiece') {
+      pPiece = Math.max(0, Number(val) || 0);
+      pBox = Number((pPiece * pcsPerBox).toFixed(2));
+      pSqm = Number((pBox / sqmPerBox).toFixed(2));
+      lineSqm = Number(((bQty * sqmPerBox) + ((lPcs / pcsPerBox) * sqmPerBox)).toFixed(2));
+    }
+
+    const lineTotal = Number(((bQty * pBox) + (lPcs * pPiece)).toFixed(2));
+
+    setFieldValue(`tileReturnItems.${tIdx}.boxQty`, bQty);
+    setFieldValue(`tileReturnItems.${tIdx}.loosePcs`, lPcs);
+    setFieldValue(`tileReturnItems.${tIdx}.pricePerBox`, pBox);
+    setFieldValue(`tileReturnItems.${tIdx}.pricePerSqm`, pSqm);
+    setFieldValue(`tileReturnItems.${tIdx}.pricePerPiece`, pPiece);
+    setFieldValue(`tileReturnItems.${tIdx}.totalAmount`, lineTotal);
+    setFieldValue(`tileReturnItems.${tIdx}.totalSqm`, lineSqm);
+  };
+
   const blockInvalidChar = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (['-', 'e', 'E', '+'].includes(e.key)) {
       e.preventDefault();
@@ -826,6 +1015,13 @@ const NewInvoice = () => {
         return acc + (Number(rItem.qty || 0) * Number(rItem.rp ?? rItem.rate ?? 0));
       }, 0);
 
+      const validTileReturnItems = values.showTileReturnSection
+        ? (values.tileReturnItems || []).filter((t: any) => t.itemName && (Number(t.boxQty || 0) > 0 || Number(t.loosePcs || 0) > 0 || Number(t.totalAmount || 0) > 0))
+        : [];
+
+      const tileReturnTotalVal = validTileReturnItems.reduce((acc: number, t: any) => acc + Number(t.totalAmount || 0), 0);
+      const totalAllReturnsCredit = returnTotalVal + tileReturnTotalVal;
+
       const tileTotalVal = validTileItems.reduce((acc: number, t: any) => acc + Number(t.totalAmount || 0), 0);
 
       const convertedTileItems = validTileItems.map((t: any) => {
@@ -867,7 +1063,7 @@ const NewInvoice = () => {
       }, 0) + tileTotalVal;
 
       const grossAfterCharges = soldItemsSum + Number(values.transportCharges || 0) + Number(values.additionalCharges || 0) - Number(values.overallDiscount || 0);
-      const calculatedGrandTotal = grossAfterCharges - returnTotalVal;
+      const calculatedGrandTotal = grossAfterCharges - totalAllReturnsCredit;
 
       let paidCash = 0;
       let paidBank = 0;
@@ -906,7 +1102,10 @@ const NewInvoice = () => {
             _returnItems: validReturnItems,
             _returnAmount: returnTotalVal,
             _tileItems: validTileItems,
-            _tileAmount: tileTotalVal
+            _tileAmount: tileTotalVal,
+            _tileReturnItems: validTileReturnItems,
+            _tileReturnAmount: tileReturnTotalVal,
+            _totalReturnCredit: totalAllReturnsCredit
           };
         }
         return cleanItem;
@@ -926,7 +1125,7 @@ const NewInvoice = () => {
         bank_amount: String(paidBank),
         cash_amount_paid: paidCash,
         total_amount: String(grossAfterCharges),
-        receipt_status: (calculatedGrandTotal <= 0 && returnTotalVal > 0) ? 'Credit Adjusted' : (totalPaidCombined >= calculatedGrandTotal ? 'Paid' : 'On Credit'),
+        receipt_status: (calculatedGrandTotal <= 0 && totalAllReturnsCredit > 0) ? 'Credit Adjusted' : (totalPaidCombined >= calculatedGrandTotal ? 'Paid' : 'On Credit'),
         sale_status: 'Confirm',
         shipping_address: values.shippingAddress,
         gate_pass_no: Object.entries(values.gatePasses || {}).map(([k, v]) => `${k}: ${v}`).join(' | '),
@@ -1300,7 +1499,43 @@ const NewInvoice = () => {
 
       // ── AUTO-SYNC SALES RETURN RECORD (FOR IN-INVOICE RETURN / EXCHANGE) ──
       try {
-        if (validReturnItems.length > 0) {
+        const convertedTileReturnItems = validTileReturnItems.map((t: any) => {
+          const pcsPerBox = Math.max(1, Number(t.piecesPerBox) || 4);
+          const bQty = Number(t.boxQty || 0);
+          const lPcs = Number(t.loosePcs || 0);
+          const totalPcs = (bQty * pcsPerBox) + lPcs;
+          const qtyBoxDec = Number((totalPcs / pcsPerBox).toFixed(3));
+          return {
+            sku: t.skuCode || '',
+            itemName: t.itemName,
+            warehouse: t.warehouse || values.dispatchWarehouse || 'Main Warehouse',
+            qty: qtyBoxDec,
+            rate: Number(t.pricePerBox || 0),
+            uom: 'BOX',
+            total: Number(t.totalAmount || 0),
+            isTileItem: true,
+            boxQty: bQty,
+            loosePcs: lPcs,
+            piecesPerBox: pcsPerBox,
+            sqmPerBox: Number(t.sqmPerBox || 1.44),
+            totalSqm: Number(t.totalSqm || 0)
+          };
+        });
+
+        const allCombinedReturnItems = [
+          ...validReturnItems.map((i: any) => ({
+            sku: i.skuCode || '',
+            itemName: i.itemName,
+            warehouse: i.warehouse || values.dispatchWarehouse || 'Main Warehouse',
+            qty: Number(i.qty),
+            rate: Number(i.rp),
+            uom: i.uom || 'Nos',
+            total: Number(i.qty) * Number(i.rp)
+          })),
+          ...convertedTileReturnItems
+        ];
+
+        if (allCombinedReturnItems.length > 0) {
           const returnPayload = {
             return_no: values.invoiceNo,
             customer_name: customerFinalName,
@@ -1311,20 +1546,12 @@ const NewInvoice = () => {
             original_invoice_no: values.invoiceNo,
             settlement_mode: 'On Credit',
             payment_term: 'On Credit',
-            total_amount: returnTotalVal,
+            total_amount: totalAllReturnsCredit,
             payout_amount_paid: 0,
             status: 'Credit Applied',
             inward_status: 'Pending Inward',
             remarks: `In-invoice return/exchange against Invoice #${values.invoiceNo}`,
-            items: validReturnItems.map((i: any) => ({
-              sku: i.skuCode || '',
-              itemName: i.itemName,
-              warehouse: i.warehouse || values.dispatchWarehouse || 'Main Warehouse',
-              qty: Number(i.qty),
-              rate: Number(i.rp),
-              uom: i.uom || 'Nos',
-              total: Number(i.qty) * Number(i.rp)
-            }))
+            items: allCombinedReturnItems
           };
 
           const { data: existingReturn } = await supabase
@@ -1367,6 +1594,9 @@ const NewInvoice = () => {
       const returnVal = (pendingFormValues.returnItems || []).reduce(
         (acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0
       );
+      const tileReturnVal = (pendingFormValues.showTileReturnSection ? (pendingFormValues.tileReturnItems || []) : []).reduce(
+        (acc: number, t: any) => acc + Number(t.totalAmount || 0), 0
+      );
       const tileVal = (pendingFormValues.showTileSection ? (pendingFormValues.tileItems || []) : []).reduce(
         (acc: number, t: any) => acc + Number(t.totalAmount || 0), 0
       );
@@ -1374,7 +1604,7 @@ const NewInvoice = () => {
         return acc + calculateLineTotals(item, pendingFormValues.taxScenario, pendingFormValues.applyFbrTax).netTotal;
       }, 0) + tileVal + Number(pendingFormValues.transportCharges || 0) + Number(pendingFormValues.additionalCharges || 0) - Number(pendingFormValues.overallDiscount || 0);
 
-      const netPayable = grossTotal - returnVal;
+      const netPayable = grossTotal - returnVal - tileReturnVal;
       const currentSubtotal = Math.max(0, netPayable);
 
       const totalPaidNow = pendingFormValues.settlementMode === 'Cash'
@@ -1652,13 +1882,14 @@ const NewInvoice = () => {
       {/* CUSTOMER CHECKOUT MODAL */}
       {showCustomerModal && (() => {
         const modalReturnVal = (pendingFormValues?.returnItems || []).reduce((acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0);
+        const modalTileReturnVal = (pendingFormValues?.showTileReturnSection ? (pendingFormValues?.tileReturnItems || []) : []).reduce((acc: number, t: any) => acc + Number(t.totalAmount || 0), 0);
         const modalTileVal = (pendingFormValues?.showTileSection ? (pendingFormValues?.tileItems || []) : []).reduce((acc: number, t: any) => acc + Number(t.totalAmount || 0), 0);
         const modalGross = pendingFormValues ? (
           (pendingFormValues.items || []).reduce((acc: number, item: any) => {
             return acc + calculateLineTotals(item, pendingFormValues.taxScenario, pendingFormValues.applyFbrTax).netTotal;
           }, 0) + modalTileVal + Number(pendingFormValues.transportCharges || 0) + Number(pendingFormValues.additionalCharges || 0) - Number(pendingFormValues.overallDiscount || 0)
         ) : 0;
-        const modalNetPayable = modalGross - modalReturnVal;
+        const modalNetPayable = modalGross - modalReturnVal - modalTileReturnVal;
         const modalSubtotal = Math.max(0, modalNetPayable);
 
         const modalPaid = pendingFormValues ? (
@@ -1838,6 +2069,10 @@ const NewInvoice = () => {
               return acc + (Number(rItem.qty || 0) * Number(rItem.rp ?? rItem.rate ?? 0));
             }, 0);
 
+            const tileReturnTotalValue = (values.showTileReturnSection ? (values.tileReturnItems || []) : []).reduce((acc: number, tItem: any) => {
+              return acc + Number(tItem.totalAmount || 0);
+            }, 0);
+
             const tileTotalValue = (values.showTileSection ? (values.tileItems || []) : []).reduce((acc: number, tItem: any) => {
               return acc + Number(tItem.totalAmount || 0);
             }, 0);
@@ -1846,7 +2081,7 @@ const NewInvoice = () => {
               return acc + calculateLineTotals(item, values.taxScenario, values.applyFbrTax).netTotal;
             }, 0) + tileTotalValue + Number(values.transportCharges || 0) + Number(values.additionalCharges || 0);
 
-            const netPayableBeforeFloor = grossSubtotalValue - Number(values.overallDiscount || 0) - returnTotalValue;
+            const netPayableBeforeFloor = grossSubtotalValue - Number(values.overallDiscount || 0) - returnTotalValue - tileReturnTotalValue;
             const currentSubtotalValue = Math.max(
               0,
               netPayableBeforeFloor
@@ -2084,6 +2319,42 @@ const NewInvoice = () => {
                       }`}
                     >
                       Return
+                    </div>
+
+                    {/* Return Tile Toggle Pill */}
+                    <div
+                      onClick={() => {
+                        const isChecked = !values.showTileReturnSection;
+                        setFieldValue('showTileReturnSection', isChecked);
+                        if (!isChecked) {
+                          setFieldValue('tileReturnItems', []);
+                        } else if ((values.tileReturnItems || []).length === 0) {
+                          setFieldValue('tileReturnItems', [{
+                            id: Date.now(),
+                            itemName: '',
+                            skuCode: '',
+                            warehouse: values.dispatchWarehouse || '',
+                            availableQty: 0,
+                            boxQty: 1,
+                            loosePcs: 0,
+                            piecesPerBox: 4,
+                            sqmPerBox: 1.44,
+                            pricePerBox: 0,
+                            pricePerSqm: 0,
+                            pricePerPiece: 0,
+                            totalAmount: 0,
+                            totalSqm: 1.44,
+                            isTileItem: true
+                          }]);
+                        }
+                      }}
+                      className={`cursor-pointer px-3 py-1.5 text-xs font-bold rounded-full transition select-none flex items-center justify-center border ${
+                        values.showTileReturnSection
+                          ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800'
+                          : 'bg-white text-slate-500 border-stroke dark:bg-boxdark dark:text-slate-400 dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4'
+                      }`}
+                    >
+                      Return Tile
                     </div>
 
                     {/* Tile Products Toggle Pill */}
@@ -3803,12 +4074,463 @@ const NewInvoice = () => {
                   </div>
                 )}
 
+                {/* --- RETURN TILE PRODUCTS DYNAMIC FIELDARRAY --- */}
+                {values.showTileReturnSection && (
+                  <div className={`border border-amber-300 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 rounded-sm mt-6 relative ${activeTileReturnProdIndex !== null || activeTileReturnWhIndex !== null ? 'z-30' : 'z-10'} overflow-visible pb-4`}>
+                    <FieldArray name="tileReturnItems">
+                      {({ push, remove }) => {
+                        return (
+                          <div className="w-full min-w-[800px]">
+                            <div className="p-3 bg-amber-100/60 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded bg-amber-600 text-white font-mono text-[10px] font-black tracking-wider uppercase">
+                                  Return Tile
+                                </span>
+                                <span className="font-bold text-xs text-amber-900 dark:text-amber-200">
+                                  Returned Tile Items (Credit Subtracted From This Invoice)
+                                </span>
+                              </div>
+                              <div className="text-xs font-mono font-black text-amber-700 dark:text-amber-300">
+                                Total Tile Return Credit: Rs. {tileReturnTotalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </div>
+                            </div>
+
+                            <table className="w-full table-auto border-collapse text-left">
+                              <thead className="bg-amber-50/70 dark:bg-amber-950/40 text-[10px] font-black uppercase text-amber-900 dark:text-amber-300 border-b border-amber-200 dark:border-amber-800">
+                                <tr>
+                                  <th className="p-2 w-8 text-center">S#</th>
+                                  <th className="p-2 min-w-[240px]">Returned Tile Product (Name / Sku)</th>
+                                  <th className="p-2 w-44">Return Warehouse Zone</th>
+                                  <th className="p-2 w-32 text-center">Stock in Wh</th>
+                                  <th className="p-2 w-24 text-center">Return (Box)</th>
+                                  <th className="p-2 w-24 text-center">Return Pcs</th>
+                                  <th className="p-2 w-28 text-right">RP / Box</th>
+                                  <th className="p-2 w-28 text-right">RP / m²</th>
+                                  <th className="p-2 w-28 text-right">RP / Piece</th>
+                                  <th className="p-2 w-32 text-right pr-3">Line Credit Total</th>
+                                  <th className="p-2 w-8 text-center"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(values.tileReturnItems || []).map((tItem: any, tIdx: number) => {
+                                  const isCurrentProdActive = activeTileReturnProdIndex === tIdx;
+                                  const isCurrentWhActive = activeTileReturnWhIndex === tIdx;
+
+                                  const exactMatchSelected = productsList.some(
+                                    (p: any) => String(p.product_name || '').toLowerCase().trim() === String(tItem.itemName || '').toLowerCase().trim()
+                                  );
+                                  const currentSearchTerm = exactMatchSelected ? '' : (tItem.itemName || '').toLowerCase().trim();
+
+                                  const filteredProducts = productsList.filter((p: any) => {
+                                    if (!isTileProduct(p)) return false;
+                                    if (!currentSearchTerm) return true;
+                                    return (
+                                      (p.product_name && p.product_name.toLowerCase().includes(currentSearchTerm)) ||
+                                      (p.item_sr_no && p.item_sr_no.toLowerCase().includes(currentSearchTerm)) ||
+                                      (`sku-${p.id}`.includes(currentSearchTerm))
+                                    );
+                                  });
+
+                                  const currentWh = tItem.warehouse !== undefined ? tItem.warehouse : (values.dispatchWarehouse || '');
+                                  const exactWhSelected = warehousesList.some(w => String(w || '').toLowerCase().trim() === String(currentWh || '').toLowerCase().trim());
+                                  const whSearchTerm = exactWhSelected ? '' : currentWh.toLowerCase().trim();
+                                  let filteredWhs = whSearchTerm 
+                                    ? warehousesList.filter(w => String(w || '').toLowerCase().includes(whSearchTerm))
+                                    : warehousesList;
+
+                                  if (filteredWhs.length === 0 && currentWh) {
+                                    filteredWhs = [currentWh];
+                                  }
+
+                                  const ppb = Math.max(1, Number(tItem.piecesPerBox) || 4);
+                                  const spb = Number(tItem.sqmPerBox) || 1.44;
+                                  const sqmPerPiece = spb / ppb;
+
+                                  const selectedProductObj = productsList.find(
+                                    (p: any) => String(p.product_name || '').toLowerCase().trim() === String(tItem.itemName || '').toLowerCase().trim()
+                                  );
+
+                                  let availTotalPieces = 0;
+                                  if (selectedProductObj) {
+                                    const totalUnits = Number(tItem.availableQty ?? selectedProductObj.stock_quantity ?? 0);
+                                    availTotalPieces = totalUnits;
+                                  }
+                                  const availBoxes = Math.floor(availTotalPieces / ppb);
+                                  const availLoose = availTotalPieces % ppb;
+                                  const totalAvailSqm = availTotalPieces * sqmPerPiece;
+                                  const totalAvailPieces = availTotalPieces;
+
+                                  const itemLineTotalPieces = (Number(tItem.boxQty || 0) * ppb) + Number(tItem.loosePcs || 0);
+                                  const itemLineSqm = itemLineTotalPieces * sqmPerPiece;
+
+                                  return (
+                                    <tr key={tItem.id || tIdx} className="border-b border-amber-100 dark:border-amber-900/40 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-xs">
+                                      {/* S# */}
+                                      <td className="p-2 text-center font-bold text-amber-700 dark:text-amber-400">
+                                        {tIdx + 1}
+                                      </td>
+
+                                      {/* PRODUCT SEARCH */}
+                                      <td className="p-2 relative">
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            value={tItem.itemName || ''}
+                                            onFocus={() => {
+                                              setActiveTileReturnProdIndex(tIdx);
+                                              setHighlightedTileReturnProdIndex(0);
+                                            }}
+                                            onChange={(e) => {
+                                              setFieldValue(`tileReturnItems.${tIdx}.itemName`, e.target.value);
+                                              setActiveTileReturnProdIndex(tIdx);
+                                              setHighlightedTileReturnProdIndex(0);
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (!isCurrentProdActive) return;
+                                              if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                setHighlightedTileReturnProdIndex((prev) =>
+                                                  prev < filteredProducts.length - 1 ? prev + 1 : prev
+                                                );
+                                              } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                setHighlightedTileReturnProdIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                                              } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (filteredProducts[highlightedTileReturnProdIndex]) {
+                                                  handleTileReturnProductSelection(
+                                                    tIdx,
+                                                    filteredProducts[highlightedTileReturnProdIndex],
+                                                    values.tileReturnItems,
+                                                    setFieldValue
+                                                  );
+                                                }
+                                              } else if (e.key === 'Escape') {
+                                                setActiveTileReturnProdIndex(null);
+                                              }
+                                            }}
+                                            placeholder="Type tile product name..."
+                                            className="w-full bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold text-black dark:text-white outline-none focus:border-amber-500"
+                                          />
+                                          {tItem.skuCode && (
+                                            <div className="text-[10px] font-mono text-amber-600 dark:text-amber-400 mt-0.5 truncate font-bold">
+                                              Code: {tItem.skuCode}
+                                            </div>
+                                          )}
+
+                                          {/* PRODUCT DROPDOWN */}
+                                          {isCurrentProdActive && (
+                                            <div className="absolute left-0 top-full mt-1.5 z-[99999] min-w-[340px] max-w-[420px] max-h-[260px] overflow-y-auto rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-[#1A222C] shadow-2xl divide-y divide-slate-100 dark:divide-slate-800 scrollbar-thin">
+                                              {filteredProducts.map((p, pIdx) => {
+                                                const displaySku = p.item_sr_no || `SKU-${p.id}`;
+                                                const isHighlighted = pIdx === highlightedTileReturnProdIndex;
+                                                const { boxes, loose } = getTileStockBreakdown(p);
+                                                const hasStock = boxes > 0 || loose > 0;
+
+                                                return (
+                                                  <div
+                                                    key={p.id}
+                                                    onMouseEnter={() => setHighlightedTileReturnProdIndex(pIdx)}
+                                                    onMouseDown={(e) => {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      handleTileReturnProductSelection(tIdx, p, values.tileReturnItems, setFieldValue);
+                                                    }}
+                                                    className={`p-2.5 cursor-pointer transition flex items-center justify-between ${
+                                                      isHighlighted ? 'bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500' : 'hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                                                    }`}
+                                                  >
+                                                    <div className="flex flex-col text-left pr-2">
+                                                      <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                                                        {p.product_name}
+                                                      </span>
+                                                      <span className="text-[10px] text-slate-500 font-mono">
+                                                        {displaySku} {p.category ? `• ${p.category}` : ''}
+                                                      </span>
+                                                    </div>
+                                                    <div className="text-right font-mono shrink-0 pl-2 flex flex-col items-end justify-center">
+                                                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                        Rs. {Number(p.retail_price || 0).toLocaleString()}
+                                                      </span>
+                                                      <span className={`text-[11px] font-bold ${hasStock ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                                        {boxes} Box{boxes !== 1 ? 'es' : ''}
+                                                      </span>
+                                                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-0.5">
+                                                        {loose} Pc{loose !== 1 ? 's' : ''}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+
+                                      {/* WAREHOUSE SELECTOR */}
+                                      <td className="p-2 relative">
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            value={currentWh}
+                                            onFocus={() => {
+                                              setActiveTileReturnWhIndex(tIdx);
+                                              setHighlightedTileReturnWhIndex(0);
+                                            }}
+                                            onChange={(e) => {
+                                              const newWh = e.target.value;
+                                              setFieldValue(`tileReturnItems.${tIdx}.warehouse`, newWh);
+                                              setActiveTileReturnWhIndex(tIdx);
+                                              setHighlightedTileReturnWhIndex(0);
+                                              if (tItem.itemName) {
+                                                fetchStockForWarehouse(tItem.itemName, newWh).then((avail) => {
+                                                  setFieldValue(`tileReturnItems.${tIdx}.availableQty`, avail);
+                                                });
+                                              }
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (!isCurrentWhActive) return;
+                                              if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                setHighlightedTileReturnWhIndex((prev) =>
+                                                  prev < filteredWhs.length - 1 ? prev + 1 : prev
+                                                );
+                                              } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                setHighlightedTileReturnWhIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                                              } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (filteredWhs[highlightedTileReturnWhIndex]) {
+                                                  const chosenWh = filteredWhs[highlightedTileReturnWhIndex];
+                                                  setFieldValue(`tileReturnItems.${tIdx}.warehouse`, chosenWh);
+                                                  if (tItem.itemName) {
+                                                    fetchStockForWarehouse(tItem.itemName, chosenWh).then((avail) => {
+                                                      setFieldValue(`tileReturnItems.${tIdx}.availableQty`, avail);
+                                                    });
+                                                  }
+                                                  setActiveTileReturnWhIndex(null);
+                                                }
+                                              } else if (e.key === 'Escape') {
+                                                setActiveTileReturnWhIndex(null);
+                                              }
+                                            }}
+                                            placeholder="Warehouse..."
+                                            className="w-full bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold text-black dark:text-white outline-none focus:border-amber-500"
+                                          />
+
+                                          {/* WAREHOUSE DROPDOWN */}
+                                          {isCurrentWhActive && (
+                                            <div className="absolute left-0 top-full mt-1.5 z-[99999] min-w-[260px] max-w-[320px] max-h-[220px] overflow-y-auto rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-[#1A222C] shadow-2xl divide-y divide-slate-100 dark:divide-slate-800 scrollbar-thin">
+                                              {filteredWhs.map((wh, wIdx) => {
+                                                let whBoxes = 0;
+                                                let whLoose = 0;
+                                                let hasStock = false;
+                                                if (tItem.itemName) {
+                                                  const prodNameLower = String(tItem.itemName).toLowerCase().trim();
+                                                  const whKey = `${prodNameLower}___${String(wh).toLowerCase().trim()}`;
+                                                  const stockQty = warehouseStockMap[whKey] ?? 0;
+                                                  whBoxes = Math.floor(stockQty / ppb);
+                                                  whLoose = stockQty % ppb;
+                                                  hasStock = stockQty > 0;
+                                                }
+
+                                                return (
+                                                  <div
+                                                    key={wh}
+                                                    onMouseEnter={() => setHighlightedTileReturnWhIndex(wIdx)}
+                                                    onMouseDown={(e) => {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      setFieldValue(`tileReturnItems.${tIdx}.warehouse`, wh);
+                                                      if (tItem.itemName) {
+                                                        fetchStockForWarehouse(tItem.itemName, wh).then((avail) => {
+                                                          setFieldValue(`tileReturnItems.${tIdx}.availableQty`, avail);
+                                                        });
+                                                      }
+                                                      setActiveTileReturnWhIndex(null);
+                                                    }}
+                                                    className={`p-2.5 cursor-pointer transition text-xs font-bold flex items-center justify-between gap-2 ${
+                                                      wIdx === highlightedTileReturnWhIndex
+                                                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-l-4 border-amber-500'
+                                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                                                    }`}
+                                                  >
+                                                    <span className="truncate">{wh}</span>
+                                                    {tItem.itemName && (
+                                                      <div className="text-right font-mono shrink-0 pl-2 flex flex-col items-end leading-none">
+                                                        <span className={`text-[11px] font-bold ${hasStock ? 'text-amber-700 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                                          {whBoxes} Box{whBoxes !== 1 ? 'es' : ''}
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                                                          {whLoose} Pc{whLoose !== 1 ? 's' : ''}
+                                                        </span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+
+                                      {/* STOCK IN WAREHOUSE */}
+                                      <td className="p-2 w-32 text-center">
+                                        <div className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                          {availBoxes} Boxes{availLoose > 0 ? ` + ${availLoose} Pcs` : ''}
+                                        </div>
+                                        <div className="text-[10px] text-amber-700 dark:text-amber-300 font-mono font-bold">
+                                          {totalAvailSqm.toFixed(2)} m²
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 font-mono">
+                                          ({totalAvailPieces} Total Pcs)
+                                        </div>
+                                      </td>
+
+                                      {/* RETURN QTY (BOX) */}
+                                      <td className="p-2 w-24 text-center">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="1"
+                                          value={tItem.boxQty ?? 0}
+                                          onKeyDown={blockInvalidChar}
+                                          onChange={(e) => {
+                                            handleTileReturnItemChange(tIdx, 'boxQty', e.target.value, values.tileReturnItems, setFieldValue);
+                                          }}
+                                          className="w-full text-center bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold font-mono text-black dark:text-white outline-none focus:border-amber-500"
+                                        />
+                                      </td>
+
+                                      {/* RETURN PCS (LOOSE) */}
+                                      <td className="p-2 w-24 text-center">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="1"
+                                          value={tItem.loosePcs ?? 0}
+                                          onKeyDown={blockInvalidChar}
+                                          onChange={(e) => {
+                                            handleTileReturnItemChange(tIdx, 'loosePcs', e.target.value, values.tileReturnItems, setFieldValue);
+                                          }}
+                                          className="w-full text-center bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold font-mono text-black dark:text-white outline-none focus:border-amber-500"
+                                        />
+                                      </td>
+
+                                      {/* RETURN RATE (PER BOX) */}
+                                      <td className="p-2 w-28 text-right">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="any"
+                                          value={tItem.pricePerBox ?? 0}
+                                          onKeyDown={blockInvalidChar}
+                                          onChange={(e) => {
+                                            handleTileReturnItemChange(tIdx, 'pricePerBox', e.target.value, values.tileReturnItems, setFieldValue);
+                                          }}
+                                          className="w-full text-right bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold font-mono text-black dark:text-white outline-none focus:border-amber-500"
+                                        />
+                                      </td>
+
+                                      {/* RETURN RATE (PER SQ. MTR) */}
+                                      <td className="p-2 w-28 text-right">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="any"
+                                          value={tItem.pricePerSqm ?? 0}
+                                          onKeyDown={blockInvalidChar}
+                                          onChange={(e) => {
+                                            handleTileReturnItemChange(tIdx, 'pricePerSqm', e.target.value, values.tileReturnItems, setFieldValue);
+                                          }}
+                                          className="w-full text-right bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold font-mono text-black dark:text-white outline-none focus:border-amber-500"
+                                        />
+                                        <div className="mt-1 text-right font-mono">
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-200/80 dark:border-amber-800/60" title="Total Sq. Mtr returned for this item">
+                                            <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">Sq.M:</span>
+                                            <strong className="text-amber-950 dark:text-amber-100 font-black">{itemLineSqm.toFixed(2)} m²</strong>
+                                          </span>
+                                        </div>
+                                      </td>
+
+                                      {/* RETURN RATE (PER PIECE) */}
+                                      <td className="p-2 w-28 text-right">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="any"
+                                          value={tItem.pricePerPiece ?? 0}
+                                          onKeyDown={blockInvalidChar}
+                                          onChange={(e) => {
+                                            handleTileReturnItemChange(tIdx, 'pricePerPiece', e.target.value, values.tileReturnItems, setFieldValue);
+                                          }}
+                                          className="w-full text-right bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold font-mono text-black dark:text-white outline-none focus:border-amber-500"
+                                        />
+                                      </td>
+
+                                      {/* NET TOTAL */}
+                                      <td className="p-2 w-32 text-right pr-3 font-mono font-black text-xs text-amber-700 dark:text-amber-400">
+                                        - Rs. {Number(tItem.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </td>
+
+                                      {/* DELETE ROW */}
+                                      <td className="p-2 w-8 text-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => remove(tIdx)}
+                                          className="text-slate-400 hover:text-red-600 transition p-1"
+                                          title="Remove tile return item"
+                                        >
+                                          <FiTrash2 size={14} />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+
+                            <div className="p-2 bg-amber-50/50 dark:bg-amber-950/20 border-t border-amber-200 dark:border-amber-900/50 text-left">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  push({
+                                    id: Date.now(),
+                                    itemName: '',
+                                    skuCode: '',
+                                    warehouse: values.dispatchWarehouse || '',
+                                    availableQty: 0,
+                                    boxQty: 1,
+                                    loosePcs: 0,
+                                    piecesPerBox: 4,
+                                    sqmPerBox: 1.44,
+                                    pricePerBox: 0,
+                                    pricePerSqm: 0,
+                                    pricePerPiece: 0,
+                                    totalAmount: 0,
+                                    totalSqm: 1.44,
+                                    isTileItem: true
+                                  })
+                                }
+                                className="text-amber-700 dark:text-amber-400 font-bold hover:underline cursor-pointer text-xs"
+                              >
+                                + Append Returned Tile Item Row
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    </FieldArray>
+                  </div>
+                )}
+
                 {/* --- LOCATION GATE PASSES DYNAMIC SECTION --- */}
                 {(() => {
                   const allRows = [
                     ...values.items,
                     ...(values.showTileSection ? (values.tileItems || []) : []),
-                    ...(values.showReturnSection ? (values.returnItems || []) : [])
+                    ...(values.showReturnSection ? (values.returnItems || []) : []),
+                    ...(values.showTileReturnSection ? (values.tileReturnItems || []) : [])
                   ];
                   const uniqueLocations = Array.from(new Set(
                     allRows
@@ -4019,6 +4741,13 @@ const NewInvoice = () => {
                       <div className="flex justify-between border-b pb-1 dark:border-strokedark text-rose-600 dark:text-rose-400 font-bold">
                         <span>Less Return Credit:</span>
                         <span>- Rs. {returnTotalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+
+                    {(values.showTileReturnSection || tileReturnTotalValue > 0) && (
+                      <div className="flex justify-between border-b pb-1 dark:border-strokedark text-amber-600 dark:text-amber-400 font-bold">
+                        <span>Less Tile Return Credit:</span>
+                        <span>- Rs. {tileReturnTotalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                       </div>
                     )}
 

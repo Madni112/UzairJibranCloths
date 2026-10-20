@@ -251,7 +251,14 @@ const PrintInvoice = () => {
       : returnItemsList.reduce((acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0)
   );
 
-  const netBeforeFloor = computedTotalNet + freightCharges + additionalCharges - overallDiscount - returnTotalAmount;
+  const tileReturnItemsList: any[] = Array.isArray(firstItem._tileReturnItems) ? firstItem._tileReturnItems : [];
+  const tileReturnTotalAmount = Number(
+    firstItem._tileReturnAmount !== undefined
+      ? firstItem._tileReturnAmount
+      : tileReturnItemsList.reduce((acc: number, t: any) => acc + Number(t.totalAmount || 0), 0)
+  );
+
+  const netBeforeFloor = computedTotalNet + freightCharges + additionalCharges - overallDiscount - returnTotalAmount - tileReturnTotalAmount;
   const grandTotal = Math.max(0, netBeforeFloor);
   const cashPaid = Number(invoice.cash_amount_paid || 0);
   const bankPaid = Number(invoice.bank_amount || 0);
@@ -592,6 +599,66 @@ const PrintInvoice = () => {
           </div>
         )}
 
+        {/* ── Returned Tile Items Table ── */}
+        {tileReturnItemsList.length > 0 && (
+          <div className="border border-amber-300 rounded-xl overflow-hidden mb-5 bg-amber-50/10">
+            <div className="bg-amber-900 text-white text-[10px] font-black uppercase tracking-wider py-1.5 px-3 flex items-center justify-between">
+              <span>Returned Tile Items (Credited Against This Bill)</span>
+              <span>Total Tile Credit: - Rs. {tileReturnTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-amber-100/70 text-amber-900 text-[10px] font-black uppercase tracking-wider">
+                  <th className="py-2 px-2 w-[4%] text-center">S#</th>
+                  <th className="py-2 px-2 w-[14%] font-mono">SKU</th>
+                  <th className="py-2 px-2 w-[30%]">Returned Tile Description</th>
+                  <th className="py-2 px-2 w-[16%]">Warehouse Zone</th>
+                  <th className="py-2 px-2 text-center w-[16%]">Return Packing & Qty</th>
+                  <th className="py-2 px-2 text-right w-[10%]">Rate/Box</th>
+                  <th className="py-2 px-2 text-right pr-2 w-[10%] font-black text-amber-800">Credit Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100 font-medium text-[10.5px]">
+                {tileReturnItemsList.map((t: any, tIdx: number) => {
+                  const ppb = Math.max(1, Number(t.piecesPerBox) || 4);
+                  const spb = Number(t.sqmPerBox) || 1.44;
+                  const sqmPerPiece = spb / ppb;
+                  const boxes = Number(t.boxQty || 0);
+                  const loose = Number(t.loosePcs || 0);
+                  const totalPieces = (boxes * ppb) + loose;
+                  const totalSqm = totalPieces * sqmPerPiece;
+                  const lineTotal = Number(t.totalAmount || 0);
+
+                  return (
+                    <tr key={tIdx} className="hover:bg-amber-50/30">
+                      <td className="py-1.5 px-2 text-center text-slate-400 font-mono">{tIdx + 1}</td>
+                      <td className="py-1.5 px-2 font-mono font-bold text-slate-700">{t.skuCode || t.sku || '-'}</td>
+                      <td className="py-1.5 px-2 font-bold text-slate-900">{t.itemName || t.product_name}</td>
+                      <td className="py-1.5 px-2 text-slate-600">{t.warehouse || invoice.dispatch_warehouse || 'Main Warehouse'}</td>
+                      <td className="py-1.5 px-2 text-center">
+                        <div className="font-mono font-bold text-slate-900">
+                          {boxes > 0 ? `${boxes} Box${boxes !== 1 ? 'es' : ''}` : ''}
+                          {boxes > 0 && loose > 0 ? ' + ' : ''}
+                          {loose > 0 || boxes === 0 ? `${loose} Pc${loose !== 1 ? 's' : ''}` : ''}
+                        </div>
+                        <div className="text-[9px] text-amber-800 font-bold font-mono">
+                          {totalSqm.toFixed(2)} m² ({totalPieces} Pcs)
+                        </div>
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-mono">
+                        {t.pricePerBox ? `Rs. ${Number(t.pricePerBox).toLocaleString()}` : (t.pricePerSqm ? `Rs. ${Number(t.pricePerSqm).toLocaleString()}/m²` : `Rs. ${Number(t.pricePerPiece || 0).toLocaleString()}/pc`)}
+                      </td>
+                      <td className="py-1.5 px-2 text-right pr-2 font-mono font-black text-amber-700">
+                        - Rs. {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* ── Summary & Settlement Breakdown ─────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {/* Amount in words */}
@@ -656,6 +723,13 @@ const PrintInvoice = () => {
               <div className="flex justify-between text-rose-700 font-bold">
                 <span>Less Return / Exchange Credit:</span>
                 <span>- Rs. {returnTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+
+            {tileReturnTotalAmount > 0 && (
+              <div className="flex justify-between text-amber-700 font-bold">
+                <span>Less Tile Return Credit:</span>
+                <span>- Rs. {tileReturnTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
             )}
 
