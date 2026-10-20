@@ -320,7 +320,7 @@ const SalesmanDashboard: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* 1. Header Banner */}
-      <GlassCard className="p-6 relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-800 text-white rounded-3xl shadow-xl">
+      <GlassCard className="p-6 relative overflow-hidden bg-gradient-to-r from-emerald-700 via-teal-700 to-slate-900 text-white rounded-3xl shadow-xl">
         <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 z-10 relative">
@@ -403,7 +403,7 @@ const SalesmanDashboard: React.FC = () => {
           title="Today's Sales"
           value={`Rs. ${metrics.todaySales.toLocaleString(undefined, { minimumFractionDigits: 0 })}`}
           Icon={MdShoppingCart}
-          bgColor="bg-gradient-to-br from-blue-600 to-indigo-700"
+          bgColor="bg-gradient-to-br from-teal-600 to-emerald-700"
         />
         <StatCard
           title="This Month Sales"

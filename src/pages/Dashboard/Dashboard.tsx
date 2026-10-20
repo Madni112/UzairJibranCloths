@@ -52,7 +52,7 @@ const AdminRoleSwitcher: React.FC<{
         <button
           onClick={() => onChangeView('executive')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeView === 'executive'
-              ? 'bg-blue-600 text-white shadow-sm scale-102'
+              ? 'bg-emerald-600 text-white shadow-sm scale-102'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60'
             }`}
         >
@@ -61,7 +61,7 @@ const AdminRoleSwitcher: React.FC<{
         <button
           onClick={() => onChangeView('salesman')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeView === 'salesman'
-              ? 'bg-blue-600 text-white shadow-sm scale-102'
+              ? 'bg-emerald-600 text-white shadow-sm scale-102'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60'
             }`}
         >
@@ -70,7 +70,7 @@ const AdminRoleSwitcher: React.FC<{
         <button
           onClick={() => onChangeView('warehouse')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeView === 'warehouse'
-              ? 'bg-orange-600 text-white shadow-sm scale-102'
+              ? 'bg-teal-700 text-white shadow-sm scale-102'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60'
             }`}
         >
@@ -717,7 +717,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
   const bankDonutOptions: any = {
     chart: { type: 'donut' },
-    colors: totalBankBalance > 0 ? ['#059669', '#0D9488', '#D97706', '#0284C7', '#475569'] : ['#CBD5E1'],
+    colors: totalBankBalance > 0 ? ['#059669', '#0D9488', '#10B981', '#14B8A6', '#334155'] : ['#CBD5E1'],
     labels: totalBankBalance > 0 ? metrics.bankAccounts.map((b) => b.accountTitle) : ['Zero Balance'],
     legend: { position: 'bottom' },
     tooltip: { y: { formatter: (val: number) => `Rs. ${totalBankBalance > 0 ? val.toLocaleString() : '0.00'}` } }
@@ -749,13 +749,13 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
       {/* --- TOP ACTION TILES GRID --- */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-5">
         <ActionCard title="Sales" subtitle="Customer Bill" Icon={MdShoppingCart} bgGradient="bg-gradient-to-br from-emerald-600 to-teal-800" onClick={() => navigate('/sales/invoice/list')} />
-        <ActionCard title="Purchases" subtitle="Buy New Product" Icon={MdLocalMall} bgGradient="bg-gradient-to-br from-amber-600 to-amber-800" onClick={() => navigate('/Purchase/Purchases/list')} />
+        <ActionCard title="Purchases" subtitle="Buy New Product" Icon={MdLocalMall} bgGradient="bg-gradient-to-br from-teal-700 to-emerald-900" onClick={() => navigate('/Purchase/Purchases/list')} />
         <ActionCard title="Products" subtitle="Items List" Icon={MdAddBox} bgGradient="bg-gradient-to-br from-teal-600 to-cyan-800" onClick={() => navigate('/Administration/Products/list')} />
         <ActionCard title="Sale Return" subtitle="Customer Return" Icon={MdCompareArrows} bgGradient="bg-gradient-to-br from-slate-700 to-slate-900" onClick={() => navigate('/Sales/Sales-Return/List')} />
         <ActionCard title="Stock Report" subtitle="Inventory Audit" Icon={MdAssessment} bgGradient="bg-gradient-to-br from-emerald-700 to-teal-900" onClick={() => navigate('/Reports/Stock-Report')} />
         <ActionCard title="Today's Sale" subtitle={`Rs. ${metrics.todaysSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdTrendingUp} bgGradient="bg-gradient-to-br from-teal-500 to-emerald-700" onClick={() => { }} />
         <ActionCard title="This Month Sales" subtitle={`Rs. ${metrics.thisMonthSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdArrowUpward} bgGradient="bg-gradient-to-br from-emerald-800 to-slate-900" onClick={() => { }} />
-        <ActionCard title="This Month Purchases" subtitle={`Rs. ${metrics.thisMonthPurchases.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdArrowDownward} bgGradient="bg-gradient-to-br from-amber-700 to-stone-900" onClick={() => { }} />
+        <ActionCard title="This Month Purchases" subtitle={`Rs. ${metrics.thisMonthPurchases.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdArrowDownward} bgGradient="bg-gradient-to-br from-teal-800 to-slate-900" onClick={() => { }} />
       </div>
 
       {/* --- FINANCIAL KPI STAT CARDS --- */}
@@ -782,7 +782,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           title="Receivables"
           value={metrics.totalReceivables}
           Icon={MdReceiptLong}
-          bgColor="bg-gradient-to-br from-amber-500 to-amber-700"
+          bgColor="bg-gradient-to-br from-emerald-600 to-teal-700"
           thisMonthValue={metrics.thisMonthReceivables}
           thisMonthLabel="This Month"
           onClick={() => setActiveBreakdownModal('receivables')}
@@ -808,14 +808,14 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
             <div className="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <span className="p-1 rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">
+                  <span className="p-1 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
                     <MdOutlineReceipt size={16} />
                   </span>
                   Customer Receivables
                 </h3>
                 <p className="text-[11px] text-slate-400">Last 10 outstanding sales invoices with real-time aging status</p>
               </div>
-              <span className="text-[10px] px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold font-mono">
+              <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold font-mono">
                 {receivablesList.length} Invoices Due
               </span>
             </div>
