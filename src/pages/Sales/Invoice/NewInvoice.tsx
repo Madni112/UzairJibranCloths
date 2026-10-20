@@ -1710,12 +1710,16 @@ const NewInvoice = () => {
         ];
 
         if (allCombinedReturnItems.length > 0) {
+          const itemWh = allCombinedReturnItems.find((i: any) => i.warehouse && i.warehouse !== 'Main Warehouse')?.warehouse;
+          const defaultStorageWh = warehousesList.find((w: string) => /fateh/i.test(w) || /a[-_ ]?39/i.test(w)) || warehousesList[0] || 'Main Warehouse';
+          const returnWh = itemWh || values.dispatchWarehouse || defaultStorageWh;
+
           const returnPayload = {
             return_no: values.invoiceNo,
             customer_name: customerFinalName,
             return_date: values.saleDate || new Date().toISOString().split('T')[0],
-            warehouse_name: values.dispatchWarehouse || 'Main Warehouse',
-            source_warehouse: values.dispatchWarehouse || 'Main Warehouse',
+            warehouse_name: returnWh,
+            source_warehouse: returnWh,
             invoice_no: values.invoiceNo,
             original_invoice_no: values.invoiceNo,
             settlement_mode: 'On Credit',
@@ -2860,13 +2864,14 @@ const NewInvoice = () => {
                       onClick={() => {
                         const isChecked = !values.showReturnSection;
                         setFieldValue('showReturnSection', isChecked);
+                        const defaultReturnWh = values.dispatchWarehouse || warehousesList.find((w: string) => /fateh/i.test(w) || /a[-_ ]?39/i.test(w)) || warehousesList[0] || '';
                         if (!isChecked) {
                           setFieldValue('returnItems', []);
                         } else if ((values.returnItems || []).length === 0) {
                           setFieldValue('returnItems', [{
                             itemName: '',
                             skuCode: '',
-                            warehouse: values.dispatchWarehouse || '',
+                            warehouse: defaultReturnWh,
                             qty: 1,
                             rp: 0,
                             amount: 0
@@ -2887,6 +2892,7 @@ const NewInvoice = () => {
                       onClick={() => {
                         const isChecked = !values.showTileReturnSection;
                         setFieldValue('showTileReturnSection', isChecked);
+                        const defaultReturnWh = values.dispatchWarehouse || warehousesList.find((w: string) => /fateh/i.test(w) || /a[-_ ]?39/i.test(w)) || warehousesList[0] || '';
                         if (!isChecked) {
                           setFieldValue('tileReturnItems', []);
                         } else if ((values.tileReturnItems || []).length === 0) {
@@ -2894,7 +2900,7 @@ const NewInvoice = () => {
                             id: Date.now(),
                             itemName: '',
                             skuCode: '',
-                            warehouse: values.dispatchWarehouse || '',
+                            warehouse: defaultReturnWh,
                             availableQty: 0,
                             boxQty: 1,
                             loosePcs: 0,

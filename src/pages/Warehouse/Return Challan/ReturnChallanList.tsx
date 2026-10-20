@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { MdInbox, MdHistory } from 'react-icons/md';
 import { useModal } from '../../../Context/Modal';
+import { useAuth } from '../../../Context/Auth';
 import VerifyReturnChallan from './VerifyReturnChallan';
 import ReturnChallanHistory from './ReturnChallanHistory';
 
@@ -58,13 +59,27 @@ const ReturnChallanList: React.FC<ReturnChallanListProps> = ({ locationFilter = 
       if (error) throw error;
       
       let filteredData = data || [];
+      const normalizeWh = (name: string) => (name || '').replace(/[-_\s]/g, '').toUpperCase();
+      
       if (userLocationName) {
+        const normUserLoc = normalizeWh(userLocationName);
         filteredData = filteredData.filter(ret => {
-          return String(ret.warehouse_name || '').toUpperCase() === String(userLocationName).toUpperCase();
+          const retWhNorm = normalizeWh(ret.warehouse_name);
+          const hasMatchingItem = Array.isArray(ret.items) && ret.items.some((it: any) => {
+            const itWhNorm = normalizeWh(it.warehouse);
+            return itWhNorm === normUserLoc || 
+              (normUserLoc.includes('FATEH') && itWhNorm.includes('FATEH')) || 
+              (normUserLoc.includes('A39') && itWhNorm.includes('A39'));
+          });
+          return retWhNorm === normUserLoc || 
+            (normUserLoc.includes('FATEH') && retWhNorm.includes('FATEH')) || 
+            (normUserLoc.includes('A39') && retWhNorm.includes('A39')) || 
+            hasMatchingItem;
         });
       } else if (locationFilter !== 'ALL') {
         filteredData = filteredData.filter(ret => {
-          const isShop = String(ret.warehouse_name || '').toUpperCase() === 'SHOP';
+          const isShop = normalizeWh(ret.warehouse_name) === 'SHOP' || 
+            (Array.isArray(ret.items) && ret.items.some((it: any) => normalizeWh(it.warehouse) === 'SHOP'));
           return locationFilter === 'SHOP' ? isShop : !isShop;
         });
       }
