@@ -266,3 +266,25 @@ export function setThemeColorPickerEnabled(enabled: boolean) {
     window.dispatchEvent(new Event('theme_color_picker_visibility_changed'));
   }
 }
+
+export const DEFAULT_SIDEBAR_COLOR = '#475569';
+
+export function getSavedSidebarColor(): string {
+  if (typeof window === 'undefined') return DEFAULT_SIDEBAR_COLOR;
+  return localStorage.getItem('zoaib_ali_sidebar_color') || DEFAULT_SIDEBAR_COLOR;
+}
+
+export function applySidebarColor(hexColor: string) {
+  if (!hexColor) return;
+  try {
+    localStorage.setItem('zoaib_ali_sidebar_color', hexColor);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('zoaib_ali_sidebar_color_changed'));
+    }
+  } catch (_) {}
+
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--sidebar-font-color', hexColor);
+  }
+}
+

@@ -5,7 +5,7 @@ import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from '
 import { LuLogOut, LuPalette } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
-import { PRESET_THEME_COLORS, applyAccentColor, getSavedAccentColor } from '../../constant/themeConfig';
+import { PRESET_THEME_COLORS, applySidebarColor, getSavedSidebarColor } from '../../constant/themeConfig';
 import LogoDark from '../../images/logo/logo-dark.png';
 import LogoLight from '../../images/logo/logo-light.png';
 import IconDark from '../../images/logo/icon-dark.png';
@@ -17,7 +17,7 @@ interface SidebarProps {
   setSidebarOpen: (arg: boolean) => void;
 }
 
-const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath }: any) => {
+const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebarColor }: any) => {
   const [showSubFlyout, setShowSubFlyout] = useState(false);
 
   if (item && item.children && Array.isArray(item.children)) {
@@ -27,9 +27,12 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath }: any) 
         onMouseEnter={() => setShowSubFlyout(true)}
         onMouseLeave={() => setShowSubFlyout(false)}
       >
-        <div className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-medium duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer pr-4">
+        <div
+          className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer pr-4"
+          style={{ color: sidebarColor }}
+        >
           <span className="truncate">{item.label}</span>
-          <AiOutlineRight size={10} className="shrink-0 text-slate-400" />
+          <AiOutlineRight size={10} className="shrink-0" style={{ color: sidebarColor }} />
         </div>
 
         {showSubFlyout && (
@@ -46,6 +49,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath }: any) 
                   pathname={pathname}
                   handleLinkClick={handleLinkClick}
                   getTenantPath={getTenantPath}
+                  sidebarColor={sidebarColor}
                 />
               ))}
             </ul>
@@ -63,11 +67,13 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath }: any) 
       <NavLink
         to={destination}
         onClick={handleLinkClick}
-        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium duration-150 ${
-          isActive
-            ? 'text-primary bg-primary/10 dark:text-primary font-semibold'
-            : 'text-slate-600 hover:text-primary hover:bg-primary/5 dark:text-slate-300 dark:hover:text-primary dark:hover:bg-primary/10'
+        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 ${
+          isActive ? 'shadow-xs font-bold' : ''
         }`}
+        style={{
+          color: sidebarColor,
+          backgroundColor: isActive ? `${sidebarColor}20` : undefined,
+        }}
       >
         {item.label}
       </NavLink>
@@ -75,7 +81,19 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath }: any) 
   );
 };
 
-const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, hideModal, openMenuId, setOpenMenuId, menuUniqueKey, getTenantPath }: any) => {
+const SidebarItem = ({
+  item,
+  pathname,
+  depth = 0,
+  sidebarOpen,
+  setSidebarOpen,
+  hideModal,
+  openMenuId,
+  setOpenMenuId,
+  menuUniqueKey,
+  getTenantPath,
+  sidebarColor,
+}: any) => {
   const itemRef = useRef<HTMLDivElement>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [showFlyout, setShowFlyout] = useState(false);
@@ -144,7 +162,7 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
   };
 
   const handleMouseEnter = () => {
-    if (!sidebarOpen && itemRef.current && !isMobile) {
+    if (!sidebarOpen && !isMobile && itemRef.current) {
       const rect = itemRef.current.getBoundingClientRect();
       setFlyoutTop(rect.top);
       setShowFlyout(true);
@@ -164,12 +182,14 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
             <>
               <NavLink
                 to="#"
-                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
-                  isChildActive && shouldShowLabels
-                    ? 'text-primary dark:text-primary bg-primary/10 dark:bg-primary/20 font-semibold shadow-xs'
-                    : 'text-slate-600 hover:text-primary hover:bg-primary/5 dark:text-slate-300 dark:hover:text-primary dark:hover:bg-primary/10'
+                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-100 dark:hover:bg-slate-800/60 ${
+                  isChildActive && shouldShowLabels ? 'font-bold shadow-xs' : ''
                 } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
-                style={{ paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined }}
+                style={{
+                  paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined,
+                  color: sidebarColor,
+                  backgroundColor: isChildActive && shouldShowLabels ? `${sidebarColor}20` : undefined,
+                }}
                 onClick={(e) => {
                   e.preventDefault();
                   const nextState = !open;
@@ -184,19 +204,22 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
               >
                 {item.icon && (
                   <item.icon
-                    className={`text-lg shrink-0 transition-colors ${
-                      isChildActive
-                        ? 'text-primary dark:text-primary'
-                        : 'text-slate-400 group-hover:text-primary dark:group-hover:text-primary'
-                    }`}
+                    className="text-lg shrink-0 transition-colors"
+                    style={{ color: sidebarColor }}
                   />
                 )}
                 {shouldShowLabels && (
                   <>
-                    <span className="text-xs font-medium ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis flex flex-col gap-1 tracking-wide">
+                    <span
+                      className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis flex flex-col gap-1 tracking-wide"
+                      style={{ color: sidebarColor }}
+                    >
                       {item.label}
                     </span>
-                    <span className="ml-auto text-slate-400 group-hover:text-primary transition-transform duration-200">
+                    <span
+                      className="ml-auto transition-transform duration-200"
+                      style={{ color: sidebarColor, opacity: 0.8 }}
+                    >
                       {open ? <AiOutlineUp size={11} /> : <AiOutlineDown size={11} />}
                     </span>
                   </>
@@ -206,13 +229,14 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
               {/* Collapsible Sub-item Drawer */}
               {shouldShowLabels && (
                 <div
-                  className="transition-all duration-300 ease-in-out overflow-hidden transform pl-3 ml-2 border-l border-slate-200/80 dark:border-slate-800"
+                  className="transition-all duration-300 ease-in-out overflow-hidden transform pl-3 ml-2 border-l"
                   style={{
                     maxHeight: open ? '1000px' : '0px',
                     opacity: open ? '100' : '0',
                     marginTop: open ? '4px' : '0px',
                     marginBottom: open ? '4px' : '0px',
-                    pointerEvents: open ? 'auto' : 'none'
+                    pointerEvents: open ? 'auto' : 'none',
+                    borderLeftColor: `${sidebarColor}30`,
                   }}
                 >
                   <ul className="flex flex-col gap-1 py-1">
@@ -229,6 +253,7 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
                         setOpenMenuId={setOpenMenuId}
                         menuUniqueKey={`${menuUniqueKey}-${idx}`}
                         getTenantPath={getTenantPath}
+                        sidebarColor={sidebarColor}
                       />
                     ))}
                   </ul>
@@ -252,12 +277,22 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
                 to { opacity: 1; transform: translateX(0); }
               }
             `}</style>
-            <div className="px-3 py-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-800 font-bold text-[10px] text-primary uppercase tracking-wider text-left">
+            <div
+              className="px-3 py-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-800 font-bold text-[10px] uppercase tracking-wider text-left"
+              style={{ color: sidebarColor }}
+            >
               {item.label}
             </div>
             <ul className="flex flex-col gap-1">
               {item.children.map((child: any, idx: number) => (
-                <FlyoutSubMenu key={idx} item={child} pathname={pathname} handleLinkClick={handleLinkClick} getTenantPath={getTenantPath} />
+                <FlyoutSubMenu
+                  key={idx}
+                  item={child}
+                  pathname={pathname}
+                  handleLinkClick={handleLinkClick}
+                  getTenantPath={getTenantPath}
+                  sidebarColor={sidebarColor}
+                />
               ))}
             </ul>
           </div>
@@ -273,23 +308,29 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
     <li onClick={handleLinkClick} className="w-full" title={!shouldShowLabels ? item.label : undefined}>
       <NavLink
         to={singleDestination}
-        className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
-          isDirectActive
-            ? 'text-primary bg-primary/10 dark:bg-primary/20 dark:text-primary font-semibold shadow-xs'
-            : 'text-slate-600 hover:text-primary hover:bg-primary/5 dark:text-slate-300 dark:hover:text-primary dark:hover:bg-primary/10'
+        className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-100 dark:hover:bg-slate-800/60 ${
+          isDirectActive ? 'font-bold shadow-xs' : ''
         } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
-        style={{ paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined }}
+        style={{
+          paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined,
+          color: sidebarColor,
+          backgroundColor: isDirectActive ? `${sidebarColor}20` : undefined,
+        }}
       >
         {item.icon && (
           <item.icon
-            className={`text-lg shrink-0 transition-colors ${
-              isDirectActive
-                ? 'text-primary dark:text-primary'
-                : 'text-slate-400 group-hover:text-primary dark:group-hover:text-primary'
-            }`}
+            className="text-lg shrink-0 transition-colors"
+            style={{ color: sidebarColor }}
           />
         )}
-        {shouldShowLabels && <span className="text-xs font-medium ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide">{item.label}</span>}
+        {shouldShowLabels && (
+          <span
+            className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide"
+            style={{ color: sidebarColor }}
+          >
+            {item.label}
+          </span>
+        )}
       </NavLink>
     </li>
   );
@@ -321,25 +362,26 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   // Master tracking ID to determine which global branch header is clicked open
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  // Active theme color state for sidebar swatches
-  const [currentAccent, setCurrentAccent] = useState(getSavedAccentColor());
+  // Dedicated sidebar font/icon color state
+  const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
   const [collapsedColorPickerOpen, setCollapsedColorPickerOpen] = useState(false);
   const collapsedPickerRef = useRef<HTMLDivElement>(null);
 
-  const handleAccentChange = (hex: string) => {
-    setCurrentAccent(hex);
-    applyAccentColor(hex);
+  const handleSidebarColorChange = (hex: string) => {
+    setCurrentSidebarColor(hex);
+    applySidebarColor(hex);
   };
 
   useEffect(() => {
-    const handleThemeUpdate = () => {
-      setCurrentAccent(getSavedAccentColor());
+    applySidebarColor(getSavedSidebarColor());
+    const handleColorUpdate = () => {
+      setCurrentSidebarColor(getSavedSidebarColor());
     };
-    window.addEventListener('zoaib_ali_theme_color_changed', handleThemeUpdate);
-    window.addEventListener('storage', handleThemeUpdate);
+    window.addEventListener('zoaib_ali_sidebar_color_changed', handleColorUpdate);
+    window.addEventListener('storage', handleColorUpdate);
     return () => {
-      window.removeEventListener('zoaib_ali_theme_color_changed', handleThemeUpdate);
-      window.removeEventListener('storage', handleThemeUpdate);
+      window.removeEventListener('zoaib_ali_sidebar_color_changed', handleColorUpdate);
+      window.removeEventListener('storage', handleColorUpdate);
     };
   }, []);
 
@@ -442,34 +484,42 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                     setOpenMenuId={setOpenMenuId}
                     menuUniqueKey={`root-${index}`}
                     getTenantPath={getTenantPath}
+                    sidebarColor={currentSidebarColor}
                   />
-
                 ))
               }
 
-              {/* SIDEBAR ACCENT & FONT COLOR PICKER (EXPANDED) */}
+              {/* SIDEBAR FONT & ICON COLOR PICKER (EXPANDED) */}
               {(sidebarOpen || isMobile) && (
                 <li className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-800">
                   <div className="p-2.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
                     <div className="flex items-center justify-between mb-2 px-0.5">
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                        <LuPalette size={13} style={{ color: currentAccent }} />
-                        Sidebar & Font Color
+                        <LuPalette size={13} style={{ color: currentSidebarColor }} />
+                        Sidebar Font/Icon Color
                       </span>
-                      <span
-                        className="w-2.5 h-2.5 rounded-full border border-black/15 shadow-xs transition-colors"
-                        style={{ backgroundColor: currentAccent }}
-                      />
+                      <label className="flex items-center gap-1 cursor-pointer" title="Custom Color">
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs block transition-transform hover:scale-110"
+                          style={{ backgroundColor: currentSidebarColor }}
+                        />
+                        <input
+                          type="color"
+                          value={currentSidebarColor}
+                          onChange={(e) => handleSidebarColorChange(e.target.value)}
+                          className="sr-only"
+                        />
+                      </label>
                     </div>
                     <div className="grid grid-cols-6 gap-1.5">
-                      {PRESET_THEME_COLORS.slice(0, 18).map((c) => {
-                        const isSelected = currentAccent.toLowerCase() === c.hex.toLowerCase();
+                      {PRESET_THEME_COLORS.map((c) => {
+                        const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
                         return (
                           <button
                             key={c.hex}
                             type="button"
                             title={c.name}
-                            onClick={() => handleAccentChange(c.hex)}
+                            onClick={() => handleSidebarColorChange(c.hex)}
                             className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
                               isSelected
                                 ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
@@ -486,16 +536,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 </li>
               )}
 
-              {/* SIDEBAR ACCENT COLOR PICKER (COLLAPSED POPUP) */}
+              {/* SIDEBAR FONT & ICON COLOR PICKER (COLLAPSED POPUP) */}
               {!sidebarOpen && !isMobile && (
                 <li className="relative flex justify-center mx-auto w-10 h-10 px-0 my-1">
                   <button
                     type="button"
                     onClick={() => setCollapsedColorPickerOpen(!collapsedColorPickerOpen)}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                    title="Change Sidebar & Font Color"
+                    className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    title="Change Sidebar Font & Icon Color"
                   >
-                    <LuPalette size={18} style={{ color: currentAccent }} />
+                    <LuPalette size={18} style={{ color: currentSidebarColor }} />
                   </button>
                   {collapsedColorPickerOpen && (
                     <div
@@ -505,24 +555,35 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                          <LuPalette size={12} style={{ color: currentAccent }} />
+                          <LuPalette size={12} style={{ color: currentSidebarColor }} />
                           Sidebar Color
                         </span>
-                        <span
-                          className="w-2.5 h-2.5 rounded-full border border-black/15 shadow-xs"
-                          style={{ backgroundColor: currentAccent }}
-                        />
+                        <label className="cursor-pointer" title="Custom Color">
+                          <span
+                            className="w-3 h-3 rounded-full border border-black/20 shadow-xs block"
+                            style={{ backgroundColor: currentSidebarColor }}
+                          />
+                          <input
+                            type="color"
+                            value={currentSidebarColor}
+                            onChange={(e) => {
+                              handleSidebarColorChange(e.target.value);
+                              setCollapsedColorPickerOpen(false);
+                            }}
+                            className="sr-only"
+                          />
+                        </label>
                       </div>
                       <div className="grid grid-cols-6 gap-1.5">
-                        {PRESET_THEME_COLORS.slice(0, 18).map((c) => {
-                          const isSelected = currentAccent.toLowerCase() === c.hex.toLowerCase();
+                        {PRESET_THEME_COLORS.map((c) => {
+                          const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
                           return (
                             <button
                               key={c.hex}
                               type="button"
                               title={c.name}
                               onClick={() => {
-                                handleAccentChange(c.hex);
+                                handleSidebarColorChange(c.hex);
                                 setCollapsedColorPickerOpen(false);
                               }}
                               className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
@@ -541,13 +602,23 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   )}
                 </li>
               )}
+
+              {/* Log Out Button */}
               <li 
-                className={`group relative flex items-center rounded-xl py-2.5 font-medium text-slate-600 dark:text-slate-300 duration-200 ease-in-out hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer mt-4 border-t border-slate-200/80 dark:border-slate-800 pt-4 ${sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'}`} 
+                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer mt-4 border-t border-slate-200/80 dark:border-slate-800 pt-4 ${sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'}`} 
+                style={{ color: currentSidebarColor }}
                 onClick={() => logout()} 
                 title={!sidebarOpen ? 'LogOut' : undefined} 
               >
-                <LuLogOut className="text-lg shrink-0 text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400" />
-                {(sidebarOpen || isMobile) && <span className="ml-3 text-xs font-semibold">Log Out</span>}
+                <LuLogOut
+                  className="text-lg shrink-0 transition-colors group-hover:text-rose-600 dark:group-hover:text-rose-400"
+                  style={{ color: currentSidebarColor }}
+                />
+                {(sidebarOpen || isMobile) && (
+                  <span className="ml-3 text-xs font-semibold" style={{ color: currentSidebarColor }}>
+                    Log Out
+                  </span>
+                )}
               </li>
             </ul>
           </nav>
