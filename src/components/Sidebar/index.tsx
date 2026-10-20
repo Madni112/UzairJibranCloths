@@ -364,6 +364,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   // Dedicated sidebar font/icon color state
   const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
+  const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
   const [collapsedColorPickerOpen, setCollapsedColorPickerOpen] = useState(false);
   const collapsedPickerRef = useRef<HTMLDivElement>(null);
 
@@ -489,61 +490,107 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 ))
               }
 
-              {/* SIDEBAR FONT & ICON COLOR PICKER (EXPANDED) */}
+              {/* SIDEBAR FONT & ICON COLOR DROPDOWN (EXPANDED) */}
               {(sidebarOpen || isMobile) && (
-                <li className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-800">
-                  <div className="p-2.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
-                    <div className="flex items-center justify-between mb-2 px-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                        <LuPalette size={13} style={{ color: currentSidebarColor }} />
-                        Sidebar Font/Icon Color
+                <li className="w-full">
+                  <div
+                    onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
+                    className="group relative flex items-center justify-between rounded-xl py-2.5 px-3.5 font-medium duration-200 ease-in-out hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer select-none"
+                    style={{ color: currentSidebarColor }}
+                  >
+                    <div className="flex items-center">
+                      <LuPalette
+                        className="text-lg shrink-0 transition-colors"
+                        style={{ color: currentSidebarColor }}
+                      />
+                      <span
+                        className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide"
+                        style={{ color: currentSidebarColor }}
+                      >
+                        Color
                       </span>
-                      <label className="flex items-center gap-1 cursor-pointer" title="Custom Color">
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs block transition-transform hover:scale-110"
-                          style={{ backgroundColor: currentSidebarColor }}
-                        />
-                        <input
-                          type="color"
-                          value={currentSidebarColor}
-                          onChange={(e) => handleSidebarColorChange(e.target.value)}
-                          className="sr-only"
-                        />
-                      </label>
                     </div>
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {PRESET_THEME_COLORS.map((c) => {
-                        const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
-                        return (
-                          <button
-                            key={c.hex}
-                            type="button"
-                            title={c.name}
-                            onClick={() => handleSidebarColorChange(c.hex)}
-                            className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                              isSelected
-                                ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
-                                : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
-                            }`}
-                            style={{ backgroundColor: c.hex }}
-                          >
-                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
-                          </button>
-                        );
-                      })}
+
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-xs transition-colors shrink-0"
+                        style={{ backgroundColor: currentSidebarColor }}
+                        title={`Active: ${currentSidebarColor}`}
+                      />
+                      <span
+                        className="transition-transform duration-200"
+                        style={{ color: currentSidebarColor, opacity: 0.8 }}
+                      >
+                        {colorDropdownOpen ? <AiOutlineUp size={11} /> : <AiOutlineDown size={11} />}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Color Palette Drawer */}
+                  <div
+                    className="transition-all duration-300 ease-in-out overflow-hidden transform pl-3 ml-2 border-l"
+                    style={{
+                      maxHeight: colorDropdownOpen ? '320px' : '0px',
+                      opacity: colorDropdownOpen ? '100' : '0',
+                      marginTop: colorDropdownOpen ? '4px' : '0px',
+                      marginBottom: colorDropdownOpen ? '4px' : '0px',
+                      pointerEvents: colorDropdownOpen ? 'auto' : 'none',
+                      borderLeftColor: `${currentSidebarColor}30`,
+                    }}
+                  >
+                    <div className="p-2.5 my-1 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 shadow-xs">
+                      <div className="flex items-center justify-between mb-2 px-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Select Color
+                        </span>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold hover:opacity-80 transition" style={{ color: currentSidebarColor }}>
+                          <span>Custom</span>
+                          <span
+                            className="w-3 h-3 rounded-full border border-black/20 shadow-xs block transition-transform hover:scale-110"
+                            style={{ backgroundColor: currentSidebarColor }}
+                          />
+                          <input
+                            type="color"
+                            value={currentSidebarColor}
+                            onChange={(e) => handleSidebarColorChange(e.target.value)}
+                            className="sr-only"
+                          />
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {PRESET_THEME_COLORS.map((c) => {
+                          const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
+                          return (
+                            <button
+                              key={c.hex}
+                              type="button"
+                              title={c.name}
+                              onClick={() => handleSidebarColorChange(c.hex)}
+                              className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                                isSelected
+                                  ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
+                                  : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
+                              }`}
+                              style={{ backgroundColor: c.hex }}
+                            >
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </li>
               )}
 
-              {/* SIDEBAR FONT & ICON COLOR PICKER (COLLAPSED POPUP) */}
+              {/* SIDEBAR FONT & ICON COLOR DROPDOWN (COLLAPSED POPUP) */}
               {!sidebarOpen && !isMobile && (
                 <li className="relative flex justify-center mx-auto w-10 h-10 px-0 my-1">
                   <button
                     type="button"
                     onClick={() => setCollapsedColorPickerOpen(!collapsedColorPickerOpen)}
                     className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                    title="Change Sidebar Font & Icon Color"
+                    title="Color"
                   >
                     <LuPalette size={18} style={{ color: currentSidebarColor }} />
                   </button>
@@ -554,11 +601,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       style={{ bottom: '70px', animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1" style={{ color: currentSidebarColor }}>
                           <LuPalette size={12} style={{ color: currentSidebarColor }} />
-                          Sidebar Color
+                          Color
                         </span>
-                        <label className="cursor-pointer" title="Custom Color">
+                        <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold" title="Custom Color">
+                          <span className="text-slate-500 dark:text-slate-400">Custom</span>
                           <span
                             className="w-3 h-3 rounded-full border border-black/20 shadow-xs block"
                             style={{ backgroundColor: currentSidebarColor }}
