@@ -61,6 +61,49 @@ const NewInvoice = () => {
   const [highlightedTileReturnWhIndex, setHighlightedTileReturnWhIndex] = useState<number>(0);
 
   const [totalStockMap, setTotalStockMap] = useState<Record<string, number>>({});
+  const [customerSoldMap, setCustomerSoldMap] = useState<Record<string, { boxes: number; loose: number; totalPieces: number }>>({});
+
+  const fetchCustomerPastSales = async (customerName: string) => {
+    if (!customerName || customerName.toLowerCase() === 'walk-in customer') {
+      setCustomerSoldMap({});
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('sales_invoices')
+        .select('id, invoice_no, items')
+        .ilike('customer_name', customerName.trim());
+      if (error || !data) return;
+
+      const soldMap: Record<string, { boxes: number; loose: number; totalPieces: number }> = {};
+      data.forEach((inv: any) => {
+        let items = inv.items;
+        if (typeof items === 'string') {
+          try { items = JSON.parse(items); } catch (_) { items = []; }
+        }
+        if (Array.isArray(items)) {
+          items.forEach((item: any) => {
+            const nameKey = String(item.itemName || item.product_name || '').toLowerCase().trim();
+            if (!nameKey) return;
+            const ppb = Math.max(1, Number(item.piecesPerBox || item.pcsPerBox || 4));
+            const boxQty = Number(item.boxQty || (item.isTileItem ? item.qty : 0) || 0);
+            const loose = Number(item.loosePcs || 0);
+            const pieces = (boxQty * ppb) + loose;
+
+            if (!soldMap[nameKey]) {
+              soldMap[nameKey] = { boxes: 0, loose: 0, totalPieces: 0 };
+            }
+            soldMap[nameKey].boxes += boxQty;
+            soldMap[nameKey].loose += loose;
+            soldMap[nameKey].totalPieces += pieces;
+          });
+        }
+      });
+      setCustomerSoldMap(soldMap);
+    } catch (err) {
+      console.error('Failed to fetch customer past sales:', err);
+    }
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -227,6 +270,12 @@ const NewInvoice = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (editData && (editData.customer_name || editData.customerName)) {
+      fetchCustomerPastSales(editData.customer_name || editData.customerName);
+    }
+  }, [editData]);
 
   const getSalesmanPrefix = (salesmanName: string, smList: any[] = salesmenList): string => {
     if (!salesmanName) return '';
@@ -2206,8 +2255,35 @@ const NewInvoice = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-meta-4/5 p-4 rounded-sm border border-stroke dark:border-strokedark">
-                  <div className="hidden">
-                    {/* Gate pass moved below */}
+                  <div>
+                    <label className="block font-bold text-gray-500 mb-1">Customer Account / Profile:</label>
+                    <select
+                      name="customerName"
+                      value={values.customerName || selectedRecordedCustomer || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFieldValue('customerName', val);
+                        setSelectedRecordedCustomer(val);
+                        if (val && val !== 'Walk-in Customer') {
+                          setCustomerModalType('recorded');
+                          fetchCustomerPastSales(val);
+                        } else {
+                          setCustomerModalType('walkin');
+                          setCustomerSoldMap({});
+                        }
+                      }}
+                      className="w-full rounded border p-2 text-sm bg-white dark:bg-boxdark font-bold outline-none text-black dark:text-white border-stroke dark:border-strokedark focus:border-primary"
+                    >
+                      <option value="">Walk-in Customer (Counter)</option>
+                      {customersList.map((c) => {
+                        const code = c.customer_code || c.customerCode;
+                        return (
+                          <option key={c.id} value={c.customerName}>
+                            {code ? `[${code}] ${c.customerName}` : c.customerName}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                   <div>
                     <label className="block font-bold text-gray-500 mb-1">Shipping Address (Optional):</label>
@@ -4102,7 +4178,7 @@ const NewInvoice = () => {
                                   <th className="p-2 w-8 text-center">S#</th>
                                   <th className="p-2 min-w-[240px]">Returned Tile Product (Name / Sku)</th>
                                   <th className="p-2 w-44">Return Warehouse Zone</th>
-                                  <th className="p-2 w-32 text-center">Stock in Wh</th>
+                                  <th className="p-2 w-32 text-center">Sold Qty</th>
                                   <th className="p-2 w-24 text-center">Return (Box)</th>
                                   <th className="p-2 w-24 text-center">Return Pcs</th>
                                   <th className="p-2 w-28 text-right">RP / Box</th>
@@ -4227,6 +4303,7 @@ const NewInvoice = () => {
                                                 const isHighlighted = pIdx === highlightedTileReturnProdIndex;
                                                 const { boxes, loose } = getTileStockBreakdown(p);
                                                 const hasStock = boxes > 0 || loose > 0;
+                                                const pSold = customerSoldMap[String(p.product_name || '').toLowerCase().trim()];
 
                                                 return (
                                                   <div
@@ -4253,12 +4330,25 @@ const NewInvoice = () => {
                                                       <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
                                                         Rs. {Number(p.retail_price || 0).toLocaleString()}
                                                       </span>
-                                                      <span className={`text-[11px] font-bold ${hasStock ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                                        {boxes} Box{boxes !== 1 ? 'es' : ''}
-                                                      </span>
-                                                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-0.5">
-                                                        {loose} Pc{loose !== 1 ? 's' : ''}
-                                                      </span>
+                                                      {pSold ? (
+                                                        <>
+                                                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                                            Sold: {pSold.boxes} Box{pSold.boxes !== 1 ? 'es' : ''}
+                                                          </span>
+                                                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-0.5">
+                                                            {pSold.loose > 0 ? `+ ${pSold.loose} Pcs` : `${pSold.totalPieces} Pcs`}
+                                                          </span>
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <span className={`text-[11px] font-bold ${hasStock ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                                                            Stock: {boxes} Box{boxes !== 1 ? 'es' : ''}
+                                                          </span>
+                                                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-0.5">
+                                                            {loose} Pcs
+                                                          </span>
+                                                        </>
+                                                      )}
                                                     </div>
                                                   </div>
                                                 );
@@ -4375,17 +4465,46 @@ const NewInvoice = () => {
                                         </div>
                                       </td>
 
-                                      {/* STOCK IN WAREHOUSE */}
+                                      {/* SOLD QTY TO CUSTOMER */}
                                       <td className="p-2 w-32 text-center">
-                                        <div className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                          {availBoxes} Boxes{availLoose > 0 ? ` + ${availLoose} Pcs` : ''}
-                                        </div>
-                                        <div className="text-[10px] text-amber-700 dark:text-amber-300 font-mono font-bold">
-                                          {totalAvailSqm.toFixed(2)} m²
-                                        </div>
-                                        <div className="text-[10px] text-slate-400 font-mono">
-                                          ({totalAvailPieces} Total Pcs)
-                                        </div>
+                                        {(() => {
+                                          const nameKey = String(tItem.itemName || '').toLowerCase().trim();
+                                          const soldData = customerSoldMap[nameKey];
+                                          if (soldData) {
+                                            return (
+                                              <div>
+                                                <div className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                                  {soldData.boxes} Box{soldData.boxes !== 1 ? 'es' : ''}{soldData.loose > 0 ? ` + ${soldData.loose} Pcs` : ''}
+                                                </div>
+                                                <div className="text-[10px] text-slate-500 font-mono font-medium">
+                                                  ({soldData.totalPieces} Sold Pcs)
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                          if (values.customerName && values.customerName.toLowerCase() !== 'walk-in customer') {
+                                            return (
+                                              <div>
+                                                <div className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                  0 Sold
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 font-mono font-medium">
+                                                  (Not in history)
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                          return (
+                                            <div>
+                                              <div className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+                                                Open Return
+                                              </div>
+                                              <div className="text-[10px] text-slate-400 font-mono font-medium">
+                                                (Walk-in / Direct)
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
                                       </td>
 
                                       {/* RETURN QTY (BOX) */}
