@@ -52,19 +52,68 @@ const SaleReturnReceiptList: React.FC = () => {
     }
   };
 
-  const handleDeleteReceipt = async (id: string | number) => {
+  const handleDeleteReceipt = async (target: any) => {
     if (!window.confirm('Are you certain you want to permanently delete this return receipt record?')) return;
 
     try {
       setLoading(true);
+      const rec = typeof target === 'object' && target !== null ? target : (receipts.find(r => r.id === target) || { id: target });
+      const receiptId = rec.id;
+      const receiptNo = rec.receipt_no || `SRR-${String(receiptId).padStart(4, '0')}`;
+      const targetReturnId = rec.sales_return_id;
+
+      // 1. Delete associated financial vouchers
+      if (receiptNo) {
+        await supabase
+          .from('financial_vouchers')
+          .delete()
+          .eq('voucher_no', receiptNo);
+      }
+
+      // 2. Delete the sales_return_receipts row
       const { error: deleteError } = await supabase
         .from('sales_return_receipts')
         .delete()
-        .eq('id', id);
+        .eq('id', receiptId);
 
       if (deleteError) throw deleteError;
 
-      toast.success('Sales return receipt removed cleanly.');
+      // 3. Rebalance parent sales_returns record if linked
+      if (targetReturnId) {
+        const { data: remainingReceipts } = await supabase
+          .from('sales_return_receipts')
+          .select('id, amount_paid')
+          .eq('sales_return_id', targetReturnId);
+
+        const totalReceiptsSum = (remainingReceipts || []).reduce((acc: number, r: any) => acc + (Number(r.amount_paid) || 0), 0);
+        
+        const { data: targetReturn } = await supabase
+          .from('sales_returns')
+          .select('id, total_amount, total_net_amount, payout_amount_paid')
+          .eq('id', targetReturnId)
+          .maybeSingle();
+
+        if (targetReturn) {
+          const returnGross = Number(targetReturn.total_amount || targetReturn.total_net_amount || 0);
+          const newTotalPaid = totalReceiptsSum;
+          let newStatus = 'Open';
+          if (newTotalPaid >= returnGross - 1 && returnGross > 0) {
+            newStatus = 'Refunded';
+          } else if (newTotalPaid > 0) {
+            newStatus = 'Partial Refund';
+          }
+
+          await supabase
+            .from('sales_returns')
+            .update({
+              payout_amount_paid: newTotalPaid,
+              status: newStatus
+            })
+            .eq('id', targetReturnId);
+        }
+      }
+
+      toast.success('Sales return receipt and associated vouchers removed cleanly.');
       fetchReceiptsLog();
     } catch (err: any) {
       toast.error('Deletion Interrupted: ' + err.message);
@@ -163,7 +212,7 @@ const SaleReturnReceiptList: React.FC = () => {
                         <TableActions
                           onPrint={() => navigate(`${tenantId ? `/${tenantId}` : ''}/sales/sales-return-receipt/print/${rec.id}`)}
                           onEdit={() => navigate(`${tenantId ? `/${tenantId}` : ''}/sales/sales-return-receipt/add`, { state: { receiptRecord: rec } })}
-                          onDelete={() => handleDeleteReceipt(rec.id)}
+                          onDelete={() => handleDeleteReceipt(rec)}
                           printTitle="Print Receipt Voucher"
                           editTitle="Edit Receipt"
                           deleteTitle="Delete Receipt"
