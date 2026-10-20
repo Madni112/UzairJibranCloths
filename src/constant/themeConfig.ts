@@ -56,6 +56,25 @@ export function applyAccentColor(hexColor: string) {
       document.documentElement.style.setProperty('--color-primary-rgb', `${r} ${g} ${b}`);
     }
 
+    // Calculate relative luminance to determine if the color is light or dark
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const isDark = luminance < 0.55;
+
+    // Light version of the color (for dark colors): clean lighter tone of the same color
+    const lightR = Math.min(255, Math.round(r + (255 - r) * 0.38));
+    const lightG = Math.min(255, Math.round(g + (255 - g) * 0.38));
+    const lightB = Math.min(255, Math.round(b + (255 - b) * 0.38));
+    const lightHex = `rgb(${lightR}, ${lightG}, ${lightB})`;
+
+    // Dark version of the color (for light colors): deeper shade of the same color
+    const darkR = Math.max(0, Math.round(r * 0.60));
+    const darkG = Math.max(0, Math.round(g * 0.60));
+    const darkB = Math.max(0, Math.round(b * 0.60));
+    const darkHex = `rgb(${darkR}, ${darkG}, ${darkB})`;
+
+    // Rule: Use simple light version if dark color is selected, and dark version if light color is selected
+    const companionShade = isDark ? lightHex : darkHex;
+
     const darkerR = Math.max(0, Math.round(r * 0.82));
     const darkerG = Math.max(0, Math.round(g * 0.82));
     const darkerB = Math.max(0, Math.round(b * 0.82));
@@ -79,9 +98,11 @@ export function applyAccentColor(hexColor: string) {
       .bg-emerald-600,
       .bg-emerald-500,
       .bg-emerald-700,
+      .bg-emerald-800,
       .bg-teal-600,
       .bg-teal-500,
       .bg-teal-700,
+      .bg-teal-800,
       .bg-primary {
         background-color: ${hexColor} !important;
       }
@@ -183,16 +204,36 @@ export function applyAccentColor(hexColor: string) {
         box-shadow: 0 10px 15px -3px rgba(${r}, ${g}, ${b}, 0.28) !important;
       }
 
-      /* Gradients */
+      /* Gradients: Start at active accent color */
+      .from-emerald-400,
+      .from-emerald-500,
       .from-emerald-600,
+      .from-emerald-700,
+      .from-emerald-800,
+      .from-teal-400,
+      .from-teal-500,
       .from-teal-600,
+      .from-teal-700,
+      .from-teal-800,
       .from-primary {
         --tw-gradient-from: ${hexColor} var(--tw-gradient-from-position) !important;
       }
+
+      /* Gradients: End at companion shade (light version for dark colors, dark version for light colors) */
+      .to-emerald-500,
+      .to-emerald-600,
       .to-emerald-700,
+      .to-emerald-800,
+      .to-emerald-900,
+      .to-teal-500,
+      .to-teal-600,
       .to-teal-700,
+      .to-teal-800,
+      .to-teal-900,
+      .to-cyan-700,
+      .to-cyan-800,
       .to-primary {
-        --tw-gradient-to: ${darkerHex} var(--tw-gradient-to-position) !important;
+        --tw-gradient-to: ${companionShade} var(--tw-gradient-to-position) !important;
       }
 
       .fill-primary {
