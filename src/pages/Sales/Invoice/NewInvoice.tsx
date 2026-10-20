@@ -6,7 +6,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiPrinter, FiSave, FiCheck, FiX, FiUserCheck, FiTrash2, FiUser, FiAlertTriangle, FiArrowRight } from 'react-icons/fi';
+import { FiPrinter, FiSave, FiCheck, FiX, FiUserCheck, FiTrash2, FiUser, FiAlertTriangle, FiArrowRight, FiPlus, FiSearch, FiMapPin, FiPhone, FiHash, FiBriefcase, FiChevronDown } from 'react-icons/fi';
 import { SearchableDropdown } from '../../../components/SearchableDropdown';
 import { useAuth } from '../../../Context/Auth';
 import { logActivity } from '../../../service/auditLogger';
@@ -59,6 +59,125 @@ const NewInvoice = () => {
   const [highlightedTileReturnProdIndex, setHighlightedTileReturnProdIndex] = useState<number>(0);
   const [activeTileReturnWhIndex, setActiveTileReturnWhIndex] = useState<number | null>(null);
   const [highlightedTileReturnWhIndex, setHighlightedTileReturnWhIndex] = useState<number>(0);
+
+  // Customer Searchable Combobox & Quick Add Modal State
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState<boolean>(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState<string>('');
+  const [highlightedCustomerIndex, setHighlightedCustomerIndex] = useState<number>(0);
+
+  const [isQuickCustomerModalOpen, setIsQuickCustomerModalOpen] = useState<boolean>(false);
+  const [quickCustomerName, setQuickCustomerName] = useState<string>('');
+  const [quickCustomerPhone, setQuickCustomerPhone] = useState<string>('');
+  const [quickCustomerAddress, setQuickCustomerAddress] = useState<string>('');
+  const [quickCustomerCode, setQuickCustomerCode] = useState<string>('');
+  const [quickCustomerCategory, setQuickCustomerCategory] = useState<string>('Retail / General');
+  const [quickCustomerOpeningBal, setQuickCustomerOpeningBal] = useState<number | string>(0);
+  const [quickCustomerBalNature, setQuickCustomerBalNature] = useState<'Debit' | 'Credit'>('Debit');
+  const [isSavingQuickCustomer, setIsSavingQuickCustomer] = useState<boolean>(false);
+
+  const getNextCustomerCode = (): string => {
+    let maxNum = 0;
+    customersList.forEach((c: any) => {
+      const code = c.customer_code || c.customerCode || c.coa_code || '';
+      const match = String(code).match(/1020-(\d+)/);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    return `1020-${String(maxNum + 1).padStart(3, '0')}`;
+  };
+
+  const handleOpenQuickCustomerModal = (initialName: string = '') => {
+    setQuickCustomerName(initialName);
+    setQuickCustomerPhone('');
+    setQuickCustomerAddress('');
+    setQuickCustomerCode(getNextCustomerCode());
+    setQuickCustomerCategory('Retail / General');
+    setQuickCustomerOpeningBal(0);
+    setQuickCustomerBalNature('Debit');
+    setIsQuickCustomerModalOpen(true);
+    setIsCustomerDropdownOpen(false);
+  };
+
+  const handleSaveQuickCustomer = async (formikSetFieldValue: any, currentShippingAddress?: string) => {
+    const trimmedName = quickCustomerName.trim();
+    if (!trimmedName) {
+      toast.error('Customer Name is required!');
+      return;
+    }
+    setIsSavingQuickCustomer(true);
+    try {
+      const cleanCode = quickCustomerCode.trim();
+      const parsedOpeningBal = Number(quickCustomerOpeningBal || 0);
+      const computedBalance = quickCustomerBalNature === 'Credit' ? -Math.abs(parsedOpeningBal) : Math.abs(parsedOpeningBal);
+
+      const payload: any = {
+        customerName: trimmedName,
+        customer_code: cleanCode,
+        customerCode: cleanCode,
+        coa_code: cleanCode,
+        registrationType: quickCustomerCategory,
+        primaryPhone: quickCustomerPhone.trim(),
+        phone: quickCustomerPhone.trim(),
+        address: quickCustomerAddress.trim(),
+        province: 'Sindh',
+        opening_balance: computedBalance,
+        currentBalance: computedBalance,
+      };
+
+      const { data: insertData, error: insertError } = await supabase
+        .from('customers')
+        .insert([payload])
+        .select('id');
+
+      if (insertError) throw insertError;
+
+      const newCustomerId = insertData?.[0]?.id || Date.now();
+      const createdCustObj = {
+        id: newCustomerId,
+        ...payload
+      };
+
+      if (cleanCode) {
+        try {
+          const coaPayload: any = {
+            category_code: '1. ASSETS',
+            sub_category_code: 'Current Assets',
+            control_code: 'Customers',
+            account_code: cleanCode,
+            account_title: trimmedName,
+            opening_balance: Math.abs(parsedOpeningBal),
+            balance_nature: quickCustomerBalNature || 'Debit',
+            notes: `Customer ledger account for ${trimmedName} (Synced from Quick Add)`
+          };
+          await supabase.from('chart_of_accounts').insert([coaPayload]);
+        } catch (coaErr) {
+          console.warn('COA Quick-sync warning:', coaErr);
+        }
+      }
+
+      setCustomersList((prev) => [createdCustObj, ...prev]);
+
+      if (formikSetFieldValue) {
+        formikSetFieldValue('customerName', trimmedName);
+        if (quickCustomerAddress.trim() && !currentShippingAddress) {
+          formikSetFieldValue('shippingAddress', quickCustomerAddress.trim());
+        }
+      }
+      setSelectedRecordedCustomer(trimmedName);
+      setCustomerModalType('recorded');
+      fetchCustomerPastSales(trimmedName);
+      setCustomerSearchQuery('');
+      setIsQuickCustomerModalOpen(false);
+      toast.success(`Customer "${trimmedName}" created and selected!`);
+    } catch (err: any) {
+      console.error('Failed to create customer:', err);
+      toast.error(err.message || 'Failed to create customer');
+    } finally {
+      setIsSavingQuickCustomer(false);
+    }
+  };
 
   const [totalStockMap, setTotalStockMap] = useState<Record<string, number>>({});
   const [customerSoldMap, setCustomerSoldMap] = useState<Record<string, { boxes: number; loose: number; totalPieces: number }>>({});
@@ -265,6 +384,9 @@ const NewInvoice = () => {
       }
       if (!target.closest('.tile-return-wh-container')) {
         setActiveTileReturnWhIndex(null);
+      }
+      if (!target.closest('.customer-combobox-container')) {
+        setIsCustomerDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1928,6 +2050,139 @@ const NewInvoice = () => {
         </div>
       )}
 
+      {/* QUICK NEW CUSTOMER MODAL */}
+      {showQuickCustomerModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-boxdark rounded-2xl shadow-2xl border border-stroke dark:border-strokedark w-full max-w-md p-6 overflow-hidden animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-stroke dark:border-strokedark mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
+                  <FiUser className="text-lg" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-black dark:text-white">Quick Add Customer</h3>
+                  <p className="text-[11px] text-gray-400">Instantly creates ledger account and selects for billing</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickCustomerModal(false)}
+                className="text-gray-400 hover:text-black dark:hover:text-white p-1 rounded-md"
+              >
+                <FiX className="text-lg" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                  Customer Full Name: *
+                </label>
+                <div className="relative">
+                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="e.g. Haji Aslam Trader"
+                    value={quickCustName}
+                    onChange={(e) => setQuickCustName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                  Contact Phone:
+                </label>
+                <div className="relative">
+                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                  <input
+                    type="text"
+                    placeholder="e.g. 0300-1234567"
+                    value={quickCustPhone}
+                    onChange={(e) => setQuickCustPhone(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                    City / Town:
+                  </label>
+                  <div className="relative">
+                    <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Hyderabad"
+                      value={quickCustCity}
+                      onChange={(e) => setQuickCustCity(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                    Opening Balance:
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={quickCustOpeningBalance}
+                    onChange={(e) => setQuickCustOpeningBalance(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                  Shop / Delivery Address:
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Street / Market / Delivery point..."
+                  value={quickCustAddress}
+                  onChange={(e) => setQuickCustAddress(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-stroke dark:border-strokedark">
+              <button
+                type="button"
+                onClick={() => setShowQuickCustomerModal(false)}
+                className="px-4 py-2 rounded-lg border border-stroke dark:border-strokedark text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-meta-4 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isQuickSavingCustomer}
+                onClick={handleSaveQuickCustomer}
+                className="px-5 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-bold shadow-md shadow-primary/20 flex items-center gap-2 disabled:opacity-50 transition"
+              >
+                {isQuickSavingCustomer ? (
+                  <>
+                    <Spinner size="w-3.5 h-3.5" color="border-white" />
+                    <span>Creating Profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="text-sm" />
+                    <span>Save & Use Customer</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CUSTOMER CHECKOUT MODAL */}
       {showCustomerModal && (() => {
         const modalReturnVal = (pendingFormValues?.returnItems || []).reduce((acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0);
@@ -2083,6 +2338,47 @@ const NewInvoice = () => {
               values.salesman = matchedSalesman || currentSalesmanName || values.salesman;
             }
             setPendingFormValues(values);
+
+            // Calculate return deductions and check if on credit
+            const returnVal = (values.returnItems || []).reduce(
+              (acc: number, r: any) => acc + (Number(r.qty || 0) * Number(r.rp ?? r.rate ?? 0)), 0
+            );
+            const tileReturnVal = (values.showTileReturnSection ? (values.tileReturnItems || []) : []).reduce(
+              (acc: number, t: any) => acc + Number(t.totalAmount || 0), 0
+            );
+            const tileVal = (values.showTileSection ? (values.tileItems || []) : []).reduce(
+              (acc: number, t: any) => acc + Number(t.totalAmount || 0), 0
+            );
+            const grossTotal = (values.items || []).reduce((acc: number, item: any) => {
+              return acc + calculateLineTotals(item, values.taxScenario, values.applyFbrTax).netTotal;
+            }, 0) + tileVal + Number(values.transportCharges || 0) + Number(values.additionalCharges || 0) - Number(values.overallDiscount || 0);
+
+            const netPayable = grossTotal - returnVal - tileReturnVal;
+            const currentSubtotal = Math.max(0, netPayable);
+            const totalPaidNow = values.settlementMode === 'Cash'
+              ? Number(values.cashAmountPaid || 0)
+              : (values.settlementMode === 'Bank' ? Number(values.bankAmountPaid || 0) : (Number(values.cashAmountPaid || 0) + Number(values.bankAmountPaid || 0)));
+            const remainingBal = Math.max(0, currentSubtotal - totalPaidNow);
+            const isOnCredit = remainingBal > 0.01 || netPayable < -0.01;
+
+            const selectedCust = (values.customerName || selectedRecordedCustomer || '').trim();
+
+            // 1. If recorded customer is selected upfront: direct persist!
+            if (selectedCust && selectedCust.toLowerCase() !== 'walk-in customer') {
+              setSelectedRecordedCustomer(selectedCust);
+              setCustomerModalType('recorded');
+              await executeInvoicePersistence(values, selectedCust, false);
+              return;
+            }
+
+            // 2. If Walk-in and paid in full (no remaining debt): direct persist!
+            if (!isOnCredit) {
+              setCustomerModalType('walkin');
+              await executeInvoicePersistence(values, 'Walk-in Customer', false);
+              return;
+            }
+
+            // 3. If credit sale with Walk-in, open customer modal to capture directory details
             if (editData && editData.customer_name) {
               const custName = String(editData.customer_name).trim();
               const isExistingRecorded = customersList.some(c => (c.customerName || '').toLowerCase() === custName.toLowerCase());
@@ -2256,34 +2552,224 @@ const NewInvoice = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-meta-4/5 p-4 rounded-sm border border-stroke dark:border-strokedark">
                   <div>
-                    <label className="block font-bold text-gray-500 mb-1">Customer Account / Profile:</label>
-                    <select
-                      name="customerName"
-                      value={values.customerName || selectedRecordedCustomer || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setFieldValue('customerName', val);
-                        setSelectedRecordedCustomer(val);
-                        if (val && val !== 'Walk-in Customer') {
-                          setCustomerModalType('recorded');
-                          fetchCustomerPastSales(val);
-                        } else {
-                          setCustomerModalType('walkin');
-                          setCustomerSoldMap({});
-                        }
-                      }}
-                      className="w-full rounded border p-2 text-sm bg-white dark:bg-boxdark font-bold outline-none text-black dark:text-white border-stroke dark:border-strokedark focus:border-primary"
-                    >
-                      <option value="">Walk-in Customer (Counter)</option>
-                      {customersList.map((c) => {
-                        const code = c.customer_code || c.customerCode;
-                        return (
-                          <option key={c.id} value={c.customerName}>
-                            {code ? `[${code}] ${c.customerName}` : c.customerName}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-gray-500">
+                        Customer Account / Profile:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenQuickCustomerModal(customerSearchQuery)}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary/80 transition bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded"
+                        title="Quickly add new customer without leaving invoice"
+                      >
+                        <FiPlus className="text-xs" /> New Customer
+                      </button>
+                    </div>
+
+                    <div className="relative customer-combobox-container">
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          placeholder="Search customer by name, code, phone or select Walk-in..."
+                          value={
+                            isCustomerDropdownOpen
+                              ? customerSearchQuery
+                              : (values.customerName || selectedRecordedCustomer || 'Walk-in Customer (Counter)')
+                          }
+                          onFocus={() => {
+                            setIsCustomerDropdownOpen(true);
+                            setCustomerSearchQuery('');
+                            setHighlightedCustomerIndex(0);
+                          }}
+                          onChange={(e) => {
+                            setCustomerSearchQuery(e.target.value);
+                            setIsCustomerDropdownOpen(true);
+                            setHighlightedCustomerIndex(0);
+                          }}
+                          onKeyDown={(e) => {
+                            if (!isCustomerDropdownOpen) {
+                              if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                                setIsCustomerDropdownOpen(true);
+                                e.preventDefault();
+                              }
+                              return;
+                            }
+
+                            const filtered = [
+                              { id: 'walkin', customerName: 'Walk-in Customer (Counter)', isWalkin: true },
+                              ...customersList.filter((c: any) => {
+                                const q = customerSearchQuery.toLowerCase().trim();
+                                if (!q) return true;
+                                const name = String(c.customerName || c.name || '').toLowerCase();
+                                const code = String(c.customer_code || c.customerCode || c.coa_code || '').toLowerCase();
+                                const phone = String(c.primaryPhone || c.phone || '').toLowerCase();
+                                return name.includes(q) || code.includes(q) || phone.includes(q);
+                              })
+                            ];
+
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setHighlightedCustomerIndex((prev) => (prev < filtered.length - 1 ? prev + 1 : 0));
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setHighlightedCustomerIndex((prev) => (prev > 0 ? prev - 1 : filtered.length - 1));
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (filtered[highlightedCustomerIndex]) {
+                                const item = filtered[highlightedCustomerIndex];
+                                if (item.isWalkin) {
+                                  setFieldValue('customerName', '');
+                                  setSelectedRecordedCustomer('');
+                                  setCustomerModalType('walkin');
+                                  setCustomerSoldMap({});
+                                } else {
+                                  setFieldValue('customerName', item.customerName);
+                                  setSelectedRecordedCustomer(item.customerName);
+                                  setCustomerModalType('recorded');
+                                  fetchCustomerPastSales(item.customerName);
+                                  if (item.address && !values.shippingAddress) {
+                                    setFieldValue('shippingAddress', item.address);
+                                  }
+                                }
+                                setIsCustomerDropdownOpen(false);
+                                setCustomerSearchQuery('');
+                              } else if (customerSearchQuery.trim()) {
+                                handleOpenQuickCustomerModal(customerSearchQuery.trim());
+                              }
+                            } else if (e.key === 'Escape') {
+                              setIsCustomerDropdownOpen(false);
+                            }
+                          }}
+                          className="w-full rounded border border-stroke dark:border-strokedark p-2 pr-16 text-sm bg-white dark:bg-boxdark font-bold outline-none text-black dark:text-white focus:border-primary shadow-sm"
+                        />
+                        <div className="absolute right-2 flex items-center gap-1.5">
+                          {(values.customerName || selectedRecordedCustomer) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFieldValue('customerName', '');
+                                setSelectedRecordedCustomer('');
+                                setCustomerModalType('walkin');
+                                setCustomerSoldMap({});
+                                setCustomerSearchQuery('');
+                              }}
+                              className="text-gray-400 hover:text-red-500 text-xs p-1"
+                              title="Reset to Walk-in"
+                            >
+                              <FiX />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomerDropdownOpen(!isCustomerDropdownOpen)}
+                            className="text-gray-400 hover:text-primary text-xs p-1"
+                          >
+                            <FiChevronDown className={`transition-transform duration-200 ${isCustomerDropdownOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dropdown Menu */}
+                      {isCustomerDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1 max-h-64 overflow-y-auto rounded-lg border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl z-50 py-1">
+                          {/* Walkin Option */}
+                          <div
+                            onClick={() => {
+                              setFieldValue('customerName', '');
+                              setSelectedRecordedCustomer('');
+                              setCustomerModalType('walkin');
+                              setCustomerSoldMap({});
+                              setIsCustomerDropdownOpen(false);
+                              setCustomerSearchQuery('');
+                            }}
+                            className={`px-3 py-2 text-xs cursor-pointer flex items-center justify-between border-b border-stroke/50 dark:border-strokedark/50 ${
+                              highlightedCustomerIndex === 0
+                                ? 'bg-primary/10 text-primary font-bold'
+                                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-meta-4'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                              <span>Walk-in Customer (Counter)</span>
+                            </div>
+                            <span className="text-[10px] bg-slate-100 dark:bg-meta-4 text-slate-500 px-1.5 py-0.5 rounded font-mono">Counter</span>
+                          </div>
+
+                          {/* Filtered Customer List */}
+                          {customersList
+                            .filter((c: any) => {
+                              const q = customerSearchQuery.toLowerCase().trim();
+                              if (!q) return true;
+                              const name = String(c.customerName || c.name || '').toLowerCase();
+                              const code = String(c.customer_code || c.customerCode || c.coa_code || '').toLowerCase();
+                              const phone = String(c.primaryPhone || c.phone || '').toLowerCase();
+                              return name.includes(q) || code.includes(q) || phone.includes(q);
+                            })
+                            .map((c: any, index: number) => {
+                              const listIndex = index + 1;
+                              const code = c.customer_code || c.customerCode || c.coa_code;
+                              const isSelected = (values.customerName || selectedRecordedCustomer) === c.customerName;
+                              const isHighlighted = highlightedCustomerIndex === listIndex;
+
+                              return (
+                                <div
+                                  key={c.id || index}
+                                  onMouseEnter={() => setHighlightedCustomerIndex(listIndex)}
+                                  onClick={() => {
+                                    setFieldValue('customerName', c.customerName);
+                                    setSelectedRecordedCustomer(c.customerName);
+                                    setCustomerModalType('recorded');
+                                    fetchCustomerPastSales(c.customerName);
+                                    if (c.address && !values.shippingAddress) {
+                                      setFieldValue('shippingAddress', c.address);
+                                    }
+                                    setIsCustomerDropdownOpen(false);
+                                    setCustomerSearchQuery('');
+                                  }}
+                                  className={`px-3 py-2 text-xs cursor-pointer flex items-center justify-between transition ${
+                                    isSelected
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-bold'
+                                      : isHighlighted
+                                      ? 'bg-primary/10 text-primary font-semibold'
+                                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-meta-4'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-500' : 'bg-primary/60'}`}></span>
+                                    <span className="truncate">{c.customerName}</span>
+                                    {c.primaryPhone && <span className="text-[10px] text-gray-400">({c.primaryPhone})</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {code && (
+                                      <span className="text-[10px] font-mono bg-slate-100 dark:bg-meta-4 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">
+                                        {code}
+                                      </span>
+                                    )}
+                                    {c.currentBalance !== undefined && (
+                                      <span className={`text-[10px] font-bold ${Number(c.currentBalance) > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                        Rs. {Number(c.currentBalance || 0).toLocaleString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                          {/* Quick Add Option */}
+                          <div
+                            onClick={() => handleOpenQuickCustomerModal(customerSearchQuery)}
+                            className="px-3 py-2 text-xs cursor-pointer flex items-center gap-2 border-t border-stroke dark:border-strokedark text-primary hover:bg-primary/10 font-bold"
+                          >
+                            <FiPlus className="text-sm" />
+                            <span>
+                              {customerSearchQuery.trim()
+                                ? `Add "${customerSearchQuery.trim()}" as New Customer`
+                                : 'Add New Customer Profile'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="block font-bold text-gray-500 mb-1">Shipping Address (Optional):</label>
