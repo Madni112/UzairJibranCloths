@@ -3,6 +3,7 @@ import { supabase } from '../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../ui/Spinner';
 import TableActions from '../../ui/TableActions';
+import TablePagination from '../../components/TablePagination';
 import { MdDelete, MdAdd, MdEdit, MdClose, MdDomain } from 'react-icons/md';
 
 const Brands = () => {
@@ -272,22 +273,15 @@ const Brands = () => {
           </table>
         </div>
 
-        {/* BOTTOM METRIC FOOTER */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t border-stroke dark:border-strokedark">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            Showing {startIndex + 1} to {endIndex} of {totalEntries} entries
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1">
-              <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} className="px-2 py-1 rounded border border-stroke text-[10px] font-medium disabled:opacity-30">Previous</button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`px-2 py-1 rounded text-[10px] font-bold border transition ${currentPage === i + 1 ? 'bg-primary text-white border-primary' : 'border-stroke dark:border-strokedark text-gray-500 hover:bg-gray-50'}`}>{i + 1}</button>
-              ))}
-              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} className="px-2 py-1 rounded border border-stroke text-[10px] font-medium disabled:opacity-30">Next</button>
-            </div>
-          )}
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalEntries={totalEntries}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setCurrentPage}
+          itemName="entries"
+        />
 
       </div>
     </div>

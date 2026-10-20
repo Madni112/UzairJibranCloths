@@ -3,6 +3,7 @@ import { supabase } from '../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../ui/Spinner';
 import TableActions from '../../ui/TableActions';
+import TablePagination from '../../components/TablePagination';
 import { MdAdd, MdClose, MdTexture, MdCheckCircle } from 'react-icons/md';
 
 
@@ -165,7 +166,7 @@ const SurfaceFinish = () => {
       <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#111827] p-5 sm:p-6">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-sm">
-            <MdTexture className="text-teal-600 text-lg" />
+            <MdTexture className="text-primary text-lg" />
             <span>{editingId ? 'Edit Tile Brand' : 'Register New Tile Brand'}</span>
           </div>
           <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono">
@@ -184,7 +185,7 @@ const SurfaceFinish = () => {
               value={finishName}
               onChange={(e) => setFinishName(e.target.value)}
               placeholder="e.g. Lappato / Semi-Polished, Matte, High Gloss"
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 bg-slate-50/50 dark:bg-slate-800/80 outline-none focus:border-teal-600 text-xs font-bold text-slate-900 dark:text-white"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 bg-slate-50/50 dark:bg-slate-800/80 outline-none focus:border-primary text-xs font-bold text-slate-900 dark:text-white"
             />
           </div>
 
@@ -192,7 +193,7 @@ const SurfaceFinish = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 px-6 text-xs font-bold text-white transition shadow-sm cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary-hover py-2.5 px-6 text-xs font-bold text-white transition shadow-sm cursor-pointer disabled:opacity-50"
             >
               {submitting ? <Spinner /> : editingId ? <MdCheckCircle /> : <MdAdd />}
               <span>{editingId ? 'Update Finish' : 'Add Brand'}</span>
@@ -218,7 +219,7 @@ const SurfaceFinish = () => {
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="rounded-lg border border-slate-200 py-1.5 px-2.5 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none focus:border-teal-600 text-xs font-bold text-slate-800 dark:text-white transition"
+              className="rounded-lg border border-slate-200 py-1.5 px-2.5 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none focus:border-primary text-xs font-bold text-slate-800 dark:text-white transition"
             >
               {[10, 25, 50].map((size) => (
                 <option key={size} value={size}>
@@ -236,7 +237,7 @@ const SurfaceFinish = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search Brandes..."
-              className="w-full sm:w-72 rounded-xl border border-slate-200 py-2 px-3.5 bg-slate-50/50 dark:bg-slate-800/60 dark:border-slate-700 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 dark:text-white transition"
+              className="w-full sm:w-72 rounded-xl border border-slate-200 py-2 px-3.5 bg-slate-50/50 dark:bg-slate-800/60 dark:border-slate-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs text-slate-800 dark:text-white transition"
             />
           </div>
         </div>
@@ -268,7 +269,7 @@ const SurfaceFinish = () => {
                   <tr key={finish.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition text-xs">
                     <td className="py-3.5 px-4 text-center text-slate-400 font-mono">{startIndex + idx + 1}</td>
                     <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <MdTexture className="text-teal-600 text-sm shrink-0" />
+                      <MdTexture className="text-primary text-sm shrink-0" />
                       <span>{finish.name}</span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
@@ -286,31 +287,15 @@ const SurfaceFinish = () => {
           </table>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <div className="text-slate-500 dark:text-slate-400">
-            Showing {filteredFinishes.length > 0 ? startIndex + 1 : 0} to{' '}
-            {Math.min(startIndex + pageSize, filteredFinishes.length)} of {filteredFinishes.length} finishes
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 font-bold text-teal-600">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalEntries={filteredFinishes.length}
+          startIndex={startIndex}
+          endIndex={Math.min(startIndex + pageSize, filteredFinishes.length)}
+          onPageChange={setCurrentPage}
+          itemName="finishes"
+        />
       </div>
 
     </div>

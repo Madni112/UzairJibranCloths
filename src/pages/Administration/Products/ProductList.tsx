@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { MdSearch, MdAdd, MdWarning, MdClose, MdInfoOutline } from 'react-icons/md';
 import TableActions from '../../../ui/TableActions';
+import TablePagination from '../../../components/TablePagination';
 import SearchableDropdown from '../../../components/SearchableDropdown';
 import { getDetailedBreakdown } from '../../../utils/stockCalculator';
 import { useAuth } from '../../../Context/Auth';
@@ -605,7 +606,7 @@ const ProductList = () => {
         <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono">{serialNumber}</td>
         <td className="py-3.5 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">{product.item_sr_no || '-'}</td>
         <td
-          className="py-3.5 px-4 font-bold text-primary dark:text-blue-400 cursor-pointer hover:underline"
+          className="py-3.5 px-4 font-bold text-slate-900 dark:text-white hover:text-primary dark:hover:text-primary transition-colors cursor-pointer hover:underline"
           onClick={() => setSelectedQuickViewProduct(product)}
         >
           {product.product_name}
@@ -775,32 +776,15 @@ const ProductList = () => {
           </table>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <div className="text-slate-500 dark:text-slate-400">
-            Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{startIndex + 1}</span> to{' '}
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{endIndex}</span> of{' '}
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{totalEntries}</span> entries
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 font-bold text-teal-600 text-xs">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalEntries={totalEntries}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setCurrentPage}
+          itemName="entries"
+        />
       </div>
 
       {/* Stock Breakdown Modal */}

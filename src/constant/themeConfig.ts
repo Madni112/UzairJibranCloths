@@ -79,6 +79,9 @@ export function applyAccentColor(hexColor: string) {
       .bg-emerald-600,
       .bg-emerald-500,
       .bg-emerald-700,
+      .bg-teal-600,
+      .bg-teal-500,
+      .bg-teal-700,
       .bg-primary {
         background-color: ${hexColor} !important;
       }
@@ -87,6 +90,9 @@ export function applyAccentColor(hexColor: string) {
       .hover\\:bg-emerald-700:hover,
       .hover\\:bg-emerald-800:hover,
       .hover\\:bg-emerald-600:hover,
+      .hover\\:bg-teal-700:hover,
+      .hover\\:bg-teal-800:hover,
+      .hover\\:bg-teal-600:hover,
       .hover\\:bg-primary-hover:hover {
         background-color: ${darkerHex} !important;
       }
@@ -97,6 +103,11 @@ export function applyAccentColor(hexColor: string) {
       .bg-emerald-600\\/10,
       .bg-emerald-500\\/10,
       .bg-emerald-500\\/20,
+      .bg-teal-50,
+      .bg-teal-50\\/80,
+      .bg-teal-600\\/10,
+      .bg-teal-500\\/10,
+      .bg-teal-500\\/20,
       .bg-primary\\/10,
       .bg-primary\\/5 {
         background-color: rgba(${r}, ${g}, ${b}, 0.1) !important;
@@ -107,11 +118,17 @@ export function applyAccentColor(hexColor: string) {
       .dark .bg-emerald-950\\/30,
       .dark .bg-emerald-900\\/30,
       .dark .bg-emerald-500\\/20,
+      .dark .bg-teal-500\\/15,
+      .dark .bg-teal-950\\/30,
+      .dark .bg-teal-900\\/30,
+      .dark .bg-teal-500\\/20,
+      .dark .bg-teal-950\\/20,
       .dark .bg-primary\\/20 {
         background-color: rgba(${r}, ${g}, ${b}, 0.18) !important;
       }
 
-      .bg-emerald-400 {
+      .bg-emerald-400,
+      .bg-teal-400 {
         background-color: ${hexColor} !important;
         opacity: 0.75 !important;
       }
@@ -121,6 +138,10 @@ export function applyAccentColor(hexColor: string) {
       .text-emerald-500,
       .text-emerald-700,
       .dark .text-emerald-400,
+      .text-teal-600,
+      .text-teal-500,
+      .text-teal-700,
+      .dark .text-teal-400,
       .text-primary {
         color: ${hexColor} !important;
       }
@@ -128,6 +149,8 @@ export function applyAccentColor(hexColor: string) {
       /* Hover Text Colors */
       .hover\\:text-emerald-600:hover,
       .hover\\:text-emerald-700:hover,
+      .hover\\:text-teal-600:hover,
+      .hover\\:text-teal-700:hover,
       .hover\\:text-primary:hover {
         color: ${hexColor} !important;
       }
@@ -136,30 +159,40 @@ export function applyAccentColor(hexColor: string) {
       .border-emerald-600,
       .border-emerald-500,
       .border-emerald-500\\/20,
+      .border-teal-600,
+      .border-teal-500,
+      .border-teal-500\\/20,
       .border-primary,
       .focus\\:border-emerald-500:focus,
       .focus\\:border-emerald-600:focus,
+      .focus\\:border-teal-500:focus,
+      .focus\\:border-teal-600:focus,
       .focus\\:border-primary:focus {
         border-color: ${hexColor} !important;
       }
 
       /* Glow / Shadows */
       .shadow-emerald-600\\/30,
-      .shadow-emerald-600\\/20 {
+      .shadow-emerald-600\\/20,
+      .shadow-teal-600\\/30,
+      .shadow-teal-600\\/20 {
         box-shadow: 0 10px 15px -3px rgba(${r}, ${g}, ${b}, 0.28) !important;
       }
 
       /* Gradients */
-      .from-emerald-600 {
+      .from-emerald-600,
+      .from-teal-600 {
         --tw-gradient-from: ${hexColor} var(--tw-gradient-from-position) !important;
         --tw-gradient-to: rgba(${r}, ${g}, ${b}, 0) var(--tw-gradient-to-position) !important;
         --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
       }
-      .via-emerald-600 {
+      .via-emerald-600,
+      .via-teal-600 {
         --tw-gradient-to: rgba(${r}, ${g}, ${b}, 0) var(--tw-gradient-to-position) !important;
         --tw-gradient-stops: var(--tw-gradient-from), ${hexColor} var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
       }
-      .to-emerald-700 {
+      .to-emerald-700,
+      .to-teal-700 {
         --tw-gradient-to: ${darkerHex} var(--tw-gradient-to-position) !important;
       }
 
