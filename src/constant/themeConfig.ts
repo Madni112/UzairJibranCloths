@@ -43,6 +43,9 @@ export function applyAccentColor(hexColor: string) {
   if (!hexColor) return;
   try {
     localStorage.setItem('zoaib_ali_accent_color', hexColor);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('zoaib_ali_theme_color_changed'));
+    }
   } catch (_) {}
 
   if (typeof document !== 'undefined') {

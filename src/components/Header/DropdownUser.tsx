@@ -41,6 +41,14 @@ const DropdownUser = () => {
     const current = getSavedAccentColor();
     setAccentColor(current);
     applyAccentColor(current);
+
+    const themeHandler = () => {
+      setAccentColor(getSavedAccentColor());
+    };
+    window.addEventListener('zoaib_ali_theme_color_changed', themeHandler);
+    return () => {
+      window.removeEventListener('zoaib_ali_theme_color_changed', themeHandler);
+    };
   }, []);
 
   const handleColorSelect = (hex: string) => {

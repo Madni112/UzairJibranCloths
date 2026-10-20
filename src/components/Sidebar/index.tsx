@@ -2,9 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import SidebarLinkGroup from './SidebarLinkGroup';
 import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from 'react-icons/ai';
-import { LuLogOut } from 'react-icons/lu';
+import { LuLogOut, LuPalette } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
+import { PRESET_THEME_COLORS, applyAccentColor, getSavedAccentColor } from '../../constant/themeConfig';
 import LogoDark from '../../images/logo/logo-dark.png';
 import LogoLight from '../../images/logo/logo-light.png';
 import IconDark from '../../images/logo/icon-dark.png';
@@ -64,8 +65,8 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath }: any) 
         onClick={handleLinkClick}
         className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium duration-150 ${
           isActive
-            ? 'text-emerald-600 bg-emerald-50/80 dark:bg-emerald-500/15 dark:text-emerald-400 font-semibold'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'
+            ? 'text-primary bg-primary/10 dark:text-primary font-semibold'
+            : 'text-slate-600 hover:text-primary hover:bg-primary/5 dark:text-slate-300 dark:hover:text-primary dark:hover:bg-primary/10'
         }`}
       >
         {item.label}
@@ -165,8 +166,8 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
                 to="#"
                 className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
                   isChildActive && shouldShowLabels
-                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-500/15 font-semibold shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'
+                    ? 'text-primary dark:text-primary bg-primary/10 dark:bg-primary/20 font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-primary hover:bg-primary/5 dark:text-slate-300 dark:hover:text-primary dark:hover:bg-primary/10'
                 } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
                 style={{ paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined }}
                 onClick={(e) => {
@@ -181,13 +182,21 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
                   handleClick();
                 }}
               >
-                {item.icon && <item.icon className={`text-lg shrink-0 ${isChildActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />}
+                {item.icon && (
+                  <item.icon
+                    className={`text-lg shrink-0 transition-colors ${
+                      isChildActive
+                        ? 'text-primary dark:text-primary'
+                        : 'text-slate-400 group-hover:text-primary dark:group-hover:text-primary'
+                    }`}
+                  />
+                )}
                 {shouldShowLabels && (
                   <>
                     <span className="text-xs font-medium ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis flex flex-col gap-1 tracking-wide">
                       {item.label}
                     </span>
-                    <span className="ml-auto text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-200">
+                    <span className="ml-auto text-slate-400 group-hover:text-primary transition-transform duration-200">
                       {open ? <AiOutlineUp size={11} /> : <AiOutlineDown size={11} />}
                     </span>
                   </>
@@ -243,7 +252,7 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
                 to { opacity: 1; transform: translateX(0); }
               }
             `}</style>
-            <div className="px-3 py-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-800 font-bold text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-left">
+            <div className="px-3 py-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-800 font-bold text-[10px] text-primary uppercase tracking-wider text-left">
               {item.label}
             </div>
             <ul className="flex flex-col gap-1">
@@ -266,12 +275,20 @@ const SidebarItem = ({ item, pathname, depth = 0, sidebarOpen, setSidebarOpen, h
         to={singleDestination}
         className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
           isDirectActive
-            ? 'text-emerald-600 bg-emerald-50/80 dark:bg-emerald-500/15 dark:text-emerald-400 font-semibold shadow-xs'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'
+            ? 'text-primary bg-primary/10 dark:bg-primary/20 dark:text-primary font-semibold shadow-xs'
+            : 'text-slate-600 hover:text-primary hover:bg-primary/5 dark:text-slate-300 dark:hover:text-primary dark:hover:bg-primary/10'
         } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
         style={{ paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined }}
       >
-        {item.icon && <item.icon className={`text-lg shrink-0 ${isDirectActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />}
+        {item.icon && (
+          <item.icon
+            className={`text-lg shrink-0 transition-colors ${
+              isDirectActive
+                ? 'text-primary dark:text-primary'
+                : 'text-slate-400 group-hover:text-primary dark:group-hover:text-primary'
+            }`}
+          />
+        )}
         {shouldShowLabels && <span className="text-xs font-medium ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide">{item.label}</span>}
       </NavLink>
     </li>
@@ -303,6 +320,42 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   // Master tracking ID to determine which global branch header is clicked open
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Active theme color state for sidebar swatches
+  const [currentAccent, setCurrentAccent] = useState(getSavedAccentColor());
+  const [collapsedColorPickerOpen, setCollapsedColorPickerOpen] = useState(false);
+  const collapsedPickerRef = useRef<HTMLDivElement>(null);
+
+  const handleAccentChange = (hex: string) => {
+    setCurrentAccent(hex);
+    applyAccentColor(hex);
+  };
+
+  useEffect(() => {
+    const handleThemeUpdate = () => {
+      setCurrentAccent(getSavedAccentColor());
+    };
+    window.addEventListener('zoaib_ali_theme_color_changed', handleThemeUpdate);
+    window.addEventListener('storage', handleThemeUpdate);
+    return () => {
+      window.removeEventListener('zoaib_ali_theme_color_changed', handleThemeUpdate);
+      window.removeEventListener('storage', handleThemeUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (collapsedPickerRef.current && !collapsedPickerRef.current.contains(e.target as Node)) {
+        setCollapsedColorPickerOpen(false);
+      }
+    };
+    if (collapsedColorPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [collapsedColorPickerOpen]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -393,6 +446,101 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
                 ))
               }
+
+              {/* SIDEBAR ACCENT & FONT COLOR PICKER (EXPANDED) */}
+              {(sidebarOpen || isMobile) && (
+                <li className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-800">
+                  <div className="p-2.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
+                    <div className="flex items-center justify-between mb-2 px-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <LuPalette size={13} style={{ color: currentAccent }} />
+                        Sidebar & Font Color
+                      </span>
+                      <span
+                        className="w-2.5 h-2.5 rounded-full border border-black/15 shadow-xs transition-colors"
+                        style={{ backgroundColor: currentAccent }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {PRESET_THEME_COLORS.slice(0, 18).map((c) => {
+                        const isSelected = currentAccent.toLowerCase() === c.hex.toLowerCase();
+                        return (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            title={c.name}
+                            onClick={() => handleAccentChange(c.hex)}
+                            className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              isSelected
+                                ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
+                                : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
+                            }`}
+                            style={{ backgroundColor: c.hex }}
+                          >
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </li>
+              )}
+
+              {/* SIDEBAR ACCENT COLOR PICKER (COLLAPSED POPUP) */}
+              {!sidebarOpen && !isMobile && (
+                <li className="relative flex justify-center mx-auto w-10 h-10 px-0 my-1">
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedColorPickerOpen(!collapsedColorPickerOpen)}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    title="Change Sidebar & Font Color"
+                  >
+                    <LuPalette size={18} style={{ color: currentAccent }} />
+                  </button>
+                  {collapsedColorPickerOpen && (
+                    <div
+                      ref={collapsedPickerRef}
+                      className="fixed left-[56px] z-99999 w-48 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#1E293B]/95 p-3 shadow-2xl backdrop-blur-md"
+                      style={{ bottom: '70px', animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <LuPalette size={12} style={{ color: currentAccent }} />
+                          Sidebar Color
+                        </span>
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-black/15 shadow-xs"
+                          style={{ backgroundColor: currentAccent }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {PRESET_THEME_COLORS.slice(0, 18).map((c) => {
+                          const isSelected = currentAccent.toLowerCase() === c.hex.toLowerCase();
+                          return (
+                            <button
+                              key={c.hex}
+                              type="button"
+                              title={c.name}
+                              onClick={() => {
+                                handleAccentChange(c.hex);
+                                setCollapsedColorPickerOpen(false);
+                              }}
+                              className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                                isSelected
+                                  ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
+                                  : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
+                              }`}
+                              style={{ backgroundColor: c.hex }}
+                            >
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              )}
               <li 
                 className={`group relative flex items-center rounded-xl py-2.5 font-medium text-slate-600 dark:text-slate-300 duration-200 ease-in-out hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer mt-4 border-t border-slate-200/80 dark:border-slate-800 pt-4 ${sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'}`} 
                 onClick={() => logout()} 
