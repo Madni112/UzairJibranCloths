@@ -3747,9 +3747,10 @@ const NewInvoice = () => {
                                   const isCurrentWhActive = activeReturnWhIndex === rIdx;
                                   const lineTotal = Number(rItem.qty || 0) * Number(rItem.rp ?? rItem.rate ?? 0);
 
-                                  const exactReturnSelected = productsList.some((p: any) => String(p.product_name || '').toLowerCase().trim() === String(rItem.itemName || '').toLowerCase().trim());
+                                  const exactReturnSelected = productsList.some((p: any) => !isTileProduct(p) && String(p.product_name || '').toLowerCase().trim() === String(rItem.itemName || '').toLowerCase().trim());
                                   const returnSearch = exactReturnSelected ? '' : (rItem.itemName || '').toLowerCase().trim();
                                   const filteredProducts = productsList.filter((p: any) => {
+                                    if (isTileProduct(p)) return false;
                                     if (!returnSearch) return true;
                                     return (
                                       (p.product_name && p.product_name.toLowerCase().includes(returnSearch)) ||
