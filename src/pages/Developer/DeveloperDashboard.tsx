@@ -1133,16 +1133,8 @@ const DeveloperDashboard: React.FC = () => {
   const handleSaveEmployeePermissions = async () => {
     if (!editingEmployee) return;
 
-    const isSuperAdminAccount =
-      editingEmployee.role === 'Super Admin' ||
-      editingEmployee.slug === 'zoaib-admin' ||
-      editingEmployee.name?.toLowerCase().includes('super admin');
-
-    if (isSuperAdminAccount) {
-      toast.error('The Super Admin role is permanent and cannot be modified or downgraded.');
-      setEditingEmployee(null);
-      return;
-    }
+    // Allow customizing permissions for any employee user, including Super Admin accounts
+    // (such as test@noorhorizontechnologies.com), so specific pages can be hidden or granted.
 
     try {
       setIsSavingEdit(true);
@@ -2517,27 +2509,18 @@ const DeveloperDashboard: React.FC = () => {
             </div>
 
             {/* QUICK PRESET TEMPLATES */}
-            {editingEmployee.role === 'Super Admin' || editingEmployee.slug === 'zoaib-admin' ? (
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl text-xs text-amber-800 dark:text-amber-300 font-semibold flex items-center gap-3">
-                <span className="text-2xl">👑</span>
-                <div>
-                  <h5 className="font-bold text-amber-900 dark:text-amber-200">Super Admin (Owner) Role is Permanent</h5>
-                  <p className="mt-0.5 text-[11px] opacity-90">This master account maintains unrestricted access to all business modules and controls. Its role cannot be modified or downgraded.</p>
-                </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1">Employee Name:</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-transparent dark:bg-form-input border border-stroke dark:border-form-strokedark rounded-xl p-2 text-xs text-black dark:text-white outline-none focus:border-emerald-500"
+                />
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-black dark:text-white mb-1">Employee Name:</label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-transparent dark:bg-form-input border border-stroke dark:border-form-strokedark rounded-xl p-2 text-xs text-black dark:text-white outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-black dark:text-white mb-2">Role Template Presets:</label>
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-2">Role Template Presets:</label>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(ROLE_PRESETS).map(([key, preset]) => (
                     <button
@@ -2556,8 +2539,7 @@ const DeveloperDashboard: React.FC = () => {
                   ))}
                 </div>
               </div>
-              </div>
-            )}
+            </div>
 
             {/* PERMISSION TREE */}
             <div className="flex-1 overflow-y-auto pr-1">

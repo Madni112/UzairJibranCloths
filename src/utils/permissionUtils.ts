@@ -56,8 +56,9 @@ export function getModulePermissions(
   moduleId: string,
   userRole?: string | null
 ): ModulePermissionState {
-  // Super Admin / Owner always gets unrestricted full rights
-  if (userRole && userRole.toLowerCase().includes('admin')) {
+  // If allowedModules array is explicitly defined, strictly respect the configured permissions!
+  // Only default to unrestricted access if allowedModules is not defined or empty and user is admin
+  if ((!allowedModules || !Array.isArray(allowedModules) || allowedModules.length === 0) && userRole && userRole.toLowerCase().includes('admin')) {
     return {
       hasAccess: true,
       level: 'full',

@@ -347,11 +347,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getRoleBasedRoutes = () => {
     let routes = RoleRoutes.adminRoutes;
 
-    // Super Admin / Owner always gets unrestricted full route access
-    if (role && role.toLowerCase().includes('admin')) {
-      return routes;
-    }
-
     // Determine current effective modules (from state or cached per tenant)
     let currentAllowed = allowedModules;
     if (!currentAllowed && typeof window !== 'undefined') {
@@ -362,6 +357,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (cached) currentAllowed = JSON.parse(cached);
         } catch (_) {}
       }
+    }
+
+    // Master developer bypass if no explicit module restrictions are defined
+    const isMasterDeveloper = Boolean(
+      userEmail && (
+        userEmail.toLowerCase() === 'developer@noorhorizontechnologies.com' ||
+        userEmail.toLowerCase() === 'admin@zoaibalicompany.com' ||
+        userEmail.toLowerCase() === 'admin@almuhammadi.com'
+      )
+    );
+
+    if (isMasterDeveloper && (!currentAllowed || currentAllowed.length === 0)) {
+      return routes;
+    }
+
+    // If an admin has NO custom module restriction assigned, default to full access
+    if ((!currentAllowed || currentAllowed.length === 0) && role && role.toLowerCase().includes('admin')) {
+      return routes;
     }
 
     if (currentAllowed && Array.isArray(currentAllowed)) {
@@ -469,7 +482,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const can = (path: string, action: 'view' | 'add' | 'edit' | 'delete' = 'view'): boolean => {
-    if (role && role.toLowerCase().includes('admin')) return true;
+    const isMasterDeveloper = Boolean(
+      userEmail && (
+        userEmail.toLowerCase() === 'developer@noorhorizontechnologies.com' ||
+        userEmail.toLowerCase() === 'admin@zoaibalicompany.com' ||
+        userEmail.toLowerCase() === 'admin@almuhammadi.com'
+      )
+    );
+    if (isMasterDeveloper && (!allowedModules || allowedModules.length === 0)) return true;
+    if ((!allowedModules || allowedModules.length === 0) && role && role.toLowerCase().includes('admin')) return true;
+
     const perms = getModulePermissions(allowedModules, path, role);
     if (action === 'view') return perms.canView;
     if (action === 'add') return perms.canAdd;
