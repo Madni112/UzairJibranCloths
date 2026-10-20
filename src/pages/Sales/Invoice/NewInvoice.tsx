@@ -425,6 +425,49 @@ const NewInvoice = () => {
       const parsedItems = Array.isArray(editData.items)
         ? editData.items
         : JSON.parse(editData.items || '[]');
+
+      // Intelligently separate standard return items from tile return items
+      const rawReturnItems = Array.isArray(editData.return_items) ? editData.return_items : (parsedItems[0]?._returnItems || []);
+      const rawTileReturnItems = (Array.isArray(editData.tile_return_items) && editData.tile_return_items.length > 0)
+        ? editData.tile_return_items
+        : (Array.isArray(parsedItems[0]?._tileReturnItems) && parsedItems[0]._tileReturnItems.length > 0
+            ? parsedItems[0]._tileReturnItems
+            : []);
+
+      const isTileLikeItem = (it: any) => {
+        if (it.isTileItem) return true;
+        if (String(it.uom || '').toUpperCase() === 'BOX') return true;
+        const matched = productsList.find((p: any) => 
+          (it.skuCode && String(p.item_sr_no).trim().toLowerCase() === String(it.skuCode).trim().toLowerCase()) ||
+          (it.itemName && String(p.product_name).trim().toLowerCase() === String(it.itemName).trim().toLowerCase())
+        );
+        if (matched && (
+          String(matched.sub_sub_category).toUpperCase().includes('TILE') ||
+          String(matched.uom).toUpperCase() === 'BOX' ||
+          Number(matched.pieces_per_box) > 1 ||
+          Number(matched.pcs_per_box) > 1
+        )) {
+          return true;
+        }
+        return false;
+      };
+
+      const migratedTileReturns = [...rawTileReturnItems];
+      const nonTileReturns: any[] = [];
+
+      rawReturnItems.forEach((r: any) => {
+        if (isTileLikeItem(r)) {
+          const exists = migratedTileReturns.some((t: any) =>
+            (t.skuCode && t.skuCode === r.skuCode) || (t.itemName && t.itemName === r.itemName)
+          );
+          if (!exists) {
+            migratedTileReturns.push(r);
+          }
+        } else {
+          nonTileReturns.push(r);
+        }
+      });
+
       return {
         invoiceNo: editData.invoice_no || '',
         customerName: editData.customer_name || editData.customerName || '',
@@ -464,8 +507,9 @@ const NewInvoice = () => {
         overallDiscount: Number(editData.overall_discount || editData.discount_amount || parsedItems.find((i: any) => i._overallDiscount !== undefined)?._overallDiscount || 0),
         showAdditionalCharges: Number(editData.additional_charges || 0) > 0,
         additionalCharges: Number(editData.additional_charges || 0),
-        showReturnSection: (Array.isArray(editData.return_items) && editData.return_items.length > 0) || (Array.isArray(parsedItems[0]?._returnItems) && parsedItems[0]._returnItems.length > 0),
-        returnItems: (Array.isArray(editData.return_items) ? editData.return_items : (parsedItems[0]?._returnItems || [])).map((r: any) => ({
+
+        showReturnSection: nonTileReturns.length > 0,
+        returnItems: nonTileReturns.map((r: any) => ({
           skuCode: r.skuCode || r.sku || '',
           itemName: r.itemName || r.product_name || '',
           warehouse: r.warehouse || editData.dispatch_warehouse || '',
@@ -474,30 +518,39 @@ const NewInvoice = () => {
           uom: r.uom || 'PCS',
           amount: Number(r.total || (Number(r.qty || 1) * Number(r.rp ?? r.rate ?? 0)))
         })),
-        showTileReturnSection: (Array.isArray(editData.tile_return_items) && editData.tile_return_items.length > 0) || (Array.isArray(parsedItems[0]?._tileReturnItems) && parsedItems[0]._tileReturnItems.length > 0),
-        tileReturnItems: (
-          Array.isArray(editData.tile_return_items) && editData.tile_return_items.length > 0
-            ? editData.tile_return_items
-            : (Array.isArray(parsedItems[0]?._tileReturnItems) && parsedItems[0]._tileReturnItems.length > 0
-                ? parsedItems[0]._tileReturnItems
-                : [])
-        ).map((t: any, tIdx: number) => ({
-          id: t.id || `tile-return-${tIdx}-${Date.now()}`,
-          skuCode: t.skuCode || t.sku || '',
-          itemName: t.itemName || t.product_name || '',
-          warehouse: t.warehouse || editData.dispatch_warehouse || '',
-          availableQty: Number(t.availableQty || 0),
-          boxQty: Number(t.boxQty ?? t.qty ?? 1),
-          loosePcs: Number(t.loosePcs ?? 0),
-          piecesPerBox: Number(t.piecesPerBox ?? 4),
-          sqmPerBox: Number(t.sqmPerBox ?? 1.44),
-          pricePerBox: Number(t.pricePerBox ?? t.rp ?? 0),
-          pricePerSqm: Number(t.pricePerSqm ?? 0),
-          pricePerPiece: Number(t.pricePerPiece ?? 0),
-          totalAmount: Number(t.totalAmount ?? t.total ?? t.amount ?? 0),
-          totalSqm: Number(t.totalSqm ?? 0),
-          isTileItem: true
-        })),
+        showTileReturnSection: migratedTileReturns.length > 0,
+        tileReturnItems: migratedTileReturns.map((t: any, tIdx: number) => {
+          const matchedProd = productsList.find((p: any) => 
+            (t.skuCode && String(p.item_sr_no).trim().toLowerCase() === String(t.skuCode).trim().toLowerCase()) ||
+            (t.itemName && String(p.product_name).trim().toLowerCase() === String(t.itemName).trim().toLowerCase())
+          );
+          const pcsPerBox = Number(t.piecesPerBox ?? matchedProd?.pieces_per_box ?? matchedProd?.pcs_per_box ?? 8);
+          const sqmPerBox = Number(t.sqmPerBox ?? 1.44);
+          const bQty = Number(t.boxQty ?? t.qty ?? 1);
+          const lPcs = Number(t.loosePcs ?? 0);
+          const pBox = Number(t.pricePerBox ?? t.rp ?? t.rate ?? (matchedProd?.retail_price || 0));
+          const pPiece = pBox > 0 && pcsPerBox > 0 ? (pBox / pcsPerBox) : Number(t.pricePerPiece ?? 0);
+          const pSqm = pBox > 0 && sqmPerBox > 0 ? (pBox / sqmPerBox) : Number(t.pricePerSqm ?? 0);
+          const totAmount = Number(t.totalAmount ?? t.total ?? t.amount ?? ((bQty * pBox) + (lPcs * pPiece)));
+          const totSqm = Number(t.totalSqm ?? (bQty * sqmPerBox + (lPcs / pcsPerBox) * sqmPerBox));
+          return {
+            id: t.id || `tile-return-${tIdx}-${Date.now()}`,
+            skuCode: t.skuCode || t.sku || matchedProd?.item_sr_no || '',
+            itemName: t.itemName || t.product_name || matchedProd?.product_name || '',
+            warehouse: t.warehouse || editData.dispatch_warehouse || '',
+            availableQty: Number(t.availableQty || 0),
+            boxQty: bQty,
+            loosePcs: lPcs,
+            piecesPerBox: pcsPerBox,
+            sqmPerBox: sqmPerBox,
+            pricePerBox: pBox,
+            pricePerSqm: Number(pSqm.toFixed(2)),
+            pricePerPiece: Number(pPiece.toFixed(2)),
+            totalAmount: totAmount,
+            totalSqm: Number(totSqm.toFixed(2)),
+            isTileItem: true
+          };
+        }),
         showTileSection: (Array.isArray(editData.tile_items) && editData.tile_items.length > 0) || (Array.isArray(parsedItems[0]?._tileItems) && parsedItems[0]._tileItems.length > 0) || parsedItems.some((i: any) => i.isTileItem),
         tileItems: (
           Array.isArray(editData.tile_items) && editData.tile_items.length > 0
@@ -4305,7 +4358,7 @@ const NewInvoice = () => {
                                   <th className="p-2 w-32 text-center">Return Qty</th>
                                   <th className="p-2 w-32 text-right">Return Rate (RP)</th>
                                   <th className="p-2 w-36 text-right pr-4">Line Credit Total</th>
-                                  <th className="p-2 w-8 text-center"></th>
+                                  <th className="p-2 w-14 text-center"></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -4611,15 +4664,55 @@ const NewInvoice = () => {
                                       </td>
 
                                       {/* ACTION */}
-                                      <td className="p-1 w-8 text-center">
-                                        <button
-                                          type="button"
-                                          onClick={() => remove(rIdx)}
-                                          className="text-gray-400 hover:text-danger cursor-pointer"
-                                          title="Remove Return Item"
-                                        >
-                                          <FiTrash2 size={14} />
-                                        </button>
+                                      <td className="p-1 w-14 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const matchedProd = productsList.find((p: any) => 
+                                                (rItem.skuCode && String(p.item_sr_no).trim().toLowerCase() === String(rItem.skuCode).trim().toLowerCase()) ||
+                                                (rItem.itemName && String(p.product_name).trim().toLowerCase() === String(rItem.itemName).trim().toLowerCase())
+                                              );
+                                              const pcsPerBox = Number(matchedProd?.pieces_per_box ?? matchedProd?.pcs_per_box ?? 8);
+                                              const sqmPerBox = 1.44;
+                                              const bQty = Number(rItem.qty || 1);
+                                              const pBox = Number(rItem.rp || matchedProd?.retail_price || 0);
+                                              const pPiece = pBox > 0 && pcsPerBox > 0 ? (pBox / pcsPerBox) : 0;
+                                              const pSqm = pBox > 0 && sqmPerBox > 0 ? (pBox / sqmPerBox) : 0;
+                                              const newTileReturn = {
+                                                id: Date.now(),
+                                                itemName: rItem.itemName || '',
+                                                skuCode: rItem.skuCode || '',
+                                                warehouse: rItem.warehouse || values.dispatchWarehouse || '',
+                                                boxQty: bQty,
+                                                loosePcs: 0,
+                                                piecesPerBox: pcsPerBox,
+                                                sqmPerBox: sqmPerBox,
+                                                pricePerBox: pBox,
+                                                pricePerSqm: Number(pSqm.toFixed(2)),
+                                                pricePerPiece: Number(pPiece.toFixed(2)),
+                                                totalAmount: Number((bQty * pBox).toFixed(2)),
+                                                totalSqm: Number((bQty * sqmPerBox).toFixed(2)),
+                                                isTileItem: true
+                                              };
+                                              setFieldValue('showTileReturnSection', true);
+                                              setFieldValue('tileReturnItems', [...(values.tileReturnItems || []), newTileReturn]);
+                                              remove(rIdx);
+                                            }}
+                                            className="px-1 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 hover:bg-amber-200 transition"
+                                            title="Switch this item to Tile Return (boxes, loose pcs, m²)"
+                                          >
+                                            ⇄ Tile
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => remove(rIdx)}
+                                            className="text-gray-400 hover:text-danger cursor-pointer p-0.5"
+                                            title="Remove Return Item"
+                                          >
+                                            <FiTrash2 size={13} />
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
                                   );
