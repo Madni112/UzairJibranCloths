@@ -88,7 +88,10 @@ const NewInvoice = () => {
     return `1020-${String(maxNum + 1).padStart(3, '0')}`;
   };
 
-  const handleOpenQuickCustomerModal = (initialName: string = '') => {
+  const handleOpenQuickCustomerModal = (initialName: string = '', setFieldValueFn?: any) => {
+    if (setFieldValueFn) {
+      setActiveFormikSetFieldValue(() => setFieldValueFn);
+    }
     setQuickCustomerName(initialName);
     setQuickCustomerPhone('');
     setQuickCustomerAddress('');
@@ -2051,7 +2054,7 @@ const NewInvoice = () => {
       )}
 
       {/* QUICK NEW CUSTOMER MODAL */}
-      {showQuickCustomerModal && (
+      {isQuickCustomerModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white dark:bg-boxdark rounded-2xl shadow-2xl border border-stroke dark:border-strokedark w-full max-w-md p-6 overflow-hidden animate-scale-up">
             <div className="flex items-center justify-between pb-3 border-b border-stroke dark:border-strokedark mb-4">
@@ -2066,7 +2069,7 @@ const NewInvoice = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setShowQuickCustomerModal(false)}
+                onClick={() => setIsQuickCustomerModalOpen(false)}
                 className="text-gray-400 hover:text-black dark:hover:text-white p-1 rounded-md"
               >
                 <FiX className="text-lg" />
@@ -2084,8 +2087,8 @@ const NewInvoice = () => {
                     type="text"
                     autoFocus
                     placeholder="e.g. Haji Aslam Trader"
-                    value={quickCustName}
-                    onChange={(e) => setQuickCustName(e.target.value)}
+                    value={quickCustomerName}
+                    onChange={(e) => setQuickCustomerName(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
                   />
                 </div>
@@ -2100,8 +2103,8 @@ const NewInvoice = () => {
                   <input
                     type="text"
                     placeholder="e.g. 0300-1234567"
-                    value={quickCustPhone}
-                    onChange={(e) => setQuickCustPhone(e.target.value)}
+                    value={quickCustomerPhone}
+                    onChange={(e) => setQuickCustomerPhone(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
                   />
                 </div>
@@ -2110,18 +2113,14 @@ const NewInvoice = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                    City / Town:
+                    Customer Code:
                   </label>
-                  <div className="relative">
-                    <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
-                    <input
-                      type="text"
-                      placeholder="e.g. Hyderabad"
-                      value={quickCustCity}
-                      onChange={(e) => setQuickCustCity(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={quickCustomerCode}
+                    onChange={(e) => setQuickCustomerCode(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary font-mono"
+                  />
                 </div>
 
                 <div>
@@ -2131,8 +2130,8 @@ const NewInvoice = () => {
                   <input
                     type="number"
                     placeholder="0"
-                    value={quickCustOpeningBalance}
-                    onChange={(e) => setQuickCustOpeningBalance(e.target.value)}
+                    value={quickCustomerOpeningBal}
+                    onChange={(e) => setQuickCustomerOpeningBal(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary font-mono"
                   />
                 </div>
@@ -2145,8 +2144,8 @@ const NewInvoice = () => {
                 <textarea
                   rows={2}
                   placeholder="Street / Market / Delivery point..."
-                  value={quickCustAddress}
-                  onChange={(e) => setQuickCustAddress(e.target.value)}
+                  value={quickCustomerAddress}
+                  onChange={(e) => setQuickCustomerAddress(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-stroke dark:border-strokedark bg-transparent font-bold outline-none text-black dark:text-white focus:border-primary"
                 />
               </div>
@@ -2155,18 +2154,18 @@ const NewInvoice = () => {
             <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-stroke dark:border-strokedark">
               <button
                 type="button"
-                onClick={() => setShowQuickCustomerModal(false)}
+                onClick={() => setIsQuickCustomerModalOpen(false)}
                 className="px-4 py-2 rounded-lg border border-stroke dark:border-strokedark text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-meta-4 transition"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={isQuickSavingCustomer}
-                onClick={handleSaveQuickCustomer}
+                disabled={isSavingQuickCustomer}
+                onClick={() => handleSaveQuickCustomer(activeFormikSetFieldValue)}
                 className="px-5 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-bold shadow-md shadow-primary/20 flex items-center gap-2 disabled:opacity-50 transition"
               >
-                {isQuickSavingCustomer ? (
+                {isSavingQuickCustomer ? (
                   <>
                     <Spinner size="w-3.5 h-3.5" color="border-white" />
                     <span>Creating Profile...</span>
@@ -2558,7 +2557,7 @@ const NewInvoice = () => {
                       </label>
                       <button
                         type="button"
-                        onClick={() => handleOpenQuickCustomerModal(customerSearchQuery)}
+                        onClick={() => handleOpenQuickCustomerModal(customerSearchQuery, setFieldValue)}
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary/80 transition bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded"
                         title="Quickly add new customer without leaving invoice"
                       >
@@ -2634,7 +2633,7 @@ const NewInvoice = () => {
                                 setIsCustomerDropdownOpen(false);
                                 setCustomerSearchQuery('');
                               } else if (customerSearchQuery.trim()) {
-                                handleOpenQuickCustomerModal(customerSearchQuery.trim());
+                                handleOpenQuickCustomerModal(customerSearchQuery.trim(), setFieldValue);
                               }
                             } else if (e.key === 'Escape') {
                               setIsCustomerDropdownOpen(false);
@@ -2757,7 +2756,7 @@ const NewInvoice = () => {
 
                           {/* Quick Add Option */}
                           <div
-                            onClick={() => handleOpenQuickCustomerModal(customerSearchQuery)}
+                            onClick={() => handleOpenQuickCustomerModal(customerSearchQuery, setFieldValue)}
                             className="px-3 py-2 text-xs cursor-pointer flex items-center gap-2 border-t border-stroke dark:border-strokedark text-primary hover:bg-primary/10 font-bold"
                           >
                             <FiPlus className="text-sm" />
