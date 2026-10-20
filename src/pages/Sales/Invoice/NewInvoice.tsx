@@ -4249,7 +4249,7 @@ const NewInvoice = () => {
 
                                       {/* PRODUCT SEARCH */}
                                       <td className="p-2 relative">
-                                        <div className="relative">
+                                        <div className="relative tile-return-prod-name-container">
                                           <input
                                             type="text"
                                             value={tItem.itemName || ''}
@@ -4258,9 +4258,14 @@ const NewInvoice = () => {
                                               setHighlightedTileReturnProdIndex(0);
                                             }}
                                             onChange={(e) => {
-                                              setFieldValue(`tileReturnItems.${tIdx}.itemName`, e.target.value);
+                                              const typed = e.target.value;
+                                              setFieldValue(`tileReturnItems.${tIdx}.itemName`, typed);
                                               setActiveTileReturnProdIndex(tIdx);
                                               setHighlightedTileReturnProdIndex(0);
+                                              const match = filteredProducts.find((p: any) => p.product_name && p.product_name.toLowerCase() === typed.trim().toLowerCase());
+                                              if (match) {
+                                                handleTileReturnProductSelection(match, tIdx, values.dispatchWarehouse, setFieldValue, tItem);
+                                              }
                                             }}
                                             onKeyDown={(e) => {
                                               if (!isCurrentProdActive) return;
@@ -4276,19 +4281,35 @@ const NewInvoice = () => {
                                                 e.preventDefault();
                                                 if (filteredProducts[highlightedTileReturnProdIndex]) {
                                                   handleTileReturnProductSelection(
-                                                    tIdx,
                                                     filteredProducts[highlightedTileReturnProdIndex],
-                                                    values.tileReturnItems,
-                                                    setFieldValue
+                                                    tIdx,
+                                                    values.dispatchWarehouse,
+                                                    setFieldValue,
+                                                    tItem
                                                   );
+                                                  setActiveTileReturnProdIndex(null);
                                                 }
-                                              } else if (e.key === 'Escape') {
+                                              } else if (e.key === 'Tab' || e.key === 'Escape') {
                                                 setActiveTileReturnProdIndex(null);
                                               }
                                             }}
                                             placeholder="Type tile product name..."
-                                            className="w-full bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold text-black dark:text-white outline-none focus:border-amber-500"
+                                            className="w-full bg-white dark:bg-boxdark border border-amber-300 dark:border-amber-800 rounded p-1.5 pr-7 text-xs font-bold text-black dark:text-white outline-none focus:border-amber-500"
                                           />
+                                          {Boolean(tItem.itemName || tItem.skuCode) && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleTileReturnProductSelection(null, tIdx, values.dispatchWarehouse, setFieldValue, tItem);
+                                                setActiveTileReturnProdIndex(null);
+                                              }}
+                                              className="absolute right-2 top-3 -translate-y-1/2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-meta-4 transition-colors z-10"
+                                              title="Clear Return Tile Product"
+                                            >
+                                              <FiX className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
                                           {tItem.skuCode && (
                                             <div className="text-[10px] font-mono text-amber-600 dark:text-amber-400 mt-0.5 truncate font-bold">
                                               Code: {tItem.skuCode}
@@ -4312,7 +4333,8 @@ const NewInvoice = () => {
                                                     onMouseDown={(e) => {
                                                       e.preventDefault();
                                                       e.stopPropagation();
-                                                      handleTileReturnProductSelection(tIdx, p, values.tileReturnItems, setFieldValue);
+                                                      handleTileReturnProductSelection(p, tIdx, values.dispatchWarehouse, setFieldValue, tItem);
+                                                      setActiveTileReturnProdIndex(null);
                                                     }}
                                                     className={`p-2.5 cursor-pointer transition flex items-center justify-between ${
                                                       isHighlighted ? 'bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500' : 'hover:bg-slate-50 dark:hover:bg-slate-800/80'
@@ -4360,7 +4382,7 @@ const NewInvoice = () => {
 
                                       {/* WAREHOUSE SELECTOR */}
                                       <td className="p-2 relative">
-                                        <div className="relative">
+                                        <div className="relative tile-return-wh-container">
                                           <input
                                             type="text"
                                             value={currentWh}
