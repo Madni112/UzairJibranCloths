@@ -163,7 +163,7 @@ const NewInvoice = () => {
     return { totStock, boxes, loose, pcsPerBox };
   };
 
-  const getItemWarehouseStock = (productName: string, warehouseName: string): number => {
+  const getItemWarehouseStock = (productName: string, warehouseName: string, itemCode?: string): number => {
     if (!productName || !warehouseName) return 0;
     return getWarehouseAvailableStock(productName, warehouseName, stockDataset);
   };
@@ -4435,17 +4435,10 @@ const NewInvoice = () => {
                                           {isCurrentWhActive && (
                                             <div className="absolute left-0 top-full mt-1.5 z-[99999] min-w-[260px] max-w-[320px] max-h-[220px] overflow-y-auto rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-[#1A222C] shadow-2xl divide-y divide-slate-100 dark:divide-slate-800 scrollbar-thin">
                                               {filteredWhs.map((wh, wIdx) => {
-                                                let whBoxes = 0;
-                                                let whLoose = 0;
-                                                let hasStock = false;
-                                                if (tItem.itemName) {
-                                                  const prodNameLower = String(tItem.itemName).toLowerCase().trim();
-                                                  const whKey = `${prodNameLower}___${String(wh).toLowerCase().trim()}`;
-                                                  const stockQty = warehouseStockMap[whKey] ?? 0;
-                                                  whBoxes = Math.floor(stockQty / ppb);
-                                                  whLoose = stockQty % ppb;
-                                                  hasStock = stockQty > 0;
-                                                }
+                                                const whStock = tItem.itemName ? getItemWarehouseStock(tItem.itemName, wh, tItem.skuCode) : null;
+                                                const whBoxes = whStock !== null ? Math.floor(whStock) : 0;
+                                                const whLoose = whStock !== null ? Math.round((whStock - whBoxes) * ppb) : 0;
+                                                const hasStock = whStock !== null && whStock > 0;
 
                                                 return (
                                                   <div
