@@ -26,9 +26,11 @@ const Header = (props: {
 
           <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-xs font-semibold text-slate-600 dark:text-slate-300">
             <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/75 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
             </span>
+            <span className="text-[11px] font-bold text-primary uppercase tracking-wider">ZAC</span>
+            <span className="text-[10px] text-slate-400">•</span>
             <span className="text-[11px] font-medium tracking-wide">Portal Active</span>
           </div>
         </div>

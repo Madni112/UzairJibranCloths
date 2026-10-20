@@ -163,6 +163,7 @@ export function applyAccentColor(hexColor: string) {
       .border-teal-500,
       .border-teal-500\\/20,
       .border-primary,
+      .border-primary\\/40,
       .focus\\:border-emerald-500:focus,
       .focus\\:border-emerald-600:focus,
       .focus\\:border-teal-500:focus,
@@ -175,7 +176,10 @@ export function applyAccentColor(hexColor: string) {
       .shadow-emerald-600\\/30,
       .shadow-emerald-600\\/20,
       .shadow-teal-600\\/30,
-      .shadow-teal-600\\/20 {
+      .shadow-teal-600\\/20,
+      .shadow-primary\\/30,
+      .shadow-primary\\/20,
+      .shadow-primary {
         box-shadow: 0 10px 15px -3px rgba(${r}, ${g}, ${b}, 0.28) !important;
       }
 
