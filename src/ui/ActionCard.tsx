@@ -16,8 +16,6 @@ const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, Icon, bgGradie
       className={`p-5 rounded-2xl cursor-pointer transform transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${bgGradient} text-white flex items-center justify-between shadow-md relative overflow-hidden group`}
       onClick={onClick}
     >
-      {/* Decorative background light orb */}
-      <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 blur-xl group-hover:scale-125 transition-transform duration-300 pointer-events-none" />
       
       <div className="flex flex-col z-10">
         <span className="text-sm font-extrabold uppercase tracking-wider">{title}</span>

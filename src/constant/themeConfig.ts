@@ -185,18 +185,13 @@ export function applyAccentColor(hexColor: string) {
 
       /* Gradients */
       .from-emerald-600,
-      .from-teal-600 {
+      .from-teal-600,
+      .from-primary {
         --tw-gradient-from: ${hexColor} var(--tw-gradient-from-position) !important;
-        --tw-gradient-to: rgba(${r}, ${g}, ${b}, 0) var(--tw-gradient-to-position) !important;
-        --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
-      }
-      .via-emerald-600,
-      .via-teal-600 {
-        --tw-gradient-to: rgba(${r}, ${g}, ${b}, 0) var(--tw-gradient-to-position) !important;
-        --tw-gradient-stops: var(--tw-gradient-from), ${hexColor} var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
       }
       .to-emerald-700,
-      .to-teal-700 {
+      .to-teal-700,
+      .to-primary {
         --tw-gradient-to: ${darkerHex} var(--tw-gradient-to-position) !important;
       }
 
