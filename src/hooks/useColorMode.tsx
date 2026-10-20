@@ -7,10 +7,20 @@ const useColorMode = () => {
   useEffect(() => {
     const className = 'dark';
     const bodyClass = window.document.body.classList;
+    const htmlClass = window.document.documentElement.classList;
 
-    colorMode === 'dark'
-      ? bodyClass.add(className)
-      : bodyClass.remove(className);
+    if (colorMode === 'dark') {
+      bodyClass.add(className);
+      htmlClass.add(className);
+    } else {
+      bodyClass.remove(className);
+      htmlClass.remove(className);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('color-mode-changed'));
+      window.dispatchEvent(new Event('zoaib_ali_sidebar_color_changed'));
+    }
   }, [colorMode]);
 
   return [colorMode, setColorMode];

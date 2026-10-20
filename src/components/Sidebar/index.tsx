@@ -364,7 +364,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   // Dedicated sidebar font/icon color state with contrast protection
   const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
-  const [customHexInput, setCustomHexInput] = useState(getSavedSidebarColor().replace('#', ''));
+  const [customHexInput, setCustomHexInput] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('zoaib_ali_sidebar_raw_color');
+      if (raw) return raw.replace('#', '');
+    }
+    return getSavedSidebarColor().replace('#', '');
+  });
   const [wasContrastAdjusted, setWasContrastAdjusted] = useState(false);
   const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
   const [collapsedColorPickerOpen, setCollapsedColorPickerOpen] = useState(false);
@@ -373,7 +379,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const handleSidebarColorChange = (hex: string) => {
     const { safeColor, wasAdjusted } = applySidebarColor(hex);
     setCurrentSidebarColor(safeColor);
-    setCustomHexInput(safeColor.replace('#', ''));
+    setCustomHexInput(hex.replace('#', ''));
     setWasContrastAdjusted(wasAdjusted);
     if (wasAdjusted) {
       setTimeout(() => setWasContrastAdjusted(false), 4500);
@@ -392,32 +398,30 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   };
 
   useEffect(() => {
-    const initial = getSavedSidebarColor();
-    const { safeColor, wasAdjusted } = applySidebarColor(initial);
-    setCurrentSidebarColor(safeColor);
-    setCustomHexInput(safeColor.replace('#', ''));
-    setWasContrastAdjusted(wasAdjusted);
-
-    const handleColorUpdate = () => {
-      const updated = getSavedSidebarColor();
-      setCurrentSidebarColor(updated);
-      setCustomHexInput(updated.replace('#', ''));
-    };
-    window.addEventListener('zoaib_ali_sidebar_color_changed', handleColorUpdate);
-    window.addEventListener('storage', handleColorUpdate);
-
-    // Watch for dark / light mode toggle to ensure contrast is always maintained
-    const observer = new MutationObserver(() => {
-      const current = getSavedSidebarColor();
-      const res = applySidebarColor(current);
+    const updateColors = () => {
+      const raw = localStorage.getItem('zoaib_ali_sidebar_raw_color') || getSavedSidebarColor();
+      const res = applySidebarColor(raw);
       setCurrentSidebarColor(res.safeColor);
-      setCustomHexInput(res.safeColor.replace('#', ''));
+      setWasContrastAdjusted(res.wasAdjusted);
+    };
+
+    updateColors();
+
+    window.addEventListener('zoaib_ali_sidebar_color_changed', updateColors);
+    window.addEventListener('color-mode-changed', updateColors);
+    window.addEventListener('storage', updateColors);
+
+    // Observe both body and documentElement for dark class changes
+    const observer = new MutationObserver(() => {
+      updateColors();
     });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     return () => {
-      window.removeEventListener('zoaib_ali_sidebar_color_changed', handleColorUpdate);
-      window.removeEventListener('storage', handleColorUpdate);
+      window.removeEventListener('zoaib_ali_sidebar_color_changed', updateColors);
+      window.removeEventListener('color-mode-changed', updateColors);
+      window.removeEventListener('storage', updateColors);
       observer.disconnect();
     };
   }, []);

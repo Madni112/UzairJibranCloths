@@ -269,6 +269,16 @@ export function setThemeColorPickerEnabled(enabled: boolean) {
 
 export const DEFAULT_SIDEBAR_COLOR = '#475569';
 
+export function isDarkModeActive(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const stored = localStorage.getItem('color-theme');
+    if (stored === '"dark"' || stored === 'dark') return true;
+    if (stored === '"light"' || stored === 'light') return false;
+  } catch (_) {}
+  return document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+}
+
 /**
  * Ensures a color has sufficient contrast against the sidebar background
  * so that text and icons are NEVER invisible in either light or dark mode.
@@ -291,37 +301,34 @@ export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { s
   // Relative luminance
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
-  // Determine dark mode if not explicitly provided
-  const inDark = typeof isDarkMode === 'boolean' 
-    ? isDarkMode 
-    : (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+  const inDark = typeof isDarkMode === 'boolean' ? isDarkMode : isDarkModeActive();
 
-  if (!inDark) {
-    // LIGHT MODE: Background is #FFFFFF.
-    // If color is too light (luminance > 0.72), it's washed out or invisible.
-    if (luminance > 0.72) {
-      if (luminance >= 0.96) {
-        // Pure or near white -> fallback to crisp visible slate
-        return { safeColor: '#334155', wasAdjusted: true };
+  if (inDark) {
+    // DARK MODE: Background is #111827.
+    // Text/icons MUST be bright enough (luminance >= 0.38) to be clearly visible against dark background!
+    if (luminance < 0.38) {
+      if (luminance <= 0.15) {
+        // Pure black or very dark charcoal -> shift to clean, high-contrast light slate/white
+        return { safeColor: '#F8FAFC', wasAdjusted: true };
       }
-      // Scale down RGB proportionally to bring luminance to a crisp ~0.48
-      const scale = 0.48 / luminance;
-      const safeR = Math.min(255, Math.max(0, Math.round(r * scale)));
-      const safeG = Math.min(255, Math.max(0, Math.round(g * scale)));
-      const safeB = Math.min(255, Math.max(0, Math.round(b * scale)));
+      // For chromatic colors (e.g. dark blue, dark red), boost brightness to a visible hue
+      const scale = 0.52 / Math.max(0.01, luminance);
+      const safeR = Math.min(255, Math.max(0, Math.round(r * scale + (255 - r) * 0.35)));
+      const safeG = Math.min(255, Math.max(0, Math.round(g * scale + (255 - g) * 0.35)));
+      const safeB = Math.min(255, Math.max(0, Math.round(b * scale + (255 - b) * 0.35)));
       const safeHex = `#${safeR.toString(16).padStart(2, '0')}${safeG.toString(16).padStart(2, '0')}${safeB.toString(16).padStart(2, '0')}`;
       return { safeColor: safeHex, wasAdjusted: true };
     }
   } else {
-    // DARK MODE: Background is #111827.
-    // If color is too dark (luminance < 0.22), it's invisible against dark background.
-    if (luminance < 0.22) {
-      if (luminance <= 0.04) {
-        // Pure or near black -> fallback to crisp visible light slate
-        return { safeColor: '#E2E8F0', wasAdjusted: true };
+    // LIGHT MODE: Background is #FFFFFF.
+    // Text/icons MUST be dark enough (luminance <= 0.65) to be clearly visible against white!
+    if (luminance > 0.65) {
+      if (luminance >= 0.88) {
+        // Pure white or very light -> shift to crisp, high-contrast dark charcoal/black
+        return { safeColor: '#0F172A', wasAdjusted: true };
       }
-      // Scale up RGB proportionally to bring luminance to a crisp ~0.48
-      const scale = 0.48 / luminance;
+      // For chromatic colors (e.g. pastel lime, pale cyan), darken proportionally to a readable tone
+      const scale = 0.45 / luminance;
       const safeR = Math.min(255, Math.max(0, Math.round(r * scale)));
       const safeG = Math.min(255, Math.max(0, Math.round(g * scale)));
       const safeB = Math.min(255, Math.max(0, Math.round(b * scale)));
@@ -333,18 +340,23 @@ export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { s
   return { safeColor: `#${cleanHex}`, wasAdjusted: false };
 }
 
-export function getSavedSidebarColor(): string {
+export function getSavedSidebarColor(isDarkMode?: boolean): string {
   if (typeof window === 'undefined') return DEFAULT_SIDEBAR_COLOR;
-  const raw = localStorage.getItem('zoaib_ali_sidebar_color') || DEFAULT_SIDEBAR_COLOR;
-  return getSafeSidebarColor(raw).safeColor;
+  const raw = localStorage.getItem('zoaib_ali_sidebar_raw_color') 
+    || localStorage.getItem('zoaib_ali_sidebar_color') 
+    || DEFAULT_SIDEBAR_COLOR;
+  return getSafeSidebarColor(raw, isDarkMode).safeColor;
 }
 
-export function applySidebarColor(hexColor: string): { safeColor: string; wasAdjusted: boolean } {
+export function applySidebarColor(hexColor: string, isDarkMode?: boolean): { safeColor: string; wasAdjusted: boolean } {
   if (!hexColor) return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
-  const { safeColor, wasAdjusted } = getSafeSidebarColor(hexColor);
+  try {
+    localStorage.setItem('zoaib_ali_sidebar_raw_color', hexColor);
+  } catch (_) {}
+
+  const { safeColor, wasAdjusted } = getSafeSidebarColor(hexColor, isDarkMode);
   try {
     localStorage.setItem('zoaib_ali_sidebar_color', safeColor);
-    localStorage.setItem('zoaib_ali_sidebar_raw_color', hexColor);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('zoaib_ali_sidebar_color_changed'));
     }
@@ -356,4 +368,3 @@ export function applySidebarColor(hexColor: string): { safeColor: string; wasAdj
 
   return { safeColor, wasAdjusted };
 }
-
