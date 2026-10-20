@@ -5,7 +5,7 @@ import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from '
 import { LuLogOut, LuPalette } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
-import { PRESET_THEME_COLORS, applySidebarColor, getSavedSidebarColor } from '../../constant/themeConfig';
+import { PRESET_THEME_COLORS, applySidebarColor, getSavedSidebarColor, getSafeSidebarColor } from '../../constant/themeConfig';
 import LogoDark from '../../images/logo/logo-dark.png';
 import LogoLight from '../../images/logo/logo-light.png';
 import IconDark from '../../images/logo/icon-dark.png';
@@ -362,27 +362,63 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   // Master tracking ID to determine which global branch header is clicked open
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  // Dedicated sidebar font/icon color state
+  // Dedicated sidebar font/icon color state with contrast protection
   const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
+  const [customHexInput, setCustomHexInput] = useState(getSavedSidebarColor().replace('#', ''));
+  const [wasContrastAdjusted, setWasContrastAdjusted] = useState(false);
   const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
   const [collapsedColorPickerOpen, setCollapsedColorPickerOpen] = useState(false);
   const collapsedPickerRef = useRef<HTMLDivElement>(null);
 
   const handleSidebarColorChange = (hex: string) => {
-    setCurrentSidebarColor(hex);
-    applySidebarColor(hex);
+    const { safeColor, wasAdjusted } = applySidebarColor(hex);
+    setCurrentSidebarColor(safeColor);
+    setCustomHexInput(safeColor.replace('#', ''));
+    setWasContrastAdjusted(wasAdjusted);
+    if (wasAdjusted) {
+      setTimeout(() => setWasContrastAdjusted(false), 4500);
+    }
+  };
+
+  const handleCustomHexSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    let clean = customHexInput.replace('#', '').trim();
+    if (clean.length === 3) {
+      clean = clean.split('').map(c => c + c).join('');
+    }
+    if (clean.length === 6 && /^[0-9A-Fa-f]{6}$/.test(clean)) {
+      handleSidebarColorChange(`#${clean}`);
+    }
   };
 
   useEffect(() => {
-    applySidebarColor(getSavedSidebarColor());
+    const initial = getSavedSidebarColor();
+    const { safeColor, wasAdjusted } = applySidebarColor(initial);
+    setCurrentSidebarColor(safeColor);
+    setCustomHexInput(safeColor.replace('#', ''));
+    setWasContrastAdjusted(wasAdjusted);
+
     const handleColorUpdate = () => {
-      setCurrentSidebarColor(getSavedSidebarColor());
+      const updated = getSavedSidebarColor();
+      setCurrentSidebarColor(updated);
+      setCustomHexInput(updated.replace('#', ''));
     };
     window.addEventListener('zoaib_ali_sidebar_color_changed', handleColorUpdate);
     window.addEventListener('storage', handleColorUpdate);
+
+    // Watch for dark / light mode toggle to ensure contrast is always maintained
+    const observer = new MutationObserver(() => {
+      const current = getSavedSidebarColor();
+      const res = applySidebarColor(current);
+      setCurrentSidebarColor(res.safeColor);
+      setCustomHexInput(res.safeColor.replace('#', ''));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     return () => {
       window.removeEventListener('zoaib_ali_sidebar_color_changed', handleColorUpdate);
       window.removeEventListener('storage', handleColorUpdate);
+      observer.disconnect();
     };
   }, []);
 
@@ -512,6 +548,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {wasContrastAdjusted && (
+                        <span className="text-[8px] font-black uppercase text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">
+                          Contrast Safe
+                        </span>
+                      )}
                       <span
                         className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-xs transition-colors shrink-0"
                         style={{ backgroundColor: currentSidebarColor }}
@@ -530,7 +571,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   <div
                     className="transition-all duration-300 ease-in-out overflow-hidden transform pl-3 ml-2 border-l"
                     style={{
-                      maxHeight: colorDropdownOpen ? '320px' : '0px',
+                      maxHeight: colorDropdownOpen ? '420px' : '0px',
                       opacity: colorDropdownOpen ? '100' : '0',
                       marginTop: colorDropdownOpen ? '4px' : '0px',
                       marginBottom: colorDropdownOpen ? '4px' : '0px',
@@ -538,26 +579,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       borderLeftColor: `${currentSidebarColor}30`,
                     }}
                   >
-                    <div className="p-2.5 my-1 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 shadow-xs">
+                    <div className="p-3 my-1 rounded-2xl bg-slate-50/95 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/70 shadow-xs">
+                      {/* Presets Header */}
                       <div className="flex items-center justify-between mb-2 px-0.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          Select Color
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Preset Colors
                         </span>
-                        <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold hover:opacity-80 transition" style={{ color: currentSidebarColor }}>
-                          <span>Custom</span>
-                          <span
-                            className="w-3 h-3 rounded-full border border-black/20 shadow-xs block transition-transform hover:scale-110"
-                            style={{ backgroundColor: currentSidebarColor }}
-                          />
-                          <input
-                            type="color"
-                            value={currentSidebarColor}
-                            onChange={(e) => handleSidebarColorChange(e.target.value)}
-                            className="sr-only"
-                          />
-                        </label>
+                        {wasContrastAdjusted && (
+                          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-md animate-pulse">
+                            Auto-adjusted for contrast
+                          </span>
+                        )}
                       </div>
-                      <div className="grid grid-cols-6 gap-1.5">
+
+                      {/* Presets Grid */}
+                      <div className="grid grid-cols-6 gap-1.5 mb-3">
                         {PRESET_THEME_COLORS.map((c) => {
                           const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
                           return (
@@ -566,7 +602,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               type="button"
                               title={c.name}
                               onClick={() => handleSidebarColorChange(c.hex)}
-                              className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                              className={`w-5.5 h-5.5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
                                 isSelected
                                   ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
                                   : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
@@ -577,6 +613,69 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             </button>
                           );
                         })}
+                      </div>
+
+                      {/* Dedicated Custom Color Section */}
+                      <div className="pt-2.5 border-t border-slate-200/80 dark:border-slate-700/80">
+                        <div className="flex items-center justify-between mb-1.5 px-0.5">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                            Custom Option
+                          </span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
+                            Color Wheel & Hex
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-xl p-1.5 shadow-2xs">
+                          {/* Color Wheel Clickable Swatch */}
+                          <label
+                            className="relative flex items-center justify-center cursor-pointer shrink-0"
+                            title="Click to open color picker wheel"
+                          >
+                            <span
+                              className="w-7 h-7 rounded-lg border border-black/15 shadow-xs transition-transform hover:scale-105 block"
+                              style={{ backgroundColor: currentSidebarColor }}
+                            />
+                            <input
+                              type="color"
+                              value={currentSidebarColor}
+                              onChange={(e) => handleSidebarColorChange(e.target.value)}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                          </label>
+
+                          {/* Hex Text Input */}
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleCustomHexSubmit();
+                            }}
+                            className="flex items-center flex-1 min-w-0"
+                          >
+                            <div className="flex items-center flex-1 px-1.5 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
+                              <span className="text-slate-400 select-none mr-0.5">#</span>
+                              <input
+                                type="text"
+                                maxLength={6}
+                                value={customHexInput}
+                                onChange={(e) => setCustomHexInput(e.target.value)}
+                                placeholder="RRGGBB"
+                                className="w-full bg-transparent outline-none uppercase font-mono tracking-wider text-xs"
+                              />
+                            </div>
+                            <button
+                              type="submit"
+                              className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-white shadow-xs transition hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
+                              style={{ backgroundColor: currentSidebarColor }}
+                            >
+                              Apply
+                            </button>
+                          </form>
+                        </div>
+
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1.5 px-0.5 leading-tight">
+                          Protected against invisible fonts (e.g. white on light, dark on dark).
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -597,7 +696,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   {collapsedColorPickerOpen && (
                     <div
                       ref={collapsedPickerRef}
-                      className="fixed left-[56px] z-99999 w-48 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#1E293B]/95 p-3 shadow-2xl backdrop-blur-md"
+                      className="fixed left-[56px] z-99999 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#1E293B]/95 p-3 shadow-2xl backdrop-blur-md"
                       style={{ bottom: '70px', animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -605,24 +704,15 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                           <LuPalette size={12} style={{ color: currentSidebarColor }} />
                           Color
                         </span>
-                        <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold" title="Custom Color">
-                          <span className="text-slate-500 dark:text-slate-400">Custom</span>
-                          <span
-                            className="w-3 h-3 rounded-full border border-black/20 shadow-xs block"
-                            style={{ backgroundColor: currentSidebarColor }}
-                          />
-                          <input
-                            type="color"
-                            value={currentSidebarColor}
-                            onChange={(e) => {
-                              handleSidebarColorChange(e.target.value);
-                              setCollapsedColorPickerOpen(false);
-                            }}
-                            className="sr-only"
-                          />
-                        </label>
+                        {wasContrastAdjusted && (
+                          <span className="text-[8px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">
+                            Protected
+                          </span>
+                        )}
                       </div>
-                      <div className="grid grid-cols-6 gap-1.5">
+
+                      {/* Presets Grid */}
+                      <div className="grid grid-cols-6 gap-1.5 mb-2.5">
                         {PRESET_THEME_COLORS.map((c) => {
                           const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
                           return (
@@ -632,7 +722,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               title={c.name}
                               onClick={() => {
                                 handleSidebarColorChange(c.hex);
-                                setCollapsedColorPickerOpen(false);
                               }}
                               className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
                                 isSelected
@@ -645,6 +734,40 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                             </button>
                           );
                         })}
+                      </div>
+
+                      {/* Custom Option in Popover */}
+                      <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80">
+                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
+                          <label className="relative flex items-center justify-center cursor-pointer shrink-0" title="Color Picker">
+                            <span
+                              className="w-5 h-5 rounded border border-black/15 shadow-xs block"
+                              style={{ backgroundColor: currentSidebarColor }}
+                            />
+                            <input
+                              type="color"
+                              value={currentSidebarColor}
+                              onChange={(e) => handleSidebarColorChange(e.target.value)}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={customHexInput}
+                            onChange={(e) => setCustomHexInput(e.target.value)}
+                            placeholder="HEX"
+                            className="w-full bg-transparent outline-none uppercase font-mono text-[10px] font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleCustomHexSubmit()}
+                            className="px-2 py-0.5 text-[10px] font-bold rounded text-white shadow-xs cursor-pointer"
+                            style={{ backgroundColor: currentSidebarColor }}
+                          >
+                            OK
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

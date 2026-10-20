@@ -269,22 +269,91 @@ export function setThemeColorPickerEnabled(enabled: boolean) {
 
 export const DEFAULT_SIDEBAR_COLOR = '#475569';
 
-export function getSavedSidebarColor(): string {
-  if (typeof window === 'undefined') return DEFAULT_SIDEBAR_COLOR;
-  return localStorage.getItem('zoaib_ali_sidebar_color') || DEFAULT_SIDEBAR_COLOR;
+/**
+ * Ensures a color has sufficient contrast against the sidebar background
+ * so that text and icons are NEVER invisible in either light or dark mode.
+ */
+export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { safeColor: string; wasAdjusted: boolean } {
+  if (!hexColor) return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
+  
+  let cleanHex = hexColor.replace('#', '').trim();
+  if (cleanHex.length === 3) {
+    cleanHex = cleanHex.split('').map(c => c + c).join('');
+  }
+  if (cleanHex.length !== 6 || !/^[0-9A-Fa-f]{6}$/.test(cleanHex)) {
+    return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
+  }
+
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+
+  // Relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Determine dark mode if not explicitly provided
+  const inDark = typeof isDarkMode === 'boolean' 
+    ? isDarkMode 
+    : (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
+
+  if (!inDark) {
+    // LIGHT MODE: Background is #FFFFFF.
+    // If color is too light (luminance > 0.72), it's washed out or invisible.
+    if (luminance > 0.72) {
+      if (luminance >= 0.96) {
+        // Pure or near white -> fallback to crisp visible slate
+        return { safeColor: '#334155', wasAdjusted: true };
+      }
+      // Scale down RGB proportionally to bring luminance to a crisp ~0.48
+      const scale = 0.48 / luminance;
+      const safeR = Math.min(255, Math.max(0, Math.round(r * scale)));
+      const safeG = Math.min(255, Math.max(0, Math.round(g * scale)));
+      const safeB = Math.min(255, Math.max(0, Math.round(b * scale)));
+      const safeHex = `#${safeR.toString(16).padStart(2, '0')}${safeG.toString(16).padStart(2, '0')}${safeB.toString(16).padStart(2, '0')}`;
+      return { safeColor: safeHex, wasAdjusted: true };
+    }
+  } else {
+    // DARK MODE: Background is #111827.
+    // If color is too dark (luminance < 0.22), it's invisible against dark background.
+    if (luminance < 0.22) {
+      if (luminance <= 0.04) {
+        // Pure or near black -> fallback to crisp visible light slate
+        return { safeColor: '#E2E8F0', wasAdjusted: true };
+      }
+      // Scale up RGB proportionally to bring luminance to a crisp ~0.48
+      const scale = 0.48 / luminance;
+      const safeR = Math.min(255, Math.max(0, Math.round(r * scale)));
+      const safeG = Math.min(255, Math.max(0, Math.round(g * scale)));
+      const safeB = Math.min(255, Math.max(0, Math.round(b * scale)));
+      const safeHex = `#${safeR.toString(16).padStart(2, '0')}${safeG.toString(16).padStart(2, '0')}${safeB.toString(16).padStart(2, '0')}`;
+      return { safeColor: safeHex, wasAdjusted: true };
+    }
+  }
+
+  return { safeColor: `#${cleanHex}`, wasAdjusted: false };
 }
 
-export function applySidebarColor(hexColor: string) {
-  if (!hexColor) return;
+export function getSavedSidebarColor(): string {
+  if (typeof window === 'undefined') return DEFAULT_SIDEBAR_COLOR;
+  const raw = localStorage.getItem('zoaib_ali_sidebar_color') || DEFAULT_SIDEBAR_COLOR;
+  return getSafeSidebarColor(raw).safeColor;
+}
+
+export function applySidebarColor(hexColor: string): { safeColor: string; wasAdjusted: boolean } {
+  if (!hexColor) return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
+  const { safeColor, wasAdjusted } = getSafeSidebarColor(hexColor);
   try {
-    localStorage.setItem('zoaib_ali_sidebar_color', hexColor);
+    localStorage.setItem('zoaib_ali_sidebar_color', safeColor);
+    localStorage.setItem('zoaib_ali_sidebar_raw_color', hexColor);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('zoaib_ali_sidebar_color_changed'));
     }
   } catch (_) {}
 
   if (typeof document !== 'undefined') {
-    document.documentElement.style.setProperty('--sidebar-font-color', hexColor);
+    document.documentElement.style.setProperty('--sidebar-font-color', safeColor);
   }
+
+  return { safeColor, wasAdjusted };
 }
 
