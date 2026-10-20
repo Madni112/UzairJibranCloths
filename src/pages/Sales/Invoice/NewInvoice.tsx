@@ -583,7 +583,10 @@ const NewInvoice = () => {
           warehouse: it.warehouse || editData.dispatch_warehouse || '',
           discountPer: Number(it.discountPer ?? it.discount_per ?? 0),
           discountAmt: Number(it.discountAmt ?? it.discount_amt ?? it.discount ?? 0)
-        }))
+        })),
+        excessCreditAction: editData.excess_credit_action || (parsedItems[0]?._excessCreditAction || (Number(parsedItems[0]?._refundPayoutAmount || 0) > 0 ? 'cash_refund' : 'credit')),
+        excessRefundAmount: Number(parsedItems[0]?._refundPayoutAmount || 0),
+        excessRefundMethod: parsedItems[0]?._refundPayoutMethod || 'Cash'
       };
     }
     return {
@@ -596,6 +599,9 @@ const NewInvoice = () => {
       salesman: isSalesman ? (matchedSalesman || currentSalesmanName) : '',
       transportType: 'No Transport (Handover)', transportCharges: 0, settlementMode: 'Cash',
       selectedBankTitle: '', cashAmountPaid: 0, bankAmountPaid: 0,
+      excessCreditAction: 'credit',
+      excessRefundAmount: 0,
+      excessRefundMethod: 'Cash',
       dcNo: '',
       gatePasses: {},
       shippingAddress: '',
@@ -674,8 +680,11 @@ const NewInvoice = () => {
     taxScenario: Yup.string().required('Required Field'),
     salesman: Yup.string().required('Required Field'),
     settlementMode: Yup.string().oneOf(['Cash', 'Bank', 'Split']).required('Required Field'),
-    cashAmountPaid: Yup.number().min(0).required('Required Field'),
+    cashAmountPaid: Yup.number().min(0).nullable(),
     bankAmountPaid: Yup.number().min(0).nullable(),
+    excessRefundAmount: Yup.number().min(0).nullable(),
+    excessCreditAction: Yup.string().nullable(),
+    excessRefundMethod: Yup.string().nullable(),
     selectedBankTitle: Yup.string().when('settlementMode', {
       is: (val: string) => val === 'Bank' || val === 'Split',
       then: (schema) => schema.required('Please select corporate bank ledger profile'),

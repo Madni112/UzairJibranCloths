@@ -769,9 +769,13 @@ const PrintInvoice = () => {
 
             {netBeforeFloor < 0 && (
               <div className="flex justify-between pt-1 border-t border-teal-200 text-teal-700 font-bold">
-                <span className="font-sans text-[11px]">Excess Customer Credit:</span>
+                <span className="font-sans text-[11px]">
+                  {firstItem._excessCreditAction === 'refund' 
+                    ? `Excess Refund Paid (${firstItem._excessRefundMethod || 'Cash'}):` 
+                    : 'Excess Customer Credit:'}
+                </span>
                 <span className="text-xs font-mono font-black">
-                  - Rs. {Math.abs(netBeforeFloor).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  - Rs. {Math.abs(Number(firstItem._excessRefundAmount) || netBeforeFloor).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
             )}
