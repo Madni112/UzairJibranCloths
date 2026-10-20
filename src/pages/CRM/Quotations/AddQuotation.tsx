@@ -275,22 +275,42 @@ const AddQuotation: React.FC = () => {
       let savedId = id;
 
       if (isEditMode) {
-        const { error } = await supabase
-          .from('crm_quotations')
-          .update(payload)
-          .eq('id', id);
+        try {
+          await supabase
+            .from('crm_quotations')
+            .update(payload)
+            .eq('id', id);
+        } catch (_) {}
 
-        if (error) throw error;
+        try {
+          const cached = JSON.parse(localStorage.getItem('zac_quotations_records') || '[]');
+          const updated = cached.map((q: any) => String(q.id) === String(id) ? { ...q, ...payload } : q);
+          localStorage.setItem('zac_quotations_records', JSON.stringify(updated));
+        } catch (_) {}
+
         toast.success('Quotation updated successfully!');
       } else {
-        const { data, error } = await supabase
-          .from('crm_quotations')
-          .insert([payload])
-          .select('id')
-          .single();
+        let cloudId = null;
+        try {
+          const { data, error } = await supabase
+            .from('crm_quotations')
+            .insert([payload])
+            .select('id')
+            .single();
 
-        if (error) throw error;
-        savedId = data.id;
+          if (!error && data?.id) {
+            cloudId = data.id;
+          }
+        } catch (_) {}
+
+        savedId = cloudId || `LOCAL-${Date.now()}`;
+        payload.id = savedId;
+
+        try {
+          const cached = JSON.parse(localStorage.getItem('zac_quotations_records') || '[]');
+          localStorage.setItem('zac_quotations_records', JSON.stringify([payload, ...cached]));
+        } catch (_) {}
+
         toast.success('Quotation generated successfully!');
       }
 

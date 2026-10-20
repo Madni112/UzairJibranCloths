@@ -82,13 +82,23 @@ const PrintQuotation: React.FC = () => {
         .eq('id', id)
         .single();
 
-      if (error) throw error;
-      setQuotation(data);
+      if (!error && data) {
+        setQuotation(data);
+        return;
+      }
     } catch (err: any) {
-      console.error('Error fetching quotation:', err);
-    } finally {
-      setLoading(false);
+      console.warn('Supabase fetch note:', err);
     }
+
+    // Fallback to local storage cache
+    try {
+      const cached = JSON.parse(localStorage.getItem('zac_quotations_records') || '[]');
+      const found = cached.find((q: any) => String(q.id) === String(id));
+      if (found) {
+        setQuotation(found);
+      }
+    } catch (_) {}
+    setLoading(false);
   };
 
   if (loading) {

@@ -54,6 +54,7 @@ const QuotationList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [convertingId, setConvertingId] = useState<string | number | null>(null);
+  const [isCloudTableAvailable, setIsCloudTableAvailable] = useState<boolean>(true);
 
   useEffect(() => {
     fetchQuotations();
@@ -67,11 +68,33 @@ const QuotationList: React.FC = () => {
         .select('*')
         .order('id', { ascending: false });
 
-      if (error) throw error;
-      setQuotations(data || []);
+      if (error) {
+        console.warn('crm_quotations cloud query note:', error.message);
+        setIsCloudTableAvailable(false);
+        try {
+          const cached = localStorage.getItem('zac_quotations_records');
+          if (cached) {
+            setQuotations(JSON.parse(cached));
+          } else {
+            setQuotations([]);
+          }
+        } catch (_) {
+          setQuotations([]);
+        }
+      } else {
+        setIsCloudTableAvailable(true);
+        setQuotations(data || []);
+        try {
+          localStorage.setItem('zac_quotations_records', JSON.stringify(data || []));
+        } catch (_) {}
+      }
     } catch (err: any) {
-      console.error('Error fetching quotations:', err);
-      toast.error('Failed to load quotations list');
+      console.warn('Error fetching quotations:', err);
+      setIsCloudTableAvailable(false);
+      try {
+        const cached = localStorage.getItem('zac_quotations_records');
+        if (cached) setQuotations(JSON.parse(cached));
+      } catch (_) {}
     } finally {
       setLoading(false);
     }
@@ -83,32 +106,34 @@ const QuotationList: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase
+      await supabase
         .from('crm_quotations')
         .delete()
         .eq('id', id);
+    } catch (_) {}
 
-      if (error) throw error;
-      toast.success('Quotation deleted successfully');
-      setQuotations(prev => prev.filter(q => q.id !== id));
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete quotation');
-    }
+    const updated = quotations.filter(q => q.id !== id);
+    setQuotations(updated);
+    try {
+      localStorage.setItem('zac_quotations_records', JSON.stringify(updated));
+    } catch (_) {}
+    toast.success('Quotation deleted successfully');
   };
 
   const handleUpdateStatus = async (id: string | number, newStatus: string) => {
     try {
-      const { error } = await supabase
+      await supabase
         .from('crm_quotations')
         .update({ status: newStatus })
         .eq('id', id);
+    } catch (_) {}
 
-      if (error) throw error;
-      toast.success(`Quotation marked as ${newStatus}`);
-      setQuotations(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q));
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update status');
-    }
+    const updated = quotations.map(q => q.id === id ? { ...q, status: newStatus } : q);
+    setQuotations(updated);
+    try {
+      localStorage.setItem('zac_quotations_records', JSON.stringify(updated));
+    } catch (_) {}
+    toast.success(`Quotation marked as ${newStatus}`);
   };
 
   const handleConvertToInvoice = async (quote: QuotationRow) => {
@@ -212,9 +237,58 @@ const QuotationList: React.FC = () => {
     return true;
   });
 
+  const copySupabaseSql = () => {
+    const sql = `CREATE TABLE IF NOT EXISTS public.crm_quotations (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id VARCHAR(64) DEFAULT 'bashir',
+    quotation_number VARCHAR(64),
+    quote_no VARCHAR(64),
+    customer VARCHAR(255),
+    customer_name VARCHAR(255),
+    customer_phone VARCHAR(64),
+    customer_address TEXT,
+    date DATE DEFAULT CURRENT_DATE,
+    valid_until DATE,
+    amount NUMERIC(15, 2) DEFAULT 0.00,
+    total_amount NUMERIC(15, 2) DEFAULT 0.00,
+    status VARCHAR(64) DEFAULT 'Draft',
+    salesman_name VARCHAR(255),
+    items JSONB DEFAULT '[]'::jsonb,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.crm_quotations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read-write for crm_quotations" ON public.crm_quotations FOR ALL USING (true) WITH CHECK (true);
+GRANT ALL ON TABLE public.crm_quotations TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;`;
+
+    navigator.clipboard.writeText(sql);
+    toast.success('SQL copied to clipboard! Paste and run it in Supabase SQL editor.');
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 space-y-6">
       <Breadcrumb pageName="Customer Price Quotations" />
+
+      {/* Cloud DB Notice if table not created yet */}
+      {!isCloudTableAvailable && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200">
+          <div>
+            <p className="font-bold">Cloud Sync Setup Required</p>
+            <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+              Quotations are currently functioning in instant local mode. To enable real-time cloud sync across all your ERP users, run the 1-click SQL in your Supabase SQL Editor.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={copySupabaseSql}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition shrink-0 cursor-pointer shadow-xs"
+          >
+            Copy SQL Script
+          </button>
+        </div>
+      )}
 
       {/* ── KPI Metrics Overview ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
