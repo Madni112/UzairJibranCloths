@@ -96,6 +96,10 @@ import { SalaryStructurePage } from '../pages/Human Resources/SalaryStructure';
 import { PayHeadsPage } from '../pages/Human Resources/PayHeads';
 import { LeavePage } from '../pages/Human Resources/Leave';
 import { LoansPage } from '../pages/Human Resources/Loans';
+import QuotationList from '../pages/CRM/Quotations/QuotationList';
+import AddQuotation from '../pages/CRM/Quotations/AddQuotation';
+import PrintQuotation from '../pages/CRM/Quotations/PrintQuotation';
+import FollowUps from '../pages/CRM/FollowUps';
 
 export const adminRoutes = [
   {
@@ -222,6 +226,12 @@ export const adminRoutes = [
     label: 'Sales',
     icon: MdReceipt,
     children: [
+      {
+        label: 'Quotations',
+        icon: MdRequestPage,
+        path: '/crm/quotations',
+        component: <QuotationList />
+      },
       {
         label: 'Invoice',
         icon: MdReceipt,
@@ -886,6 +896,36 @@ export const adminRoutes = [
     path: '/Sales-Return-Receipt/Print/:id',
     component: <PrintSalesReturnReceipt />,
     label: 'Print Sales Return Receipt',
+    hideFromSidebar: true
+  },
+  {
+    path: '/crm/quotations',
+    component: <QuotationList />,
+    label: 'Quotations',
+    hideFromSidebar: true
+  },
+  {
+    path: '/crm/quotations/add',
+    component: <AddQuotation />,
+    label: 'New Quotation',
+    hideFromSidebar: true
+  },
+  {
+    path: '/crm/quotations/edit/:id',
+    component: <AddQuotation />,
+    label: 'Edit Quotation',
+    hideFromSidebar: true
+  },
+  {
+    path: '/crm/quotations/print/:id',
+    component: <PrintQuotation />,
+    label: 'Print Quotation',
+    hideFromSidebar: true
+  },
+  {
+    path: '/crm/follow-ups',
+    component: <FollowUps />,
+    label: 'Follow-ups',
     hideFromSidebar: true
   }
 ];

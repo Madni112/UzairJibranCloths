@@ -391,7 +391,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           '/salesman/list': ['/sales/salesman/list'],
           '/sales/delivery-challan/list': ['/delivery-challan/list'],
           '/delivery-challan/list': ['/sales/delivery-challan/list'],
-          '/sales/invoice/list': ['/sales/invoice/list']
+          '/sales/invoice/list': ['/sales/invoice/list'],
+          '/crm/quotations': ['/crm/quotations', '/quotations', 'quotations', '/sales/quotations']
         };
 
         const mapped = aliases[lp];

@@ -25,7 +25,7 @@ const AppRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // Auto-correct any corrupt nested prefixes (e.g. /purchase/Reports/Reports-Dashboard -> /Reports/Reports-Dashboard)
   const segments = pathname.split('/').filter(Boolean);
-  const reservedPrefixes = ['purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'human-resources', 'human-resource', 'hr'];
+  const reservedPrefixes = ['purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'human-resources', 'human-resource', 'hr', 'crm'];
   if (segments.length >= 2 && reservedPrefixes.includes(segments[0].toLowerCase()) && reservedPrefixes.includes(segments[1].toLowerCase())) {
     const cleanPath = `/${segments.slice(1).join('/')}`;
     return <Navigate to={cleanPath} replace />;
