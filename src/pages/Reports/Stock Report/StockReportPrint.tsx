@@ -645,8 +645,37 @@ const StockReportPrint = () => {
                     const applyStockSort = (list: any[]) => {
                         const sb = filters.sortBy || 'name_asc';
                         return [...list].sort((a: any, b: any) => {
-                            if (sb === 'name_asc') return (a.product_name || '').localeCompare(b.product_name || '');
-                            if (sb === 'name_desc') return (b.product_name || '').localeCompare(a.product_name || '');
+                            if (sb === 'name_asc' || sb === 'name_desc') {
+                                const isDesc = sb === 'name_desc';
+                                // 1. Parent Category (A to Z)
+                                const pA = String(a.sub_sub_category || a.parent_category || '').trim();
+                                const pB = String(b.sub_sub_category || b.parent_category || '').trim();
+                                const compP = pA.localeCompare(pB, undefined, { numeric: true, sensitivity: 'base' });
+                                if (compP !== 0) return isDesc ? -compP : compP;
+
+                                // 2. Sub Category (A to Z)
+                                const sA = String(a.sub_category || '').trim();
+                                const sB = String(b.sub_category || '').trim();
+                                const compS = sA.localeCompare(sB, undefined, { numeric: true, sensitivity: 'base' });
+                                if (compS !== 0) return isDesc ? -compS : compS;
+
+                                // 3. Leaf Category (A to Z)
+                                const lA = String(a.category || a.leaf_category || a.category_name || '').trim();
+                                const lB = String(b.category || b.leaf_category || b.category_name || '').trim();
+                                const compL = lA.localeCompare(lB, undefined, { numeric: true, sensitivity: 'base' });
+                                if (compL !== 0) return isDesc ? -compL : compL;
+
+                                // 4. Product Stock Asset Identifier (Product Name A to Z)
+                                const nA = String(a.product_name || a.itemname || a.name || '').trim();
+                                const nB = String(b.product_name || b.itemname || b.name || '').trim();
+                                const compN = nA.localeCompare(nB, undefined, { numeric: true, sensitivity: 'base' });
+                                if (compN !== 0) return isDesc ? -compN : compN;
+
+                                // Tie-breaker by warehouse location
+                                const locA = String(a.warehouse_location || a.location || '').trim();
+                                const locB = String(b.warehouse_location || b.location || '').trim();
+                                return locA.localeCompare(locB, undefined, { numeric: true, sensitivity: 'base' });
+                            }
                             if (sb === 'qty_desc') {
                                 const qA = Number(a.computed_true_stock ?? a.current_stock ?? a.stock ?? 0);
                                 const qB = Number(b.computed_true_stock ?? b.current_stock ?? b.stock ?? 0);
@@ -689,8 +718,32 @@ const StockReportPrint = () => {
                 const applyStockSort = (list: any[]) => {
                     const sb = filters.sortBy || 'name_asc';
                     return [...list].sort((a: any, b: any) => {
-                        if (sb === 'name_asc') return (a.product_name || '').localeCompare(b.product_name || '');
-                        if (sb === 'name_desc') return (b.product_name || '').localeCompare(a.product_name || '');
+                        if (sb === 'name_asc' || sb === 'name_desc') {
+                            const isDesc = sb === 'name_desc';
+                            // 1. Parent Category (A to Z)
+                            const pA = String(a.sub_sub_category || a.parent_category || '').trim();
+                            const pB = String(b.sub_sub_category || b.parent_category || '').trim();
+                            const compP = pA.localeCompare(pB, undefined, { numeric: true, sensitivity: 'base' });
+                            if (compP !== 0) return isDesc ? -compP : compP;
+
+                            // 2. Sub Category (A to Z)
+                            const sA = String(a.sub_category || '').trim();
+                            const sB = String(b.sub_category || '').trim();
+                            const compS = sA.localeCompare(sB, undefined, { numeric: true, sensitivity: 'base' });
+                            if (compS !== 0) return isDesc ? -compS : compS;
+
+                            // 3. Leaf Category (A to Z)
+                            const lA = String(a.category || a.leaf_category || a.category_name || '').trim();
+                            const lB = String(b.category || b.leaf_category || b.category_name || '').trim();
+                            const compL = lA.localeCompare(lB, undefined, { numeric: true, sensitivity: 'base' });
+                            if (compL !== 0) return isDesc ? -compL : compL;
+
+                            // 4. Product Stock Asset Identifier (Product Name A to Z)
+                            const nA = String(a.product_name || a.itemname || a.name || '').trim();
+                            const nB = String(b.product_name || b.itemname || b.name || '').trim();
+                            const compN = nA.localeCompare(nB, undefined, { numeric: true, sensitivity: 'base' });
+                            return isDesc ? -compN : compN;
+                        }
                         if (sb === 'qty_desc') {
                             const qA = Number(a.computed_true_stock ?? a.current_stock ?? a.stock ?? 0);
                             const qB = Number(b.computed_true_stock ?? b.current_stock ?? b.stock ?? 0);
