@@ -428,11 +428,11 @@ const StockReportPrint = () => {
                     // 2. Purchases (Stock In)
                     (purchases || []).forEach((p: any) => {
                         if (String(p.status).toLowerCase() !== 'cancel' && String(p.status).toLowerCase() !== 'deleted') {
-                            const loc = getNormalizedLocName(p.target_warehouse || p.location, false);
                             const items = Array.isArray(p.items) ? p.items : JSON.parse(p.items || '[]');
                             items.forEach((i: any) => {
                                 const iName = String(i.product_name || i.itemName || i.item_name || '').trim().toLowerCase();
                                 if (iName === name || iName.includes(name)) {
+                                    const loc = getNormalizedLocName(i.warehouse || i.location || p.target_warehouse || p.location, false);
                                     const qty = Number(i.qty || i.quantity || 0);
                                     locationStockMap[loc] = (locationStockMap[loc] || 0) + qty;
                                 }
@@ -447,13 +447,13 @@ const StockReportPrint = () => {
                         if (statusClean === 'cancel' || statusClean === 'deleted' || inwardClean === 'rejected') return;
 
                         const isPending = inwardClean === 'pending inward' || inwardClean === 'pending';
-                        const loc = getNormalizedLocName(sr.warehouse_name || sr.dispatch_warehouse || sr.source_warehouse || sr.location, true);
                         const items = Array.isArray(sr.items) ? sr.items : JSON.parse(sr.items || '[]');
                         const receivedItems = Array.isArray(sr.received_items) ? sr.received_items : JSON.parse(sr.received_items || '[]');
 
                         items.forEach((i: any) => {
                             const iName = String(i.product_name || i.itemName || i.item_name || '').trim().toLowerCase();
                             if (iName === name || iName.includes(name)) {
+                                const loc = getNormalizedLocName(i.warehouse || i.location || sr.warehouse_name || sr.dispatch_warehouse || sr.source_warehouse || sr.location, true);
                                 let acceptedQty = 0;
                                 if (isPending) {
                                     acceptedQty = 0;
@@ -494,11 +494,11 @@ const StockReportPrint = () => {
                     (sales || []).forEach((s: any) => {
                         const statusClean = String(s.sale_status || '').trim().toLowerCase();
                         if (statusClean !== 'cancel' && statusClean !== 'deleted') {
-                            const loc = getNormalizedLocName(s.dispatch_warehouse || s.location, true);
                             const items = Array.isArray(s.items) ? s.items : JSON.parse(s.items || '[]');
                             items.forEach((i: any) => {
                                 const iName = String(i.product_name || i.itemName || i.item_name || '').trim().toLowerCase();
                                 if (iName === name || iName.includes(name)) {
+                                    const loc = getNormalizedLocName(i.warehouse || i.location || s.dispatch_warehouse || s.location, true);
                                     const qty = Number(i.qty || i.quantity || 0);
                                     locationStockMap[loc] = (locationStockMap[loc] || 0) - qty;
                                 }
@@ -509,11 +509,11 @@ const StockReportPrint = () => {
                     // 6. Purchase Returns (Stock Out)
                     (pReturns || []).forEach((pr: any) => {
                         if (String(pr.status).toLowerCase() !== 'cancel') {
-                            const loc = getNormalizedLocName(pr.source_warehouse || pr.location, false);
                             const items = Array.isArray(pr.items) ? pr.items : JSON.parse(pr.items || '[]');
                             items.forEach((i: any) => {
                                 const iName = String(i.product_name || i.itemName || i.item_name || '').trim().toLowerCase();
                                 if (iName === name || iName.includes(name)) {
+                                    const loc = getNormalizedLocName(i.warehouse || i.location || pr.source_warehouse || pr.location, false);
                                     const qty = Number(i.qty || i.quantity || 0);
                                     locationStockMap[loc] = (locationStockMap[loc] || 0) - qty;
                                 }
