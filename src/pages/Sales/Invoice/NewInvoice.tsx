@@ -584,9 +584,10 @@ const NewInvoice = () => {
           discountPer: Number(it.discountPer ?? it.discount_per ?? 0),
           discountAmt: Number(it.discountAmt ?? it.discount_amt ?? it.discount ?? 0)
         })),
-        excessCreditAction: editData.excess_credit_action || (parsedItems[0]?._excessCreditAction || (Number(parsedItems[0]?._refundPayoutAmount || 0) > 0 ? 'cash_refund' : 'credit')),
-        excessRefundAmount: Number(parsedItems[0]?._refundPayoutAmount || 0),
-        excessRefundMethod: parsedItems[0]?._refundPayoutMethod || 'Cash'
+        excessCreditAction: editData.excess_credit_action || (parsedItems[0]?._excessCreditAction || (Number(parsedItems[0]?._refundPayoutAmount || parsedItems[0]?._excessRefundAmount || 0) > 0 ? 'refund' : 'credit')),
+        excessRefundAmount: Number(parsedItems[0]?._refundPayoutAmount ?? parsedItems[0]?._excessRefundAmount ?? 0),
+        excessRefundMethod: parsedItems[0]?._refundPayoutMethod ?? parsedItems[0]?._excessRefundMethod ?? 'Cash',
+        excessRefundBank: parsedItems[0]?._refundPayoutBank ?? parsedItems[0]?._excessRefundBank ?? ''
       };
     }
     return {
@@ -602,6 +603,7 @@ const NewInvoice = () => {
       excessCreditAction: 'credit',
       excessRefundAmount: 0,
       excessRefundMethod: 'Cash',
+      excessRefundBank: '',
       dcNo: '',
       gatePasses: {},
       shippingAddress: '',
@@ -685,6 +687,7 @@ const NewInvoice = () => {
     excessRefundAmount: Yup.number().min(0).nullable(),
     excessCreditAction: Yup.string().nullable(),
     excessRefundMethod: Yup.string().nullable(),
+    excessRefundBank: Yup.string().nullable(),
     selectedBankTitle: Yup.string().when('settlementMode', {
       is: (val: string) => val === 'Bank' || val === 'Split',
       then: (schema) => schema.required('Please select corporate bank ledger profile'),
@@ -1341,7 +1344,11 @@ const NewInvoice = () => {
             _tileAmount: tileTotalVal,
             _tileReturnItems: validTileReturnItems,
             _tileReturnAmount: tileReturnTotalVal,
-            _totalReturnCredit: totalAllReturnsCredit
+            _totalReturnCredit: totalAllReturnsCredit,
+            _excessCreditAction: values.excessCreditAction || 'credit',
+            _excessRefundAmount: values.excessCreditAction === 'refund' ? Number(values.excessRefundAmount || 0) : 0,
+            _excessRefundMethod: values.excessRefundMethod || 'Cash',
+            _excessRefundBank: values.excessRefundBank || ''
           };
         }
         return cleanItem;
@@ -1366,7 +1373,8 @@ const NewInvoice = () => {
         shipping_address: values.shippingAddress,
         gate_pass_no: Object.entries(values.gatePasses || {}).map(([k, v]) => `${k}: ${v}`).join(' | '),
         items: itemsToSave,
-        scenario_type: values.applyFbrTax ? values.taxScenario : 'Standard Retail Sale (No Tax)'
+        scenario_type: values.applyFbrTax ? values.taxScenario : 'Standard Retail Sale (No Tax)',
+        excess_credit_action: values.excessCreditAction || 'credit'
       };
 
       let finalInvoiceId = editData?.id;
