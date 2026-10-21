@@ -324,15 +324,31 @@ const PurchaseList = () => {
           });
 
           // 4. Sales returns
-          const { data: sReturns } = await supabase.from('sales_returns').select('items, status');
+          const { data: sReturns } = await supabase.from('sales_returns').select('items, status, inward_status, received_items');
           let totalSalesReturned = 0;
           (sReturns || []).forEach((sr: any) => {
-            if (String(sr.status || '').toLowerCase() === 'cancel') return;
+            const statusLower = String(sr.status || '').toLowerCase();
+            const inwardLower = String(sr.inward_status || '').toLowerCase();
+            if (statusLower === 'cancel' || statusLower === 'deleted' || inwardLower === 'rejected') return;
+            const isPending = inwardLower === 'pending inward' || inwardLower === 'pending';
+            const receivedItems = Array.isArray(sr.received_items) ? sr.received_items : [];
             const itemsArr = Array.isArray(sr.items) ? sr.items : [];
             itemsArr.forEach((si: any) => {
               const siName = String(si.product_name || si.itemName || '').trim().toLowerCase();
               if (siName === pNameLower || siName.includes(pNameLower)) {
-                totalSalesReturned += Number(si.qty || si.quantity || 0);
+                let acceptedQty = 0;
+                if (isPending) {
+                  acceptedQty = 0;
+                } else if (inwardLower === 'partially received') {
+                  const rec = receivedItems.find((r: any) =>
+                    (r.skuCode && String(r.skuCode).trim().toLowerCase() === String(si.sku || si.skuCode || '').trim().toLowerCase()) ||
+                    (r.itemName && String(r.itemName).trim().toLowerCase() === String(si.itemName || si.product_name || '').trim().toLowerCase())
+                  );
+                  acceptedQty = rec ? Number(rec.acceptedQty || 0) : 0;
+                } else {
+                  acceptedQty = Number(si.qty || si.quantity || 0);
+                }
+                totalSalesReturned += acceptedQty;
               }
             });
           });

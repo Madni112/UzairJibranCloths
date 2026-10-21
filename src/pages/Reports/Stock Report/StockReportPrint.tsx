@@ -434,17 +434,35 @@ const StockReportPrint = () => {
 
                     // 3. Sales Returns (Stock In)
                     (sReturns || []).forEach((sr: any) => {
-                        if (String(sr.status).toLowerCase() !== 'cancel') {
-                            const loc = getNormalizedLocName(sr.dispatch_warehouse || sr.location, true);
-                            const items = Array.isArray(sr.items) ? sr.items : JSON.parse(sr.items || '[]');
-                            items.forEach((i: any) => {
-                                const iName = String(i.product_name || i.itemName || i.item_name || '').trim().toLowerCase();
-                                if (iName === name || iName.includes(name)) {
-                                    const qty = Number(i.qty || i.quantity || 0);
-                                    locationStockMap[loc] = (locationStockMap[loc] || 0) + qty;
+                        const statusClean = String(sr.status || '').toLowerCase();
+                        const inwardClean = String(sr.inward_status || '').toLowerCase();
+                        if (statusClean === 'cancel' || statusClean === 'deleted' || inwardClean === 'rejected') return;
+
+                        const isPending = inwardClean === 'pending inward' || inwardClean === 'pending';
+                        const loc = getNormalizedLocName(sr.warehouse_name || sr.dispatch_warehouse || sr.source_warehouse || sr.location, true);
+                        const items = Array.isArray(sr.items) ? sr.items : JSON.parse(sr.items || '[]');
+                        const receivedItems = Array.isArray(sr.received_items) ? sr.received_items : JSON.parse(sr.received_items || '[]');
+
+                        items.forEach((i: any) => {
+                            const iName = String(i.product_name || i.itemName || i.item_name || '').trim().toLowerCase();
+                            if (iName === name || iName.includes(name)) {
+                                let acceptedQty = 0;
+                                if (isPending) {
+                                    acceptedQty = 0;
+                                } else if (inwardClean === 'partially received') {
+                                    const rec = receivedItems.find((r: any) =>
+                                        (r.skuCode && String(r.skuCode).trim().toLowerCase() === String(i.sku || i.skuCode || '').trim().toLowerCase()) ||
+                                        (r.itemName && String(r.itemName).trim().toLowerCase() === String(i.itemName || i.product_name || '').trim().toLowerCase())
+                                    );
+                                    acceptedQty = rec ? Number(rec.acceptedQty || 0) : 0;
+                                } else {
+                                    acceptedQty = Number(i.qty || i.quantity || 0);
                                 }
-                            });
-                        }
+                                if (acceptedQty > 0) {
+                                    locationStockMap[loc] = (locationStockMap[loc] || 0) + acceptedQty;
+                                }
+                            }
+                        });
                     });
 
                     // 4. Stock Transfers (Movement between locations)
@@ -886,7 +904,7 @@ const StockReportPrint = () => {
             await exportToExcel({
                 fileName: `Stock_Report_Tab${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`,
                 sheetName: tabTitle.substring(0, 30),
-                companyName: businessName || 'ZOAIB ALI & COMPANY',
+                companyName: businessName || 'AL MUHAMMADI',
                 reportTitle: `Master Dynamic Inventory - ${tabTitle}`,
                 filterSummary: filterMeta,
                 columns,
@@ -906,7 +924,7 @@ const StockReportPrint = () => {
 
     const handleShareWhatsApp = () => {
         const lines = [
-            `📊 *${businessName || 'ZOAIB ALI & COMPANY'}*`,
+            `📊 *${businessName || 'AL MUHAMMADI'}*`,
             `📦 *Stock Valuation & Inventory Summary*`,
             `━━━━━━━━━━━━━━━━━━━━━`,
             `📑 *SKU Products Tracked:* ${reportRows.length}`,
@@ -924,67 +942,16 @@ const StockReportPrint = () => {
             <style dangerouslySetInnerHTML={{
                 __html: `
         @media print {
-          @page { size: landscape; margin: 6mm 6mm; }
-          body, html { height: auto !important; min-height: 0 !important; overflow: visible !important; background: white !important; margin: 0 !important; padding: 0 !important; }
+          @page { size: auto; margin: 12mm 10mm 12mm 10mm; }
+          body, html { height: auto !important; min-height: 0 !important; overflow: visible !important; background: white !important; }
           body * { visibility: hidden !important; }
-          .print-root-container, .print-root-container * {
-            visibility: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .print-root-container {
-            position: static !important;
-            width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            overflow: visible !important;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            font-size: 15px !important;
-            color: #000000 !important;
-          }
+          .print-root-container, .print-root-container * { visibility: visible !important; }
+          .print-root-container { position: static !important; width: 100% !important; height: auto !important; min-height: 0 !important; overflow: visible !important; background: white !important; padding: 0 !important; margin: 0 !important; }
           aside, header, nav, footer, .print-hidden-element, button { display: none !important; visibility: hidden !important; }
-          table {
-            width: 100% !important;
-            table-layout: fixed !important;
-            box-sizing: border-box !important;
-            border-collapse: collapse !important;
-            border: 1.5px solid black !important;
-            page-break-inside: auto !important;
-            break-inside: auto !important;
-          }
-          th {
-            font-size: 13.5px !important;
-            font-weight: 800 !important;
-            padding: 5px 3px !important;
-            color: #000000 !important;
-            background-color: #f3f4f6 !important;
-            border: 1px solid #000000 !important;
-            white-space: normal !important;
-            word-break: normal !important;
-            line-height: 1.2 !important;
-            vertical-align: middle !important;
-          }
-          td {
-            font-size: 14px !important;
-            font-weight: 700 !important;
-            padding: 6px 4px !important;
-            color: #000000 !important;
-            border: 1px solid #374151 !important;
-          }
-          tfoot td {
-            font-size: 14.5px !important;
-            font-weight: 900 !important;
-            padding: 6px 4px !important;
-            color: #000000 !important;
-            border: 1.5px solid #000000 !important;
-            white-space: nowrap !important;
-          }
-          tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+          table { page-break-inside: auto !important; }
+          tr, td, th { page-break-inside: avoid !important; break-inside: avoid !important; }
           thead { display: table-header-group !important; }
           tfoot { display: table-footer-group !important; }
-          .break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
         }
       `}} />
 
@@ -1035,65 +1002,11 @@ const StockReportPrint = () => {
                     </div>
                 </div>
 
-                <div className="relative text-center space-y-1.5 py-4 border-b border-double border-slate-300">
-                    {/* ZAC Brand Icon Badge (Sidebar Style Option A) */}
-                    <div className="absolute left-2 top-2">
-                        <div
-                            style={{
-                                width: '48px',
-                                height: '48px',
-                                minWidth: '48px',
-                                minHeight: '48px',
-                                maxWidth: '48px',
-                                maxHeight: '48px',
-                                borderRadius: '13px',
-                                background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #115e59 100%)',
-                                border: '1.5px solid rgba(52, 211, 153, 0.5)',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.15)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                WebkitPrintColorAdjust: 'exact',
-                                printColorAdjust: 'exact',
-                                flexShrink: 0
-                            }}
-                        >
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    background: 'linear-gradient(to top, transparent, rgba(255, 255, 255, 0.15))',
-                                    pointerEvents: 'none'
-                                }}
-                            />
-                            <span
-                                style={{
-                                    position: 'relative',
-                                    zIndex: 10,
-                                    fontFamily: 'Cinzel, Georgia, serif',
-                                    fontWeight: 900,
-                                    letterSpacing: '0.12em',
-                                    fontSize: '15px',
-                                    color: '#ffffff',
-                                    lineHeight: 1,
-                                    paddingLeft: '2px',
-                                    WebkitPrintColorAdjust: 'exact',
-                                    printColorAdjust: 'exact'
-                                }}
-                            >
-                                ZAC
-                            </span>
-                        </div>
-                    </div>
+                <div className="text-center space-y-1 py-4 border-b border-double border-slate-300">
+                    <h1 className="text-xl font-black uppercase tracking-widest font-serif">AL MUHAMMADI</h1>
+                    <p className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Master Dynamic Inventory Valuation & Real-Time Stock Balance Ledger</p>
 
-                    <h1 className="text-3xl font-black uppercase tracking-widest font-serif text-slate-950">
-                        {businessName || 'ZOAIB ALI & COMPANY'}
-                    </h1>
-                    <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">Master Dynamic Inventory Valuation & Real-Time Stock Balance Ledger</p>
-
-                    <div className="text-xs pt-1.5 font-mono flex justify-between px-2 text-gray-700">
+                    <div className="text-[10px] pt-1 font-mono flex justify-between px-2 text-gray-600">
                         <span>Workbook Subtype: <b className="text-black uppercase underline">
                             {activeTab === 1 && 'Stock Activity Report'}
                             {activeTab === 2 && 'Stock Balance Report'}
@@ -1867,7 +1780,7 @@ const StockReportPrint = () => {
                 {/* 🏢 Software & Corporate Provider Footer */}
                 <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
                     <div className="flex items-center gap-2 font-bold">
-                        <span className="text-black font-black uppercase">ZOAIB ALI &amp; COMPANY</span>
+                        <span className="text-black font-black uppercase">AL MUHAMMADI</span>
                     </div>
                     <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
                         Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

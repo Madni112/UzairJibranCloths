@@ -217,19 +217,39 @@ const ProductList = () => {
           });
 
           // 4. Sales returns calculation (Stock coming back into warehouse)
+          // 4. Sales returns calculation (Stock coming back into warehouse only when verified)
           let totalSalesReturned = 0;
           (sReturns || []).forEach((sr: any) => {
-            if (String(sr.status || '').trim().toLowerCase() !== 'cancel') {
-              const itemsArray = Array.isArray(sr.items) ? sr.items : JSON.parse(sr.items || '[]');
-              itemsArray.forEach((item: any) => {
-                const srName = String(item.product_name || item.itemName || item.item_name || '').trim().toLowerCase();
-                if (srName === name || srName.includes(name)) {
-                  const qty = Number(item.qty || item.quantity || 0);
-                  totalSalesReturned += qty;
-                  getWh(item.warehouse || item.location || sr.receiving_warehouse || sr.warehouse || 'Global / Unassigned').salesReturned += qty;
+            const statusClean = String(sr.status || '').trim().toLowerCase();
+            const inwardClean = String(sr.inward_status || '').trim().toLowerCase();
+            if (statusClean === 'cancel' || statusClean === 'deleted' || inwardClean === 'rejected') return;
+
+            const isPending = inwardClean === 'pending inward' || inwardClean === 'pending';
+            const itemsArray = Array.isArray(sr.items) ? sr.items : JSON.parse(sr.items || '[]');
+            const receivedItems = Array.isArray(sr.received_items) ? sr.received_items : JSON.parse(sr.received_items || '[]');
+
+            itemsArray.forEach((item: any) => {
+              const srName = String(item.product_name || item.itemName || item.item_name || '').trim().toLowerCase();
+              if (srName === name || srName.includes(name)) {
+                let acceptedQty = 0;
+                if (isPending) {
+                  acceptedQty = 0;
+                } else if (inwardClean === 'partially received') {
+                  const rec = receivedItems.find((r: any) =>
+                    (r.skuCode && String(r.skuCode).trim().toLowerCase() === String(item.sku || item.skuCode || '').trim().toLowerCase()) ||
+                    (r.itemName && String(r.itemName).trim().toLowerCase() === String(item.itemName || item.product_name || '').trim().toLowerCase())
+                  );
+                  acceptedQty = rec ? Number(rec.acceptedQty || 0) : 0;
+                } else {
+                  acceptedQty = Number(item.qty || item.quantity || 0);
                 }
-              });
-            }
+
+                if (acceptedQty > 0) {
+                  totalSalesReturned += acceptedQty;
+                  getWh(item.warehouse || item.location || sr.receiving_warehouse || sr.warehouse_name || sr.warehouse || 'Global / Unassigned').salesReturned += acceptedQty;
+                }
+              }
+            });
           });
 
           // 5. Purchase returns calculation (Stock returned back to vendor)
