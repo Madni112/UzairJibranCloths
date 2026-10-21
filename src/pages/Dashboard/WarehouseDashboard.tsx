@@ -423,11 +423,11 @@ const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ initialLocation
               onClick={() => navigate('/Administration/StockTransfer/List')}
             />
             <ActionCard
-              title="Return Challan"
-              subtitle="Process return verification"
-              Icon={MdAssignmentReturn}
-              bgGradient="bg-gradient-to-br from-rose-600 to-slate-800"
-              onClick={() => navigate('/Warehouse/Return-Challan')}
+              title="Inward Challan"
+              subtitle="Procurement & return verification"
+              Icon={MdInbox}
+              bgGradient="bg-gradient-to-br from-emerald-600 to-teal-800"
+              onClick={() => navigate('/Purchase/Inward-Challan/List')}
             />
           </>
         ) : (
@@ -441,17 +441,10 @@ const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ initialLocation
             />
             <ActionCard
               title="Shop Receiving"
-              subtitle="Receive stock transferred from A-39"
+              subtitle="Transfers & customer return receiving"
               Icon={MdMoveToInbox}
               bgGradient="bg-gradient-to-br from-cyan-600 to-blue-800"
               onClick={() => navigate('/Purchase/Shop-Receiving')}
-            />
-            <ActionCard
-              title="Shop Returns"
-              subtitle="Customer return receiving queue"
-              Icon={MdAssignmentReturn}
-              bgGradient="bg-gradient-to-br from-amber-600 to-orange-700"
-              onClick={() => navigate('/Warehouse/Shop-Return')}
             />
             <ActionCard
               title="Shop Stock Report"

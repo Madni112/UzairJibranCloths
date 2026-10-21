@@ -8,6 +8,7 @@ import {
   MdAssessment, MdDashboardCustomize, MdTrendingUp, MdBarChart, MdAccountBalanceWallet,
   MdBalance, MdPauseCircleFilled, MdInbox, MdPointOfSale, MdWarehouse
 } from 'react-icons/md';
+import { Navigate } from 'react-router-dom';
 import HoldingReport from '../pages/Reports/Holding Report/HoldingReport';
 import HoldingReportPrint from '../pages/Reports/Holding Report/HoldingReportPrint';
 import Brands from '../pages/Administration/Brands';
@@ -279,18 +280,6 @@ export const adminRoutes = [
         path: '/Sales/Shop-Dispatch/List',
         component: <ShopDispatchQueue />,
         icon: MdEmojiTransportation,
-      },
-      {
-        label: 'Return Challan',
-        path: '/Warehouse/Return-Challan',
-        component: <ReturnChallanList locationFilter="WAREHOUSE" />,
-        icon: MdAssignmentReturn
-      },
-      {
-        label: 'Shop Return Queue',
-        path: '/Warehouse/Shop-Return',
-        component: <ReturnChallanList locationFilter="SHOP" />,
-        icon: MdAssignmentReturn
       }
     ],
   },
@@ -745,6 +734,16 @@ export const adminRoutes = [
   {
     path: '/Purchase/Inward-Challan/Verify/:id',
     component: <VerifyInward />,
+    hideFromSidebar: true
+  },
+  {
+    path: '/Warehouse/Return-Challan',
+    component: <Navigate to="/Purchase/Inward-Challan/List" replace />,
+    hideFromSidebar: true
+  },
+  {
+    path: '/Warehouse/Shop-Return',
+    component: <Navigate to="/Purchase/Shop-Receiving" replace />,
     hideFromSidebar: true
   },
   {
