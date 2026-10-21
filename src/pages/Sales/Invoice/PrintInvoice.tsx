@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
 import { FiPrinter, FiArrowLeft, FiPhone, FiMapPin, FiCheckCircle } from 'react-icons/fi';
+import { getInvoiceSaleTypeInfo } from './SalesHistory';
 
 interface InvoiceItem {
   itemName?: string;
@@ -429,9 +430,18 @@ const PrintInvoice = () => {
               Date: <b className="text-slate-900 font-mono">{saleDateFormatted}</b>
             </div>
             <div className="mt-1">
-              <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${invoice.payment_term === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                Payment Mode: {invoice.payment_term || 'Cash'}
-              </span>
+              {(() => {
+                const saleTypeInfo = getInvoiceSaleTypeInfo(invoice);
+                return (
+                  <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${
+                    saleTypeInfo.isExchange
+                      ? 'bg-indigo-50 text-indigo-900 border-indigo-200 font-bold'
+                      : (invoice.payment_term === 'Cash' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200')
+                  }`}>
+                    Payment Mode: {saleTypeInfo.label}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -9,6 +9,127 @@ import { useAuth } from '../../../Context/Auth';
 import { FiTruck, FiX, FiCheckCircle, FiClock, FiDollarSign, FiActivity, FiShield, FiChevronLeft, FiChevronRight, FiEdit, FiFileText, FiPrinter } from 'react-icons/fi';
 import { logActivity } from '../../../service/auditLogger';
 
+// Helper to dynamically resolve exchange vs standard sale types
+export const getInvoiceSaleTypeInfo = (inv: any) => {
+  const items = Array.isArray(inv?.items) ? inv.items : [];
+
+  // Identify exchange items and return credits
+  const exchangeItem = items.find((it: any) =>
+    Number(it._tileReturnAmount || 0) > 0 ||
+    Number(it._returnAmount || 0) > 0 ||
+    Number(it._totalReturnCredit || 0) > 0 ||
+    (Array.isArray(it._tileReturnItems) && it._tileReturnItems.length > 0) ||
+    (Array.isArray(it._returnItems) && it._returnItems.length > 0)
+  );
+
+  const isExchange = !!exchangeItem || String(inv?.receipt_status || '').toLowerCase() === 'credit adjusted';
+
+  if (isExchange) {
+    const returnCredit = Number(
+      exchangeItem?._totalReturnCredit ||
+      exchangeItem?._tileReturnAmount ||
+      exchangeItem?._returnAmount ||
+      0
+    );
+    const refundAmt = Number(exchangeItem?._excessRefundAmount || 0);
+    const refundMethod = String(exchangeItem?._excessRefundMethod || 'Cash').trim();
+    const action = String(exchangeItem?._excessCreditAction || '').toLowerCase();
+    const newTotal = Number(inv?.total_amount || 0);
+
+    // Case 1: Cash/Bank paid to customer
+    if (refundAmt > 0 && action === 'refund') {
+      const isBank = refundMethod.toLowerCase() === 'bank';
+      return {
+        isExchange: true,
+        label: `Exchange: ${isBank ? 'Bank' : 'Cash'} Paid (Rs. ${refundAmt.toLocaleString()})`,
+        shortLabel: `Exch: ${isBank ? 'Bank' : 'Cash'} Paid`,
+        tooltip: `Customer returned Rs. ${returnCredit.toLocaleString()} goods. Purchased Rs. ${newTotal.toLocaleString()}. We paid Rs. ${refundAmt.toLocaleString()} via ${refundMethod} to customer.`,
+        className: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/40 font-bold'
+      };
+    }
+
+    // Case 2: Excess credit retained on customer ledger (Credit on Us)
+    if (refundAmt > 0 && action === 'credit') {
+      return {
+        isExchange: true,
+        label: `Exchange: Customer Credit (Rs. ${refundAmt.toLocaleString()})`,
+        shortLabel: 'Exch: Customer Credit',
+        tooltip: `Customer returned Rs. ${returnCredit.toLocaleString()} goods. Purchased Rs. ${newTotal.toLocaleString()}. Rs. ${refundAmt.toLocaleString()} retained as customer balance.`,
+        className: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/40 font-bold'
+      };
+    }
+
+    // Case 3: Return credit exceeded new purchase without explicit refund flag
+    if (returnCredit > newTotal) {
+      const diff = returnCredit - newTotal;
+      return {
+        isExchange: true,
+        label: `Exchange: Cash Paid (Rs. ${diff.toLocaleString()})`,
+        shortLabel: 'Exch: Cash Paid',
+        tooltip: `Customer return credit (Rs. ${returnCredit.toLocaleString()}) exceeded new purchase (Rs. ${newTotal.toLocaleString()}) by Rs. ${diff.toLocaleString()}.`,
+        className: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/40 font-bold'
+      };
+    }
+
+    // Case 4: Equal exchange
+    if (returnCredit > 0 && returnCredit === newTotal) {
+      return {
+        isExchange: true,
+        label: 'Exchange: Even Swap',
+        shortLabel: 'Exch: Even',
+        tooltip: `Returned items (Rs. ${returnCredit.toLocaleString()}) exactly matched new purchase (Rs. ${newTotal.toLocaleString()}).`,
+        className: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/40 font-bold'
+      };
+    }
+
+    // Case 5: New purchase was greater than return credit (Customer owes or paid difference)
+    if (newTotal > returnCredit && returnCredit > 0) {
+      const remainingDiff = newTotal - returnCredit;
+      const rec = Number(inv?.cash_amount_paid || 0) + Number(inv?.bank_amount || 0);
+      if (rec >= remainingDiff) {
+        return {
+          isExchange: true,
+          label: `Exchange: Diff Paid (Rs. ${remainingDiff.toLocaleString()})`,
+          shortLabel: 'Exch: Diff Paid',
+          tooltip: `New purchase Rs. ${newTotal.toLocaleString()} minus return Rs. ${returnCredit.toLocaleString()}. Customer paid difference Rs. ${remainingDiff.toLocaleString()}.`,
+          className: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40 font-bold'
+        };
+      } else {
+        const debt = remainingDiff - rec;
+        return {
+          isExchange: true,
+          label: `Exchange: Diff on Credit (Rs. ${debt.toLocaleString()})`,
+          shortLabel: 'Exch: On Credit',
+          tooltip: `New purchase Rs. ${newTotal.toLocaleString()} minus return Rs. ${returnCredit.toLocaleString()}. Customer owes Rs. ${debt.toLocaleString()}.`,
+          className: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold'
+        };
+      }
+    }
+
+    return {
+      isExchange: true,
+      label: 'Exchange Sale',
+      shortLabel: 'Exchange',
+      tooltip: 'Sale covered by return credit adjustments.',
+      className: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/40 font-bold'
+    };
+  }
+
+  // Standard non-exchange sales
+  const term = String(inv?.payment_term || '').toLowerCase();
+  const isCashOrBank = term.includes('cash') || term.includes('bank');
+
+  return {
+    isExchange: false,
+    label: inv?.payment_term || 'On Credit',
+    shortLabel: inv?.payment_term || 'Credit',
+    tooltip: isCashOrBank ? 'Standard cash/bank sale' : 'Standard on-credit sale',
+    className: isCashOrBank
+      ? 'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30 font-bold'
+      : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold'
+  };
+};
+
 const SalesHistory = () => {
   const navigate = useNavigate();
   const { tenantId } = useAuth();
@@ -838,7 +959,7 @@ const SalesHistory = () => {
             {/* Body: Items Table */}
             <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
               {/* Quick Meta Pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                 <div className="bg-slate-50 dark:bg-meta-4/20 p-2.5 rounded-xl border border-stroke dark:border-strokedark">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Gate Pass #</span>
                   <span className="font-mono font-bold text-black dark:text-white truncate block">{previewInvoice.gate_pass_no || '-'}</span>
@@ -846,6 +967,17 @@ const SalesHistory = () => {
                 <div className="bg-slate-50 dark:bg-meta-4/20 p-2.5 rounded-xl border border-stroke dark:border-strokedark">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Sale Scenario</span>
                   <span className="font-bold text-black dark:text-white truncate block">{previewInvoice.scenario_type || 'Standard Sale'}</span>
+                </div>
+                <div className="bg-slate-50 dark:bg-meta-4/20 p-2.5 rounded-xl border border-stroke dark:border-strokedark">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Sale Type</span>
+                  {(() => {
+                    const st = getInvoiceSaleTypeInfo(previewInvoice);
+                    return (
+                      <span className={`text-[11px] truncate block ${st.className.replace('border', '')}`} title={st.tooltip}>
+                        {st.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="bg-slate-50 dark:bg-meta-4/20 p-2.5 rounded-xl border border-stroke dark:border-strokedark">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Transport</span>
@@ -1177,13 +1309,15 @@ const SalesHistory = () => {
                         )}
                       </td>
                       <td className="py-3 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">{inv.sale_date || new Date(inv.created_at).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         {(() => {
-                          const term = String(inv.payment_term || '').toLowerCase();
-                          const isCashOrBank = term.includes('cash') || term.includes('bank');
+                          const saleTypeInfo = getInvoiceSaleTypeInfo(inv);
                           return (
-                            <span className={`inline-flex rounded-full py-0.5 px-2.5 text-[10px] font-bold uppercase tracking-wide border ${isCashOrBank ? 'bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'}`}>
-                              {inv.payment_term || 'On Credit'}
+                            <span
+                              title={saleTypeInfo.tooltip}
+                              className={`inline-flex rounded-full py-0.5 px-2.5 text-[10px] uppercase tracking-wide border cursor-default ${saleTypeInfo.className}`}
+                            >
+                              {saleTypeInfo.label}
                             </span>
                           );
                         })()}
