@@ -52,6 +52,7 @@ const SaleReportPrint = () => {
   const [pageSize, setPageSize] = useState(activeViewMode === 'detailed' ? 10 : 25);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<'landscape' | 'portrait'>('landscape');
+  const [reportWarehouses, setReportWarehouses] = useState<string[]>([]);
 
   useEffect(() => {
     const handleBefore = () => setIsPrinting(true);
@@ -168,6 +169,7 @@ const SaleReportPrint = () => {
           };
 
           // Filter invoices
+          const discoveredWhs = new Set<string>();
           const filteredInvoices = allInvoices.filter((inv: any) => {
             const d = inv.sale_date || inv.created_at;
             const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
@@ -383,6 +385,7 @@ const SaleReportPrint = () => {
               if (!pName) return;
 
               const itemWh = (it.warehouse || it.location || inv.dispatch_warehouse || inv.location || 'SHOP').trim();
+              if (itemWh) discoveredWhs.add(itemWh);
               if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
                 if (!filters.location.some((fl: string) => fl.toLowerCase() === itemWh.toLowerCase())) return;
               }
@@ -506,6 +509,7 @@ const SaleReportPrint = () => {
               if (!pName) return;
 
               const retWh = (it.warehouse || it.location || ret.warehouse_name || ret.dispatch_warehouse || ret.source_warehouse || ret.location || 'SHOP').trim();
+              if (retWh) discoveredWhs.add(retWh);
               if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
                 if (!filters.location.some((fl: string) => fl.toLowerCase() === retWh.toLowerCase())) return;
               }
@@ -685,6 +689,7 @@ const SaleReportPrint = () => {
           }
 
           finalCategories.sort((a, b) => b.net_revenue - a.net_revenue);
+          setReportWarehouses(Array.from(discoveredWhs).filter(Boolean).sort());
           setReportRows(finalCategories);
 
           // ── Compile Hierarchical Tree for Detailed View (Parent -> Sub -> Category -> Invoices) ──
@@ -2711,8 +2716,8 @@ const SaleReportPrint = () => {
     } else if (typeof filters.location === 'string' && filters.location && filters.location !== 'All') {
       return false;
     }
-    return true;
-  }, [filters.location]);
+    return reportWarehouses.length > 1;
+  }, [filters.location, reportWarehouses]);
 
   const renderWhBreakdown = (whMap: Record<string, number> | undefined, colorType: 'sold' | 'return' | 'net') => {
     if (!isMultiWarehouse || !whMap) return null;
@@ -2725,7 +2730,7 @@ const SaleReportPrint = () => {
       }
     }
     if (targetWarehouses.length === 0) {
-      targetWarehouses = Object.keys(whMap);
+      targetWarehouses = reportWarehouses.length > 0 ? reportWarehouses : Object.keys(whMap);
     }
 
     if (targetWarehouses.length <= 1) return null;
