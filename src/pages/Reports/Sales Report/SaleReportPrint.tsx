@@ -2760,22 +2760,22 @@ const SaleReportPrint = () => {
     if (!hasAnyVal) return null;
 
     const colorStyles = {
-      sold: 'text-slate-700 bg-slate-100/90 border-slate-300',
+      sold: 'text-slate-800 bg-slate-100/90 border-slate-300',
       return: 'text-rose-700 bg-rose-50 border-rose-300',
-      net: 'text-primary bg-indigo-50/80 border-indigo-200'
+      net: 'text-primary bg-indigo-50/90 border-indigo-200'
     }[colorType];
 
     return (
-      <div className="flex flex-col items-end gap-0.5 mt-1 pt-1 border-t border-dashed border-gray-300 print:mt-0.5 print:pt-0.5">
+      <div className="flex flex-col items-end gap-1 mt-1 pt-1 border-t border-dashed border-gray-300 print:mt-0.5 print:pt-0.5 w-full">
         {targetWarehouses.map((wh) => {
           const qty = Number(whMap[wh] || 0);
           return (
             <span
               key={wh}
-              className={`inline-flex items-center justify-end gap-1 px-1 py-0.2 rounded text-[8px] font-mono font-bold border ${colorStyles} leading-tight whitespace-nowrap`}
+              className={`inline-flex items-center justify-between gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${colorStyles} leading-tight min-w-[72px] whitespace-nowrap`}
               title={`${wh}: ${qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
             >
-              <span className="font-sans uppercase opacity-75 text-[7.5px]">{wh}:</span>
+              <span className="font-sans font-bold uppercase text-[9px] opacity-75">{wh}:</span>
               <span>{qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </span>
           );
@@ -3257,12 +3257,12 @@ const SaleReportPrint = () => {
                         <table className="w-full table-fixed border-collapse text-[11px] font-sans antialiased text-left print:w-full">
                           <colgroup>
                             <col style={{ width: '3%' }} />
-                            <col style={{ width: isMultiWarehouse ? '19%' : '22%' }} />
-                            <col style={{ width: isMultiWarehouse ? '11%' : '13%' }} />
+                            <col style={{ width: isMultiWarehouse ? '18.5%' : '22%' }} />
+                            <col style={{ width: isMultiWarehouse ? '10.5%' : '13%' }} />
                             <col style={{ width: '4%' }} />
-                            <col style={{ width: isMultiWarehouse ? '8%' : '6.5%' }} />
-                            <col style={{ width: isMultiWarehouse ? '7%' : '5.5%' }} />
-                            <col style={{ width: isMultiWarehouse ? '8%' : '6.5%' }} />
+                            <col style={{ width: isMultiWarehouse ? '8.5%' : '6.5%' }} />
+                            <col style={{ width: isMultiWarehouse ? '6.5%' : '5.5%' }} />
+                            <col style={{ width: isMultiWarehouse ? '8.5%' : '6.5%' }} />
                             <col style={{ width: isMultiWarehouse ? '12%' : '13%' }} />
                             <col style={{ width: '8.5%' }} />
                             <col style={{ width: isMultiWarehouse ? '12%' : '13%' }} />
