@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #6366F1;
-  --color-primary-rgb: 99 102 241;
+  --color-primary: #06B6D4;
+  --color-primary-rgb: 6 182 212;
 }
 
 .font-cinzel {

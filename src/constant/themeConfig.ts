@@ -39,7 +39,7 @@ export const PRESET_THEME_COLORS: ThemeColor[] = [
   { name: 'Pitch Black', hex: '#000000' },
 ];
 
-export const DEFAULT_THEME_COLOR = '#6366F1'; // Royal Blurple (Purple & Blue Fusion)
+export const DEFAULT_THEME_COLOR = '#06B6D4'; // Vibrant Cyan (Teal & Ocean Blue)
 
 export function applyAccentColor(hexColor: string) {
   if (!hexColor) return;
@@ -254,7 +254,7 @@ export function applyAccentColor(hexColor: string) {
 export function getSavedAccentColor(): string {
   if (typeof window === 'undefined') return DEFAULT_THEME_COLOR;
   const stored = localStorage.getItem('uzair_jibran_accent_color');
-  if (!stored || stored === '#059669' || stored === '#10B981') {
+  if (!stored || stored === '#059669' || stored === '#10B981' || stored === '#6366F1') {
     return DEFAULT_THEME_COLOR;
   }
   return stored;
@@ -273,7 +273,7 @@ export function setThemeColorPickerEnabled(enabled: boolean) {
   }
 }
 
-export const DEFAULT_SIDEBAR_COLOR = '#F8FAFC'; // Crisp light high-contrast for black sidebar
+export const DEFAULT_SIDEBAR_COLOR = '#FFFFFF'; // Crisp white high-contrast for black sidebar
 
 export function isDarkModeActive(): boolean {
   if (typeof document === 'undefined') return false;

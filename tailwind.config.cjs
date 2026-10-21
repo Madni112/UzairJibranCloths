@@ -36,10 +36,10 @@ module.exports = {
         body: '#64748B',
         bodydark: '#94A3B8',
         bodydark1: '#E2E8F0',
-        primary: '#6366F1', // Premium Royal Blurple (Purple & Blue Fusion)
-        'primary-hover': '#4F46E5',
-        'primary-light': '#EEF2FF',
-        secondary: '#7C3AED', // Deep Royal Violet
+        primary: '#06B6D4', // Vibrant Cyan (Ocean Teal & Blue)
+        'primary-hover': '#0891B2',
+        'primary-light': '#ECFEFF',
+        secondary: '#0284C7', // Sky Cobalt Blue
         textColor: '#0F172A',
 
         stroke: '#E2E8F0',
