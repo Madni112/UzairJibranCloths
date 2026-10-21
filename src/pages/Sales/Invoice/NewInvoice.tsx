@@ -1783,7 +1783,11 @@ const NewInvoice = () => {
           const defaultStorageWh = warehousesList.find((w: string) => /fateh/i.test(w) || /a[-_ ]?39/i.test(w)) || warehousesList[0] || 'Main Warehouse';
           const returnWh = itemWh || values.dispatchWarehouse || defaultStorageWh;
 
-          const returnPayload = {
+          const isExcessRefund = values.excessCreditAction === 'refund' && Number(values.excessRefundAmount || 0) > 0;
+          const excessRefundVal = isExcessRefund ? Number(values.excessRefundAmount || 0) : 0;
+          const refundMethod = values.excessRefundMethod || 'Cash';
+
+          const returnPayload: any = {
             return_no: values.invoiceNo,
             customer_name: customerFinalName,
             return_date: values.saleDate || new Date().toISOString().split('T')[0],
@@ -1791,13 +1795,16 @@ const NewInvoice = () => {
             source_warehouse: returnWh,
             invoice_no: values.invoiceNo,
             original_invoice_no: values.invoiceNo,
-            settlement_mode: 'On Credit',
-            payment_term: 'On Credit',
+            settlement_mode: isExcessRefund ? refundMethod : 'On Credit',
+            payment_term: isExcessRefund ? refundMethod : 'On Credit',
             total_amount: totalAllReturnsCredit,
-            payout_amount_paid: 0,
-            status: 'Credit Applied',
+            payout_amount_paid: excessRefundVal,
+            cash_amount_paid: isExcessRefund && refundMethod === 'Cash' ? excessRefundVal : null,
+            bank_amount: isExcessRefund && refundMethod === 'Bank' ? String(excessRefundVal) : null,
+            selected_bank: isExcessRefund && refundMethod === 'Bank' ? values.excessRefundBank : null,
+            status: isExcessRefund ? 'Refund Disbursed' : 'Credit Applied',
             inward_status: 'Pending Inward',
-            remarks: `In-invoice return/exchange against Invoice #${values.invoiceNo}`,
+            remarks: `In-invoice return/exchange against Invoice #${values.invoiceNo}${isExcessRefund ? ` (Refund Paid: Rs. ${excessRefundVal} via ${refundMethod})` : ''}`,
             items: allCombinedReturnItems
           };
 
