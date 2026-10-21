@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.tenants (
     slug VARCHAR(64) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(128),
-    business_activity VARCHAR(255) DEFAULT 'Commercial / Tiles & Sanitary',
+    business_activity VARCHAR(255) DEFAULT 'Cloth Retail & Wholesale',
     allowed_modules JSONB DEFAULT '["sales", "purchase", "inventory", "crm", "accounts", "reports"]'::jsonb,
     seller_address TEXT,
     location_id VARCHAR(64),
@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS public.inventory_categories (
     id BIGSERIAL PRIMARY KEY,
     tenant_id VARCHAR(64) DEFAULT 'bashir',
     name VARCHAR(128) NOT NULL,
+    code VARCHAR(64),
+    parent_id BIGINT REFERENCES public.inventory_categories(id) ON DELETE CASCADE,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -712,18 +714,22 @@ END $$;
 -- 6. SEED DATA (Now runs after all columns exist with 100% certainty)
 INSERT INTO public.tenants (slug, name, email)
 VALUES
+    ('uzair', 'Uzair Jibran Cloth', 'admin@uzairjibrancloth.com'),
     ('bashir', 'NHT ENTERPRISE - Master', 'admin@nhtenterprise.com'),
     ('demo', 'Xenith ERP Demo', 'demo@xenitherp.com')
 ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO public.companies (tenant_id, name, address, phone)
 VALUES
+    ('uzair', 'Uzair Jibran Cloth (Main Store)', 'Main Cloth Market', '0300-1234567'),
     ('bashir', 'NHT ENTERPRISE (Main Showroom)', 'Plot 12-A, Commercial Area, Hyderabad', '0300-1234567'),
     ('bashir', 'Al-Madina Traders', 'Shop # 4, Ceramic Market, Saddar', '0312-7654321')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.inventory_locations (tenant_id, name, address, description)
 VALUES
+    ('uzair', 'Main Fabric Warehouse', 'Central Facility', 'Primary fabric storage and rolls'),
+    ('uzair', 'Retail Outlet Showroom', 'Main Cloth Market', 'Retail shop and counter'),
     ('bashir', 'Main Warehouse (Site A)', 'Industrial Zone, Hyderabad', 'Primary central inventory warehouse'),
     ('bashir', 'City Center Showroom', 'Commercial Market, Saddar', 'Retail and display stock')
 ON CONFLICT DO NOTHING;
@@ -833,4 +839,64 @@ CREATE TABLE IF NOT EXISTS public.crm_follow_ups (
 ALTER TABLE public.crm_follow_ups ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "crm_follow_ups_public_all" ON public.crm_follow_ups;
 CREATE POLICY "crm_follow_ups_public_all" ON public.crm_follow_ups FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- 8. COMPREHENSIVE SCHEMA COMPATIBILITY PATCHES (PREVENT SCHEMA CACHE ERRORS ACROSS ALL PAGES)
+ALTER TABLE public.inventory_categories ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES public.inventory_categories(id) ON DELETE CASCADE;
+ALTER TABLE public.inventory_categories ADD COLUMN IF NOT EXISTS code VARCHAR(64);
+
+CREATE TABLE IF NOT EXISTS public.inventory_prints (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id VARCHAR(64) DEFAULT 'bashir',
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.inventory_prints ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'inventory_prints' AND policyname = 'inventory_prints_all') THEN
+        CREATE POLICY "inventory_prints_all" ON public.inventory_prints FOR ALL USING (true) WITH CHECK (true);
+    END IF;
+END $$;
+
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);
+UPDATE public.customers SET customer_name = COALESCE("customerName", customername) WHERE customer_name IS NULL;
+
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS sale_price NUMERIC(15, 2) DEFAULT 0.00;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price NUMERIC(15, 2) DEFAULT 0.00;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS item_code VARCHAR(128);
+UPDATE public.products SET sale_price = COALESCE(sales_price, retail_price, 0), price = COALESCE(retail_price, sales_price, 0), item_code = item_sr_no WHERE sale_price IS NULL OR sale_price = 0;
+
+ALTER TABLE public.banks ADD COLUMN IF NOT EXISTS actitle VARCHAR(255);
+ALTER TABLE public.banks ADD COLUMN IF NOT EXISTS acnumber VARCHAR(255);
+ALTER TABLE public.banks ADD COLUMN IF NOT EXISTS "acTitle" VARCHAR(255);
+ALTER TABLE public.banks ADD COLUMN IF NOT EXISTS "acNumber" VARCHAR(255);
+UPDATE public.banks SET 
+    actitle = COALESCE(account_title, "accountTitle"), 
+    acnumber = COALESCE(account_number, "accountNumber"),
+    "acTitle" = COALESCE(account_title, "accountTitle"), 
+    "acNumber" = COALESCE(account_number, "accountNumber")
+WHERE actitle IS NULL;
+
+ALTER TABLE public.sales_returns ADD COLUMN IF NOT EXISTS inward_status VARCHAR(64) DEFAULT 'Received';
+ALTER TABLE public.sales_returns ADD COLUMN IF NOT EXISTS received_items JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.sales_returns ADD COLUMN IF NOT EXISTS invoice_no VARCHAR(128);
+ALTER TABLE public.sales_returns ADD COLUMN IF NOT EXISTS total_net_amount NUMERIC(15, 2) DEFAULT 0.00;
+ALTER TABLE public.sales_returns ADD COLUMN IF NOT EXISTS warehouse_name VARCHAR(128) DEFAULT 'Main Warehouse';
+UPDATE public.sales_returns SET invoice_no = original_invoice_no, total_net_amount = total_amount WHERE invoice_no IS NULL;
+
+ALTER TABLE public.purchase_returns ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.purchase_returns ADD COLUMN IF NOT EXISTS invoice_no VARCHAR(128);
+ALTER TABLE public.purchase_returns ADD COLUMN IF NOT EXISTS total_net_amount NUMERIC(15, 2) DEFAULT 0.00;
+
+ALTER TABLE public.chart_of_accounts ADD COLUMN IF NOT EXISTS ac_code VARCHAR(64);
+ALTER TABLE public.chart_of_accounts ADD COLUMN IF NOT EXISTS ac_title VARCHAR(255);
+UPDATE public.chart_of_accounts SET ac_code = account_code, ac_title = account_title WHERE ac_code IS NULL;
+
+ALTER TABLE public.delivery_challans ADD COLUMN IF NOT EXISTS freight_payment_status VARCHAR(64) DEFAULT 'Pending';
+ALTER TABLE public.delivery_challans ADD COLUMN IF NOT EXISTS freight_charges NUMERIC(15, 2) DEFAULT 0.00;
+
+DELETE FROM public.inventory_categories WHERE name IN ('Wall Tiles', 'Floor Tiles', 'Porcelain Tiles', 'Sanitary Ware', 'Bath Fittings');
+DELETE FROM public.products WHERE category IN ('Wall Tiles', 'Floor Tiles', 'Porcelain Tiles', 'Sanitary Ware', 'Bath Fittings');
+NOTIFY pgrst, 'reload schema';
+
 

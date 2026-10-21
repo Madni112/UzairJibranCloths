@@ -371,15 +371,15 @@ const AddPurchases = () => {
               }
 
               if (!isEditMode && !grnIdToUse) {
-                // Auto-generate a Pending Inward GRN for direct purchases so it goes to the approval queue
+                // Auto-generate an immediately Confirmed GRN so stock is directly available in shop inventory
                 const { data: grnData, error: grnError } = await supabase
                   .from('grn_receipts')
                   .insert([{
                     grn_no: `GRN-${values.purchaseNo || Date.now()}`,
                     vendor_name: values.supplierName,
                     receipt_date: values.purchaseDate,
-                    status: 'Pending Inward',
-                    remarks: 'Auto-generated from Direct Purchase'
+                    status: 'Confirm',
+                    remarks: 'Direct Inward / Verified Purchase'
                   }])
                   .select('id')
                   .single();
@@ -392,7 +392,10 @@ const AddPurchases = () => {
                   product_name: item.itemName,
                   warehouse_name: item.warehouse || values.targetWarehouse || locations[0]?.name || 'Main Warehouse',
                   qty: Number(item.qty),
-                  uom: 'EACH' // Assuming standard, edit later if needed
+                  uom: item.uom || 'MTR',
+                  accepted_qty: Number(item.qty),
+                  rejected_qty: 0,
+                  hold_qty: 0
                 }));
 
                 const { error: grnItemsError } = await supabase.from('grn_items').insert(itemsToInsert);
@@ -450,19 +453,16 @@ const AddPurchases = () => {
                       Number(eg.qty) === Number(item.qty)
                     );
 
-                    const acceptedQty = matched ? matched.accepted_qty : null;
-                    const rejectedQty = matched ? matched.rejected_qty : 0;
-                    const holdQty = matched ? matched.hold_qty : 0;
-
-                    const isUnverified = (acceptedQty == null) || (acceptedQty === 0 && rejectedQty === 0 && Number(item.qty) > 0);
-                    if (isUnverified) hasUnverified = true;
+                    const acceptedQty = Number(item.qty || 0);
+                    const rejectedQty = 0;
+                    const holdQty = 0;
 
                     return {
                       grn_id: linkedGrnId,
                       product_name: item.itemName,
                       warehouse_name: item.warehouse || values.targetWarehouse || locations[0]?.name || 'Main Warehouse',
                       qty: Number(item.qty),
-                      uom: item.uom || 'EACH',
+                      uom: item.uom || 'MTR',
                       accepted_qty: acceptedQty,
                       rejected_qty: rejectedQty,
                       hold_qty: holdQty
@@ -471,11 +471,10 @@ const AddPurchases = () => {
                   await supabase.from('grn_items').insert(updatedGrnItems);
 
                   // Update GRN header date/vendor and status
-                  const newStatus = hasUnverified ? 'Partially Received' : 'Confirm';
                   await supabase.from('grn_receipts').update({
                     vendor_name: values.supplierName,
                     receipt_date: values.purchaseDate,
-                    status: newStatus
+                    status: 'Confirm'
                   }).eq('id', linkedGrnId);
                 }
 
@@ -488,10 +487,19 @@ const AddPurchases = () => {
               } else {
                 const { data: insertedData, error } = await supabase.from('supplier_purchases').insert([databasePayload]).select('id').single();
                 if (error) throw error;
-                // If the purchase was imported from an existing GRN, mark that GRN as Billed.
-                // If it was auto-generated (values.grnId is null), we leave it as Pending Inward for approval.
                 if (values.grnId) {
                   await supabase.from('grn_receipts').update({ status: 'Billed' }).eq('id', values.grnId);
+                } else if (grnIdToUse) {
+                  await supabase.from('grn_receipts').update({ status: 'Confirm' }).eq('id', grnIdToUse);
+                }
+
+                // Immediately update products.current_stock for direct counter purchase
+                for (const item of values.items) {
+                  if (!item.itemName || !item.itemName.trim()) continue;
+                  const { data: prod } = await supabase.from('products').select('id, current_stock').ilike('product_name', item.itemName).maybeSingle();
+                  if (prod) {
+                    await supabase.from('products').update({ current_stock: Number(prod.current_stock || 0) + Number(item.qty || 0) }).eq('id', prod.id);
+                  }
                 }
 
                 toast.success('Procurement inventory batch recorded successfully!');

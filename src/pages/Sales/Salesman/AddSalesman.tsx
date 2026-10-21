@@ -15,7 +15,7 @@ const AddSalesman = () => {
 
   const getListPath = () => {
     const segments = window.location.pathname.split('/').filter(Boolean);
-    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'uzair', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
       ? `/${segments[0]}`
       : (tenantId ? `/${tenantId}` : '');
     return `${tenantPrefix}/Sales/Salesman/List`;

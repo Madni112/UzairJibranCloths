@@ -45,13 +45,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
   const [role, setRole] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('zac_user_role') || 'Super Admin';
+      const saved = localStorage.getItem('zac_user_role');
+      if (saved && saved.toLowerCase().includes('tiles')) {
+        return 'Cloth Retail & Wholesale';
+      }
+      return saved || 'Cloth Retail & Wholesale';
     } catch (_) {
-      return 'Super Admin';
+      return 'Cloth Retail & Wholesale';
     }
   });
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [businessName, setBusinessName] = useState<string | null>('Zoaib Ali & Company');
+  const [tenantId, setTenantId] = useState<string | null>('uzair');
+  const [businessName, setBusinessName] = useState<string | null>('UZAIR JIBRAN CLOTH');
   const [userEmail, setUserEmail] = useState<string | null>(() => {
     try {
       return localStorage.getItem('zac_user_email') || null;
@@ -216,12 +220,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (email) {
           const { data: tenantRecord } = await supabase
             .from('tenants')
-            .select('business_activity, allowed_modules, name, location_id')
+            .select('slug, business_activity, allowed_modules, name, location_id')
             .ilike('email', email)
             .maybeSingle();
 
           if (tenantRecord) {
-            if (tenantRecord.business_activity) userRole = tenantRecord.business_activity;
+            if (tenantRecord.business_activity) {
+              userRole = tenantRecord.business_activity;
+            }
+            if (userRole && userRole.toLowerCase().includes('tiles')) {
+              userRole = 'Cloth Retail & Wholesale';
+            }
             if (tenantRecord.name) empName = tenantRecord.name;
             if (Array.isArray(tenantRecord.allowed_modules) && tenantRecord.allowed_modules.length > 0) {
               userPermissions = tenantRecord.allowed_modules;
@@ -231,6 +240,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               // Fetch location name
               const { data: locData } = await supabase.from('inventory_locations').select('name').eq('id', locId).maybeSingle();
               if (locData) locName = locData.name;
+            }
+            if (tenantRecord.slug) {
+              setTenantId(tenantRecord.slug);
             }
           }
         }
@@ -243,12 +255,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         userPermissions = metadata.allowed_modules || appMetadata.allowed_modules || getModulesForRole(userRole);
       }
 
+      if (userRole && userRole.toLowerCase().includes('tiles')) {
+        userRole = 'Cloth Retail & Wholesale';
+      }
+
       setIsAuthenticated(true);
       setCurrentUser(session.user);
       setUserEmail(email || null);
       setRole(userRole);
-      setTenantId(null);
-      setBusinessName('Zoaib Ali & Company');
+      setTenantId('uzair');
+      setBusinessName('UZAIR JIBRAN CLOTH');
       setAllowedModules(userPermissions);
       setUserLocationId(locId);
       setUserLocationName(locName);
@@ -269,7 +285,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserEmail(null);
       setRole('Super Admin');
       setTenantId(null);
-      setBusinessName('Zoaib Ali & Company');
+      setBusinessName('UZAIR JIBRAN CLOTH');
       setUserLocationId(null);
       setUserLocationName(null);
       setUserName(null);
@@ -359,21 +375,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Master developer bypass if no explicit module restrictions are defined
+    // Master developer and Super Admin full access bypass - allows ALL pages
     const isMasterDeveloper = Boolean(
       userEmail && (
         userEmail.toLowerCase() === 'developer@noorhorizontechnologies.com' ||
-        userEmail.toLowerCase() === 'admin@zoaibalicompany.com' ||
-        userEmail.toLowerCase() === 'admin@almuhammadi.com'
+        userEmail.toLowerCase() === 'admin@uzairjibrancloth.com' ||
+        userEmail.toLowerCase() === 'admin@almuhammadi.com' ||
+        userEmail.toLowerCase() === 'uzairjibran@nht.com' ||
+        userEmail.toLowerCase() === 'admin@nht.com'
       )
     );
 
-    if (isMasterDeveloper && (!currentAllowed || currentAllowed.length === 0)) {
-      return routes;
-    }
-
-    // If an admin has NO custom module restriction assigned, default to full access
-    if ((!currentAllowed || currentAllowed.length === 0) && role && role.toLowerCase().includes('admin')) {
+    if (
+      isMasterDeveloper ||
+      role === 'Super Admin' ||
+      (role && role.toLowerCase().includes('admin')) ||
+      (currentAllowed && currentAllowed.map(m => String(m).toLowerCase()).includes('all'))
+    ) {
       return routes;
     }
 
@@ -482,15 +500,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const can = (path: string, action: 'view' | 'add' | 'edit' | 'delete' = 'view'): boolean => {
+    if (role === 'Super Admin' || (role && role.toLowerCase().includes('admin'))) {
+      return true;
+    }
     const isMasterDeveloper = Boolean(
       userEmail && (
         userEmail.toLowerCase() === 'developer@noorhorizontechnologies.com' ||
-        userEmail.toLowerCase() === 'admin@zoaibalicompany.com' ||
-        userEmail.toLowerCase() === 'admin@almuhammadi.com'
+        userEmail.toLowerCase() === 'admin@uzairjibrancloth.com' ||
+        userEmail.toLowerCase() === 'admin@almuhammadi.com' ||
+        userEmail.toLowerCase() === 'uzairjibran@nht.com' ||
+        userEmail.toLowerCase() === 'admin@nht.com'
       )
     );
-    if (isMasterDeveloper && (!allowedModules || allowedModules.length === 0)) return true;
-    if ((!allowedModules || allowedModules.length === 0) && role && role.toLowerCase().includes('admin')) return true;
+    if (isMasterDeveloper) return true;
 
     const perms = getModulePermissions(allowedModules, path, role);
     if (action === 'view') return perms.canView;

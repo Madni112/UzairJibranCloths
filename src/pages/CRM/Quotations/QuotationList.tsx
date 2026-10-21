@@ -201,7 +201,7 @@ const QuotationList: React.FC = () => {
     const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items || '[]') : []);
     const itemsText = items.map((it: any, idx: number) => `${idx + 1}. ${it.product_name} (${it.qty} ${it.unit || 'units'} @ PKR ${Number(it.rate || 0).toLocaleString()})`).join('\n');
 
-    const msg = `Hello *${custName}*,\n\nHere is your official Price Quotation from *${businessName || 'Zoaib Ali & Company'}*:\n\n` +
+    const msg = `Hello *${custName}*,\n\nHere is your official Price Quotation from *${businessName || 'UZAIR JIBRAN CLOTH'}*:\n\n` +
       `📄 *Quotation No:* ${quoteNo}\n` +
       `📅 *Date:* ${quote.date || ''}\n` +
       `⏳ *Validity:* ${quote.valid_until || '15 Days'}\n` +

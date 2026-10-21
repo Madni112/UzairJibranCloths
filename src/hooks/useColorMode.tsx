@@ -19,7 +19,7 @@ const useColorMode = () => {
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('color-mode-changed'));
-      window.dispatchEvent(new Event('zoaib_ali_sidebar_color_changed'));
+      window.dispatchEvent(new Event('uzair_jibran_sidebar_color_changed'));
     }
   }, [colorMode]);
 

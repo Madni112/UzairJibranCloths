@@ -69,7 +69,7 @@ const WarehouseDashboard: React.FC<WarehouseDashboardProps> = ({ initialLocation
     return (
       r.includes('admin') ||
       r.includes('owner') ||
-      email === 'admin@zoaibalicompany.com' ||
+      email === 'admin@uzairjibrancloth.com' ||
       email === 'developer@noorhorizontechnologies.com'
     );
   }, [role, userEmail]);

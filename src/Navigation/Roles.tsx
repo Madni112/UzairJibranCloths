@@ -267,7 +267,8 @@ export const adminRoutes = [
         label: 'Goods Receipt (GRN)',
         path: '/Purchase/GRN/List',
         component: <GRNList />,
-        icon: MdInventory
+        icon: MdInventory,
+        hideFromSidebar: true
       },
       {
         label: 'Purchase Receipt',
@@ -298,6 +299,7 @@ export const adminRoutes = [
   {
     label: 'Locations',
     icon: MdLocationOn,
+    hideFromSidebar: true,
     children: [
       {
         path: '/Administration/Locations/List',

@@ -1655,7 +1655,7 @@ export const SalarySheetPage: React.FC = () => {
             {/* Hidden Printable Salary Sheet Detail for A4 Landscape printout */}
             <div id="printable-salary-sheet-detail" className="hidden">
               <div className="print-header">
-                <h1>ZOAIB ALI &amp; COMPANY</h1>
+                <h1>UZAIR JIBRAN CLOTH</h1>
                 <h2>MONTHLY SALARY SHEET &amp; PAYROLL REGISTER — {detail.monthLabel}</h2>
                 <div className="meta-grid">
                   <span><strong>Sheet #:</strong> {detail.number}</span>

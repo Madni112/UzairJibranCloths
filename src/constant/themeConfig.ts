@@ -35,23 +35,25 @@ export const PRESET_THEME_COLORS: ThemeColor[] = [
   { name: 'Bronze Cinnamon', hex: '#9A3412' },
   { name: 'Slate Blue', hex: '#475569' },
   { name: 'Dark Charcoal', hex: '#1E293B' },
+  { name: 'Pure White', hex: '#FFFFFF' },
+  { name: 'Pitch Black', hex: '#000000' },
 ];
 
-export const DEFAULT_THEME_COLOR = '#059669';
+export const DEFAULT_THEME_COLOR = '#6366F1'; // Royal Blurple (Purple & Blue Fusion)
 
 export function applyAccentColor(hexColor: string) {
   if (!hexColor) return;
   try {
-    localStorage.setItem('zoaib_ali_accent_color', hexColor);
+    localStorage.setItem('uzair_jibran_accent_color', hexColor);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('zoaib_ali_theme_color_changed'));
+      window.dispatchEvent(new Event('uzair_jibran_theme_color_changed'));
     }
   } catch (_) {}
 
   if (typeof document !== 'undefined') {
     document.documentElement.style.setProperty('--color-primary', hexColor);
     const hex = hexColor.replace('#', '');
-    let r = 5, g = 150, b = 105;
+    let r = 99, g = 102, b = 241;
     if (hex.length === 6) {
       r = parseInt(hex.substring(0, 2), 16);
       g = parseInt(hex.substring(2, 4), 16);
@@ -84,10 +86,10 @@ export function applyAccentColor(hexColor: string) {
     const darkerHex = `rgb(${darkerR}, ${darkerG}, ${darkerB})`;
 
     // Dynamic style tag that globally overrides brand primary classes to the active accent color
-    let styleTag = document.getElementById('zoaib-ali-dynamic-theme');
+    let styleTag = document.getElementById('uj-cloth-dynamic-theme');
     if (!styleTag) {
       styleTag = document.createElement('style');
-      styleTag.id = 'zoaib-ali-dynamic-theme';
+      styleTag.id = 'uj-cloth-dynamic-theme';
       document.head.appendChild(styleTag);
     }
 
@@ -251,7 +253,11 @@ export function applyAccentColor(hexColor: string) {
 
 export function getSavedAccentColor(): string {
   if (typeof window === 'undefined') return DEFAULT_THEME_COLOR;
-  return localStorage.getItem('zoaib_ali_accent_color') || DEFAULT_THEME_COLOR;
+  const stored = localStorage.getItem('uzair_jibran_accent_color');
+  if (!stored || stored === '#059669' || stored === '#10B981') {
+    return DEFAULT_THEME_COLOR;
+  }
+  return stored;
 }
 
 export function isThemeColorPickerEnabled(): boolean {
@@ -267,7 +273,7 @@ export function setThemeColorPickerEnabled(enabled: boolean) {
   }
 }
 
-export const DEFAULT_SIDEBAR_COLOR = '#475569';
+export const DEFAULT_SIDEBAR_COLOR = '#F8FAFC'; // Crisp light high-contrast for black sidebar
 
 export function isDarkModeActive(): boolean {
   if (typeof document === 'undefined') return false;
@@ -280,18 +286,22 @@ export function isDarkModeActive(): boolean {
 }
 
 /**
- * Ensures a color has sufficient contrast against the sidebar background
- * so that text and icons are NEVER invisible in either light or dark mode.
+ * Ensures a color has sufficient contrast against the sidebar background.
+ * - In Light Mode (App): Sidebar is BLACK (#0B0F17) -> Font CAN be white! Blocks black/dark invisible colors.
+ * - In Dark Mode (App): Sidebar is WHITE (#FFFFFF) -> Font CAN be black! Blocks white/light invisible colors.
  */
 export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { safeColor: string; wasAdjusted: boolean } {
-  if (!hexColor) return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
+  const inDark = typeof isDarkMode === 'boolean' ? isDarkMode : isDarkModeActive();
+  const defaultFallback = inDark ? '#0F172A' : '#FFFFFF';
+
+  if (!hexColor) return { safeColor: defaultFallback, wasAdjusted: false };
   
   let cleanHex = hexColor.replace('#', '').trim();
   if (cleanHex.length === 3) {
     cleanHex = cleanHex.split('').map(c => c + c).join('');
   }
   if (cleanHex.length !== 6 || !/^[0-9A-Fa-f]{6}$/.test(cleanHex)) {
-    return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
+    return { safeColor: defaultFallback, wasAdjusted: false };
   }
 
   const r = parseInt(cleanHex.substring(0, 2), 16);
@@ -301,18 +311,17 @@ export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { s
   // Relative luminance
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
-  const inDark = typeof isDarkMode === 'boolean' ? isDarkMode : isDarkModeActive();
-
-  if (inDark) {
-    // DARK MODE: Background is #111827.
-    // Text/icons MUST be bright enough (luminance >= 0.38) to be clearly visible against dark background!
-    if (luminance < 0.38) {
-      if (luminance <= 0.15) {
-        // Pure black or very dark charcoal -> shift to clean, high-contrast light slate/white
-        return { safeColor: '#F8FAFC', wasAdjusted: true };
+  if (!inDark) {
+    // LIGHT MODE APP: Sidebar background is BLACK (#0B0F17)
+    // White and bright colors are fully allowed!
+    // Block black or dark colors that would make text invisible against black:
+    if (luminance < 0.35) {
+      if (luminance <= 0.18) {
+        // Pure black or dark charcoal -> adjust to crisp high-contrast white
+        return { safeColor: '#FFFFFF', wasAdjusted: true };
       }
-      // For chromatic colors (e.g. dark blue, dark red), boost brightness to a visible hue
-      const scale = 0.52 / Math.max(0.01, luminance);
+      // For chromatic dark colors, brighten to be visible
+      const scale = 0.55 / Math.max(0.01, luminance);
       const safeR = Math.min(255, Math.max(0, Math.round(r * scale + (255 - r) * 0.35)));
       const safeG = Math.min(255, Math.max(0, Math.round(g * scale + (255 - g) * 0.35)));
       const safeB = Math.min(255, Math.max(0, Math.round(b * scale + (255 - b) * 0.35)));
@@ -320,14 +329,15 @@ export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { s
       return { safeColor: safeHex, wasAdjusted: true };
     }
   } else {
-    // LIGHT MODE: Background is #FFFFFF.
-    // Text/icons MUST be dark enough (luminance <= 0.65) to be clearly visible against white!
+    // DARK MODE APP: Sidebar background is WHITE (#FFFFFF)
+    // Black and dark colors are fully allowed!
+    // Block white or light colors that would make text invisible against white:
     if (luminance > 0.65) {
-      if (luminance >= 0.88) {
-        // Pure white or very light -> shift to crisp, high-contrast dark charcoal/black
+      if (luminance >= 0.85) {
+        // Pure white or pale light -> adjust to crisp high-contrast dark charcoal/black
         return { safeColor: '#0F172A', wasAdjusted: true };
       }
-      // For chromatic colors (e.g. pastel lime, pale cyan), darken proportionally to a readable tone
+      // For chromatic pale colors, darken to be readable on white
       const scale = 0.45 / luminance;
       const safeR = Math.min(255, Math.max(0, Math.round(r * scale)));
       const safeG = Math.min(255, Math.max(0, Math.round(g * scale)));
@@ -341,24 +351,36 @@ export function getSafeSidebarColor(hexColor: string, isDarkMode?: boolean): { s
 }
 
 export function getSavedSidebarColor(isDarkMode?: boolean): string {
-  if (typeof window === 'undefined') return DEFAULT_SIDEBAR_COLOR;
-  const raw = localStorage.getItem('zoaib_ali_sidebar_raw_color') 
-    || localStorage.getItem('zoaib_ali_sidebar_color') 
-    || DEFAULT_SIDEBAR_COLOR;
-  return getSafeSidebarColor(raw, isDarkMode).safeColor;
+  const inDark = typeof isDarkMode === 'boolean' ? isDarkMode : isDarkModeActive();
+  const defaultFallback = inDark ? '#0F172A' : '#FFFFFF';
+  if (typeof window === 'undefined') return defaultFallback;
+
+  const raw = localStorage.getItem('uzair_jibran_sidebar_raw_color') 
+    || localStorage.getItem('uzair_jibran_sidebar_color');
+
+  // If cached value was an old invisible color for current mode, reset to proper default
+  if (!inDark && (raw === '#0F172A' || raw === '#1E293B' || raw === '#475569' || raw === '#000000')) {
+    return '#FFFFFF';
+  }
+  if (inDark && (raw === '#FFFFFF' || raw === '#F8FAFC' || raw === '#F1F5F9')) {
+    return '#0F172A';
+  }
+
+  if (!raw) return defaultFallback;
+  return getSafeSidebarColor(raw, inDark).safeColor;
 }
 
 export function applySidebarColor(hexColor: string, isDarkMode?: boolean): { safeColor: string; wasAdjusted: boolean } {
   if (!hexColor) return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
   try {
-    localStorage.setItem('zoaib_ali_sidebar_raw_color', hexColor);
+    localStorage.setItem('uzair_jibran_sidebar_raw_color', hexColor);
   } catch (_) {}
 
   const { safeColor, wasAdjusted } = getSafeSidebarColor(hexColor, isDarkMode);
   try {
-    localStorage.setItem('zoaib_ali_sidebar_color', safeColor);
+    localStorage.setItem('uzair_jibran_sidebar_color', safeColor);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('zoaib_ali_sidebar_color_changed'));
+      window.dispatchEvent(new Event('uzair_jibran_sidebar_color_changed'));
     }
   } catch (_) {}
 

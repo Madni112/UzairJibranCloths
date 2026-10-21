@@ -1845,8 +1845,8 @@ export const getLoans = async (_tenantSlug?: string, _branchId?: number) => {
   }
   if (banks.length === 0) {
     banks = [
-      { id: 1, bankName: 'Meezan Bank', accountTitle: 'Zohaib Ali & Company', accountNumber: '0102030405' },
-      { id: 2, bankName: 'Habib Bank Limited (HBL)', accountTitle: 'Zohaib Ali & Company', accountNumber: '9876543210' }
+      { id: 1, bankName: 'Meezan Bank', accountTitle: 'UZAIR JIBRAN CLOTH', accountNumber: '0102030405' },
+      { id: 2, bankName: 'Habib Bank Limited (HBL)', accountTitle: 'UZAIR JIBRAN CLOTH', accountNumber: '9876543210' }
     ];
   }
 

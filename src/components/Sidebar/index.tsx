@@ -42,7 +42,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
           >
             <div className="absolute top-0 -left-3 w-3 h-full bg-transparent" />
             <ul className="flex flex-col gap-1">
-              {item.children.map((child: any, idx: number) => (
+              {item.children.filter((child: any) => child && !child.hideFromSidebar).map((child: any, idx: number) => (
                 <FlyoutSubMenu
                   key={idx}
                   item={child}
@@ -67,7 +67,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
       <NavLink
         to={destination}
         onClick={handleLinkClick}
-        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 ${
+        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
           isActive ? 'shadow-xs font-bold' : ''
         }`}
         style={{
@@ -182,7 +182,7 @@ const SidebarItem = ({
             <>
               <NavLink
                 to="#"
-                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-100 dark:hover:bg-slate-800/60 ${
+                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
                   isChildActive && shouldShowLabels ? 'font-bold shadow-xs' : ''
                 } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
                 style={{
@@ -240,7 +240,7 @@ const SidebarItem = ({
                   }}
                 >
                   <ul className="flex flex-col gap-1 py-1">
-                    {Array.isArray(item.children) && item.children.map((child: any, idx: number) => (
+                    {Array.isArray(item.children) && item.children.filter((child: any) => child && !child.hideFromSidebar).map((child: any, idx: number) => (
                       <SidebarItem
                         key={idx}
                         item={child}
@@ -284,7 +284,7 @@ const SidebarItem = ({
               {item.label}
             </div>
             <ul className="flex flex-col gap-1">
-              {item.children.map((child: any, idx: number) => (
+              {item.children.filter((child: any) => child && !child.hideFromSidebar).map((child: any, idx: number) => (
                 <FlyoutSubMenu
                   key={idx}
                   item={child}
@@ -308,7 +308,7 @@ const SidebarItem = ({
     <li onClick={handleLinkClick} className="w-full" title={!shouldShowLabels ? item.label : undefined}>
       <NavLink
         to={singleDestination}
-        className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-100 dark:hover:bg-slate-800/60 ${
+        className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
           isDirectActive ? 'font-bold shadow-xs' : ''
         } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
         style={{
@@ -366,7 +366,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
   const [customHexInput, setCustomHexInput] = useState(() => {
     if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem('zoaib_ali_sidebar_raw_color');
+      const raw = localStorage.getItem('uzair_jibran_sidebar_raw_color');
       if (raw) return raw.replace('#', '');
     }
     return getSavedSidebarColor().replace('#', '');
@@ -399,7 +399,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   useEffect(() => {
     const updateColors = () => {
-      const raw = localStorage.getItem('zoaib_ali_sidebar_raw_color') || getSavedSidebarColor();
+      const raw = localStorage.getItem('uzair_jibran_sidebar_raw_color') || getSavedSidebarColor();
       const res = applySidebarColor(raw);
       setCurrentSidebarColor(res.safeColor);
       setWasContrastAdjusted(res.wasAdjusted);
@@ -407,7 +407,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
     updateColors();
 
-    window.addEventListener('zoaib_ali_sidebar_color_changed', updateColors);
+    window.addEventListener('uzair_jibran_sidebar_color_changed', updateColors);
     window.addEventListener('color-mode-changed', updateColors);
     window.addEventListener('storage', updateColors);
 
@@ -419,7 +419,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     return () => {
-      window.removeEventListener('zoaib_ali_sidebar_color_changed', updateColors);
+      window.removeEventListener('uzair_jibran_sidebar_color_changed', updateColors);
       window.removeEventListener('color-mode-changed', updateColors);
       window.removeEventListener('storage', updateColors);
       observer.disconnect();
@@ -454,26 +454,26 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         <div className="fixed inset-0 bg-slate-900/60 z-9999 backdrop-blur-xs transition-opacity duration-300" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside ref={sidebar} className={`fixed left-0 top-0 z-99999 flex h-screen flex-col bg-white duration-300 ease-in-out dark:bg-[#111827] shadow-xl ${isMobile ? 'block' : 'min-[751px]:sticky min-[751px]:top-0'} ${sidebarOpen ? 'w-72.5 translate-x-0 border-r border-slate-200/80 dark:border-slate-800/80 visible' : 'w-0 -translate-x-full min-[751px]:w-18 min-[751px]:translate-x-0 min-[751px]:border-r min-[751px]:border-slate-200/80 min-[751px]:dark:border-slate-800/80 max-[750px]:invisible'}`} >
+      <aside ref={sidebar} className={`fixed left-0 top-0 z-99999 flex h-screen flex-col bg-[#0B0F17] dark:bg-white duration-300 ease-in-out text-slate-100 dark:text-slate-900 shadow-2xl ${isMobile ? 'block' : 'min-[751px]:sticky min-[751px]:top-0'} ${sidebarOpen ? 'w-72.5 translate-x-0 border-r border-slate-800/90 dark:border-slate-200/90 visible' : 'w-0 -translate-x-full min-[751px]:w-18 min-[751px]:translate-x-0 min-[751px]:border-r min-[751px]:border-slate-800/90 min-[751px]:dark:border-slate-200/90 max-[750px]:invisible'}`} >
 
         {/* Brand Header */}
-        <div className={`flex items-center justify-between gap-2 py-5 border-b border-slate-200/80 dark:border-slate-800/80 min-h-[76px] duration-300 ${sidebarOpen ? 'px-6' : 'px-0 min-[751px]:px-2 justify-center'}`} >
+        <div className={`flex items-center justify-between gap-2 py-5 border-b border-slate-800/90 dark:border-slate-200/90 min-h-[76px] duration-300 ${sidebarOpen ? 'px-6' : 'px-0 min-[751px]:px-2 justify-center'}`} >
           {(sidebarOpen || isMobile) ? (
             <div className="flex items-center justify-between w-full">
               <NavLink className="flex items-center gap-3.5 group" to="/">
                 <div className="w-13 h-13 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-105 transition-all duration-200 border border-primary/40 relative overflow-hidden select-none shrink-0">
                   <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-                  <span className="relative z-10 font-cinzel font-black tracking-widest text-[16px] text-white dark:text-[#111827] leading-none pl-0.5">
-                    ZAC
+                  <span className="relative z-10 font-cinzel font-black tracking-widest text-[16px] text-white leading-none pl-0.5">
+                    UJC
                   </span>
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-1.5 leading-tight">
-                    <span className="text-[20px] font-black text-primary tracking-tight">ZOAIB</span>
-                    <span className="text-[20px] font-black text-slate-800 dark:text-slate-100 tracking-tight">ALI</span>
+                    <span className="text-[20px] font-black text-primary tracking-tight">UZAIR</span>
+                    <span className="text-[20px] font-black text-slate-100 dark:text-slate-900 tracking-tight">JIBRAN</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[12.5px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">& COMPANY</span>
+                    <span className="text-[12.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">CLOTH</span>
                   </div>
                 </div>
               </NavLink>
@@ -482,7 +482,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   e.stopPropagation();
                   setSidebarOpen(false);
                 }}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+                className="p-1.5 hover:bg-slate-800/80 dark:hover:bg-slate-100 rounded-lg text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black transition-colors"
                 title="Collapse Sidebar"
               >
                 <AiOutlineArrowLeft size={18} />
@@ -499,8 +499,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             >
               <div className="w-13 h-13 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-105 transition-all duration-200 border border-primary/40 relative overflow-hidden select-none">
                 <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-                <span className="relative z-10 font-cinzel font-black tracking-widest text-[16px] text-white dark:text-[#111827] leading-none pl-0.5">
-                  ZAC
+                <span className="relative z-10 font-cinzel font-black tracking-widest text-[16px] text-white leading-none pl-0.5">
+                  UJC
                 </span>
               </div>
             </div>
@@ -535,7 +535,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 <li className="w-full">
                   <div
                     onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
-                    className="group relative flex items-center justify-between rounded-xl py-2.5 px-3.5 font-medium duration-200 ease-in-out hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer select-none"
+                    className="group relative flex items-center justify-between rounded-xl py-2.5 px-3.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 cursor-pointer select-none"
                     style={{ color: currentSidebarColor }}
                   >
                     <div className="flex items-center">
@@ -583,7 +583,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       borderLeftColor: `${currentSidebarColor}30`,
                     }}
                   >
-                    <div className="p-3 my-1 rounded-2xl bg-slate-50/95 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/70 shadow-xs">
+                    <div className="p-3 my-1 rounded-2xl bg-slate-900/95 dark:bg-slate-50/95 border border-slate-700/80 dark:border-slate-200/80 shadow-xs">
                       {/* Presets Header */}
                       <div className="flex items-center justify-between mb-2 px-0.5">
                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -630,7 +630,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-xl p-1.5 shadow-2xs">
+                        <div className="flex items-center gap-1.5 bg-slate-950 dark:bg-white border border-slate-700/90 dark:border-slate-200/90 rounded-xl p-1.5 shadow-2xs">
                           {/* Color Wheel Clickable Swatch */}
                           <label
                             className="relative flex items-center justify-center cursor-pointer shrink-0"
@@ -780,7 +780,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
               {/* Log Out Button */}
               <li 
-                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 cursor-pointer mt-4 border-t border-slate-200/80 dark:border-slate-800 pt-4 ${sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'}`} 
+                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-rose-500/15 dark:hover:bg-rose-50 hover:text-rose-400 dark:hover:text-rose-600 cursor-pointer mt-4 border-t border-slate-800/90 dark:border-slate-200/90 pt-4 ${sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'}`} 
                 style={{ color: currentSidebarColor }}
                 onClick={() => logout()} 
                 title={!sidebarOpen ? 'LogOut' : undefined} 

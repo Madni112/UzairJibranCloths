@@ -649,21 +649,7 @@ const NewInvoice = () => {
           }
         }
       ),
-    gatePasses: Yup.object().test('all-gate-passes', 'Gate pass required for all locations', function (value, ctx) {
-      const { items, tileItems, showTileSection } = ctx.parent;
-      const validItems = [
-        ...(Array.isArray(items) ? items : []).filter((i: any) => i.itemName && i.itemName.trim() !== ''),
-        ...(showTileSection && Array.isArray(tileItems) ? tileItems : []).filter((t: any) => t.itemName && t.itemName.trim() !== '')
-      ];
-      if (validItems.length === 0) return true;
-      const uniqueLocations = Array.from(new Set(validItems.map((i: any) => i.warehouse || ctx.parent.dispatchWarehouse).filter(Boolean)));
-      for (const loc of uniqueLocations) {
-        if (!value || !value[loc as string]) {
-          return this.createError({ message: `Gate Pass required for ${loc}` });
-        }
-      }
-      return true;
-    }),
+    gatePasses: Yup.object().nullable().notRequired(),
     shippingAddress: Yup.string().nullable(),
     saleDate: Yup.string().required('Required Field').test('valid-date', 'Date must be within last 3 days', function(value) {
       if (!value) return false;
@@ -696,11 +682,7 @@ const NewInvoice = () => {
     items: Yup.array().of(
       Yup.object().shape({
         itemName: Yup.string().nullable(),
-        warehouse: Yup.string().when('itemName', {
-          is: (val: string) => Boolean(val && val.trim()),
-          then: (s) => s.required('Warehouse is required'),
-          otherwise: (s) => s.nullable()
-        }),
+        warehouse: Yup.string().nullable().notRequired(),
         qty: Yup.number().when('itemName', {
           is: (val: string) => Boolean(val && val.trim()),
           then: (s) => s.min(0.001, 'Qty must be > 0').required('Qty is required'),
@@ -716,42 +698,13 @@ const NewInvoice = () => {
         gstRate: Yup.number().min(0).nullable(),
         fTaxPer: Yup.number().min(0).nullable()
       })
-    ).test('at-least-one-item', 'Please add at least one product (Standard or Tile) to the invoice', function (items, ctx) {
-      const { tileItems, showTileSection } = ctx.parent;
-      const hasStandard = Array.isArray(items) && items.some((i: any) => i && i.itemName && String(i.itemName).trim() !== '');
-      const hasTile = showTileSection && Array.isArray(tileItems) && tileItems.some((t: any) => t && t.itemName && String(t.itemName).trim() !== '');
-      return hasStandard || hasTile;
+    ).test('at-least-one-item', 'Please add at least one product to the invoice', function (items) {
+      return Array.isArray(items) && items.some((i: any) => i && i.itemName && String(i.itemName).trim() !== '');
     }),
-    tileItems: Yup.array().of(
-      Yup.object().shape({
-        itemName: Yup.string().nullable(),
-        warehouse: Yup.string().when('itemName', {
-          is: (val: string) => Boolean(val && val.trim()),
-          then: (s) => s.required('Warehouse is required'),
-          otherwise: (s) => s.nullable()
-        }),
-        boxQty: Yup.number().min(0).nullable(),
-        loosePcs: Yup.number().min(0).nullable(),
-        totalSqm: Yup.number().min(0).nullable()
-      })
-    ).nullable(),
-    tileReturnItems: Yup.array().of(
-      Yup.object().shape({
-        itemName: Yup.string().nullable(),
-        warehouse: Yup.string().when('itemName', {
-          is: (val: string) => Boolean(val && val.trim()),
-          then: (s) => s.required('Warehouse is required'),
-          otherwise: (s) => s.nullable()
-        }),
-        boxQty: Yup.number().min(0).nullable(),
-        loosePcs: Yup.number().min(0).nullable(),
-        totalSqm: Yup.number().min(0).nullable()
-      })
-    ).nullable(),
     returnItems: Yup.array().of(
       Yup.object().shape({
         itemName: Yup.string().required('Item Name is required'),
-        warehouse: Yup.string().required('Warehouse is required'),
+        warehouse: Yup.string().nullable().notRequired(),
         qty: Yup.number().min(0.001, 'Return Qty must be > 0').required('Qty is required'),
         rp: Yup.number().min(0, 'Return rate cannot be negative').required('Rate is required')
       })
@@ -802,6 +755,7 @@ const NewInvoice = () => {
     setFieldValue(`items.${index}.itemName`, selectedProduct.product_name);
     setFieldValue(`items.${index}.skuCode`, selectedProduct.item_sr_no || '');
     setFieldValue(`items.${index}.rp`, newRp);
+    setFieldValue(`items.${index}.uom`, selectedProduct.uom || 'MTR');
     setFieldValue(`items.${index}.itemServiceCharges`, isService ? serviceCharges : 0);
     setFieldValue(`items.${index}.hsCode`, selectedProduct.hs_code || '');
 
@@ -811,11 +765,7 @@ const NewInvoice = () => {
       setFieldValue(`items.${index}.discountAmt`, Number(calculatedAmt.toFixed(2)));
     }
 
-    const effectiveWarehouse = (currentItem && currentItem.warehouse) ? currentItem.warehouse : chosenWarehouse;
-    if (!effectiveWarehouse) {
-      setFieldValue(`items.${index}.availableQty`, 0);
-      return;
-    }
+    const effectiveWarehouse = (currentItem && currentItem.warehouse) ? currentItem.warehouse : (chosenWarehouse || '');
     const availStock = await fetchStockForWarehouse(selectedProduct.product_name, effectiveWarehouse);
     setFieldValue(`items.${index}.availableQty`, availStock);
   };
@@ -1371,7 +1321,7 @@ const NewInvoice = () => {
         receipt_status: (calculatedGrandTotal <= 0 && totalAllReturnsCredit > 0) ? 'Credit Adjusted' : (totalPaidCombined >= calculatedGrandTotal ? 'Paid' : 'On Credit'),
         sale_status: 'Confirm',
         shipping_address: values.shippingAddress,
-        gate_pass_no: Object.entries(values.gatePasses || {}).map(([k, v]) => `${k}: ${v}`).join(' | '),
+        gate_pass_no: values.gatePasses && Object.keys(values.gatePasses).length > 0 ? Object.entries(values.gatePasses).map(([k, v]) => `${k}: ${v}`).join(' | ') : null,
         items: itemsToSave,
         scenario_type: values.applyFbrTax ? values.taxScenario : 'Standard Retail Sale (No Tax)'
       };
@@ -1590,18 +1540,18 @@ const NewInvoice = () => {
             po_no: values.clientPoNumber || '',
             po_date: values.saleDate || null,
             gate_pass_no: (values.gatePasses && values.gatePasses[whName]) || null,
-            vehicle_no: values.transportCharges ? `Pending Dispatch` : 'Counter Delivery',
-            remarks: `Awaiting warehouse approval for ${formattedInvCode} (${whName}) [EDITED]`,
+            vehicle_no: 'Counter Delivery',
+            remarks: `Direct Counter Sale / Immediate Dispatch for ${formattedInvCode} (${whName}) [EDITED]`,
             total_quantity: whQty,
             total_amount: whBaseAmt,
             total_discount: whDiscAmt,
             total_net_amount: whNetAmt,
-            status: 'Pending',
+            status: 'Dispatched',
             items: whItems.map(i => ({
               ...i,
               orderQty: Number(i.qty || 0),
-              dispatchedQty: 0,
-              holdQty: Number(i.qty || 0)
+              dispatchedQty: Number(i.qty || 0),
+              holdQty: 0
             }))
           }]);
         }
@@ -1711,18 +1661,18 @@ const NewInvoice = () => {
               po_no: values.clientPoNumber || '',
               po_date: values.saleDate || null,
               gate_pass_no: (values.gatePasses && values.gatePasses[whName]) || null,
-              vehicle_no: values.transportCharges ? `Pending Dispatch` : 'Counter Delivery',
-              remarks: `Awaiting warehouse approval for ${formattedInvCode} (${whName})`,
+              vehicle_no: 'Counter Delivery',
+              remarks: `Direct Counter Sale / Immediate Dispatch for ${formattedInvCode} (${whName})`,
               total_quantity: whQty,
               total_amount: whBaseAmt,
               total_discount: whDiscAmt,
               total_net_amount: whNetAmt,
-              status: 'Pending',
+              status: 'Dispatched',
               items: whItems.map(i => ({
                 ...i,
                 orderQty: Number(i.qty || 0),
-                dispatchedQty: 0,
-                holdQty: Number(i.qty || 0)
+                dispatchedQty: Number(i.qty || 0),
+                holdQty: 0
               }))
             }]);
           }
@@ -2966,79 +2916,6 @@ const NewInvoice = () => {
                     >
                       Return
                     </div>
-
-                    {/* Return Tile Toggle Pill */}
-                    <div
-                      onClick={() => {
-                        const isChecked = !values.showTileReturnSection;
-                        setFieldValue('showTileReturnSection', isChecked);
-                        const defaultReturnWh = values.dispatchWarehouse || warehousesList.find((w: string) => /fateh/i.test(w) || /a[-_ ]?39/i.test(w)) || warehousesList[0] || '';
-                        if (!isChecked) {
-                          setFieldValue('tileReturnItems', []);
-                        } else if ((values.tileReturnItems || []).length === 0) {
-                          setFieldValue('tileReturnItems', [{
-                            id: Date.now(),
-                            itemName: '',
-                            skuCode: '',
-                            warehouse: defaultReturnWh,
-                            availableQty: 0,
-                            boxQty: 1,
-                            loosePcs: 0,
-                            piecesPerBox: 4,
-                            sqmPerBox: 1.44,
-                            pricePerBox: 0,
-                            pricePerSqm: 0,
-                            pricePerPiece: 0,
-                            totalAmount: 0,
-                            totalSqm: 1.44,
-                            isTileItem: true
-                          }]);
-                        }
-                      }}
-                      className={`cursor-pointer px-3 py-1.5 text-xs font-bold rounded-full transition select-none flex items-center justify-center border ${
-                        values.showTileReturnSection
-                          ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800'
-                          : 'bg-white text-slate-500 border-stroke dark:bg-boxdark dark:text-slate-400 dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4'
-                      }`}
-                    >
-                      Return Tile
-                    </div>
-
-                    {/* Tile Products Toggle Pill */}
-                    <div
-                      onClick={() => {
-                        const isChecked = !values.showTileSection;
-                        setFieldValue('showTileSection', isChecked);
-                        if (!isChecked) {
-                          setFieldValue('tileItems', []);
-                        } else if ((values.tileItems || []).length === 0) {
-                          setFieldValue('tileItems', [{
-                            id: Date.now(),
-                            itemName: '',
-                            skuCode: '',
-                            warehouse: values.dispatchWarehouse || '',
-                            availableQty: 0,
-                            boxQty: 1,
-                            loosePcs: 0,
-                            piecesPerBox: 4,
-                            sqmPerBox: 1.44,
-                            pricePerBox: 0,
-                            pricePerSqm: 0,
-                            pricePerPiece: 0,
-                            totalAmount: 0,
-                            totalSqm: 1.44,
-                            isTileItem: true
-                          }]);
-                        }
-                      }}
-                      className={`cursor-pointer px-3 py-1.5 text-xs font-bold rounded-full transition select-none flex items-center justify-center border ${
-                        values.showTileSection
-                          ? 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800'
-                          : 'bg-white text-slate-500 border-stroke dark:bg-boxdark dark:text-slate-400 dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4'
-                      }`}
-                    >
-                      Tile
-                    </div>
                   </div>
 
                   {values.applyFbrTax && (
@@ -3071,11 +2948,10 @@ const NewInvoice = () => {
                             <thead className="bg-gray-100 dark:bg-meta-4 text-[10px] font-black uppercase text-black dark:text-white border-b">
                               <tr>
                                 <th className="p-2 w-8 text-center">S#</th>
-                                <th className="p-2 min-w-[220px]">Product (Name / Code)</th>
-                                <th className="p-2 w-40">Warehouse Zone Source</th>
-                                <th className="p-2 w-32 text-center bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 font-bold">Stock In Warehouse</th>
+                                <th className="p-2 min-w-[260px]">Product (Name / Code)</th>
+                                <th className="p-2 w-32 text-center bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 font-bold">Available Stock</th>
                                 <th className="p-2 w-48 text-center">Qty (UOM)</th>
-                                <th className="p-2 w-24 text-right">Sale Price</th>
+                                <th className="p-2 w-28 text-right">Sale Price</th>
                                 {showDiscount && (
                                   <>
                                     <th className="p-2 w-24 text-center bg-amber-50/80 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">Discount %</th>
@@ -3102,15 +2978,9 @@ const NewInvoice = () => {
                                 const isCurrentProdNameActive = activeProdNameIndex === idx;
 
                                 const selectedProd = productsList.find(p => p.product_name === item.itemName || (item.skuCode && (p.item_sr_no === item.skuCode || `SKU-${p.id}` === item.skuCode)));
-                                const rawPcs = Number(selectedProd?.pieces_per_box || selectedProd?.pcs_per_box || selectedProd?.pieces_per_packing || 0);
-                                const isTile = Boolean(
-                                  selectedProd && (
-                                    String(selectedProd.category || '').toLowerCase().includes('tile') ||
-                                    String(selectedProd.scenario_name || '').toLowerCase().includes('tile')
-                                  ) && (rawPcs > 1 || String(selectedProd.scenario_name || '').toLowerCase().includes('tile'))
-                                );
-                                const pcsPerBox = rawPcs > 1 ? rawPcs : (isTile ? 4 : 1);
-                                const uomName = selectedProd?.uom ? selectedProd.uom : (isTile ? 'BOX' : 'PCS');
+                                const isTile = false;
+                                const pcsPerBox = 1;
+                                const uomName = item.uom || selectedProd?.uom || 'MTR';
 
                                 // Calculate available stock breakdown
                                 let effectiveAvailStock = Number(item.availableQty || 0);
@@ -3441,318 +3311,64 @@ const NewInvoice = () => {
                                       {hasItemError && <p className="text-red-500 text-[9px] font-bold mt-0.5">Required Field</p>}
                                     </td>
 
-                                    {/* ROW-LEVEL WAREHOUSE ZONE SOURCE */}
-                                    <td className="p-2 w-44 relative wh-container">
-                                      {(() => {
-                                        const isWhActive = activeWhIndex === idx;
-                                        const currentWh = item.warehouse !== undefined ? item.warehouse : (values.dispatchWarehouse || '');
-                                        const exactWhSelected = warehousesList.some(w => String(w || '').toLowerCase().trim() === String(currentWh || '').toLowerCase().trim());
-                                        const whQuery = exactWhSelected ? '' : currentWh.toLowerCase().trim();
-                                        let filteredWhs = whQuery
-                                          ? warehousesList.filter(w => w.toLowerCase().includes(whQuery))
-                                          : warehousesList;
-                                        if (filteredWhs.length === 0 && warehousesList.length > 0) {
-                                          filteredWhs = warehousesList;
-                                        }
-
-                                        return (
-                                          <div className="relative">
-                                            <input
-                                              type="text"
-                                              autoComplete="off"
-                                              value={currentWh}
-                                              onFocus={() => {
-                                                setActiveWhIndex(idx);
-                                                setHighlightedWhIndex(0);
-                                              }}
-                                              onClick={() => {
-                                                setActiveWhIndex(idx);
-                                              }}
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'ArrowDown') {
-                                                  e.preventDefault();
-                                                  setHighlightedWhIndex(prev => prev < filteredWhs.length - 1 ? prev + 1 : 0);
-                                                } else if (e.key === 'ArrowUp') {
-                                                  e.preventDefault();
-                                                  setHighlightedWhIndex(prev => prev > 0 ? prev - 1 : filteredWhs.length - 1);
-                                                } else if (e.key === 'Enter') {
-                                                  e.preventDefault();
-                                                  if (filteredWhs[highlightedWhIndex]) {
-                                                    const selectedWh = filteredWhs[highlightedWhIndex];
-                                                    setFieldValue(`items.${idx}.warehouse`, selectedWh);
-                                                    if (item.itemName) {
-                                                      fetchStockForWarehouse(item.itemName, selectedWh).then(stock => setFieldValue(`items.${idx}.availableQty`, stock));
-                                                    }
-                                                    setActiveWhIndex(null);
-                                                  }
-                                                } else if (e.key === 'Escape' || e.key === 'Tab') {
-                                                  setActiveWhIndex(null);
-                                                }
-                                              }}
-                                              onChange={(e) => {
-                                                const typed = e.target.value;
-                                                setFieldValue(`items.${idx}.warehouse`, typed);
-                                                setActiveWhIndex(idx);
-                                                setHighlightedWhIndex(0);
-                                              }}
-                                              placeholder={`Default (${values.dispatchWarehouse || 'None'})`}
-                                              className="w-full bg-white dark:bg-boxdark border border-stroke dark:border-strokedark rounded p-1.5 pr-6 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-primary shadow-sm"
-                                            />
-
-                                            {Boolean(currentWh) && (
-                                              <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setFieldValue(`items.${idx}.warehouse`, '');
-                                                  if (item.itemName) {
-                                                    fetchStockForWarehouse(item.itemName, values.dispatchWarehouse || '').then(stock => setFieldValue(`items.${idx}.availableQty`, stock));
-                                                  }
-                                                  setActiveWhIndex(null);
-                                                }}
-                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-meta-4 transition-colors z-10"
-                                                title="Deselect Warehouse"
-                                              >
-                                                <FiX className="w-3 h-3" />
-                                              </button>
-                                            )}
-
-                                            {/* WAREHOUSE DROPDOWN */}
-                                            {isWhActive && filteredWhs.length > 0 && (
-                                              <div className="absolute left-0 min-w-[230px] max-w-[300px] top-full mt-1 z-[99999] max-h-[200px] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A222C] shadow-2xl divide-y divide-slate-100 dark:divide-slate-800 scrollbar-thin scrollbar-thumb-slate-300">
-                                                {filteredWhs.map((wh, wIdx) => {
-                                                  const isHighlighted = wIdx === highlightedWhIndex;
-                                                  const whStock = item.itemName ? getItemWarehouseStock(item.itemName, wh) : null;
-                                                  return (
-                                                    <div
-                                                      key={wh}
-                                                      onMouseEnter={() => setHighlightedWhIndex(wIdx)}
-                                                      onMouseDown={async (e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setFieldValue(`items.${idx}.warehouse`, wh);
-                                                        if (item.itemName) {
-                                                          const stock = await fetchStockForWarehouse(item.itemName, wh);
-                                                          setFieldValue(`items.${idx}.availableQty`, stock);
-                                                        }
-                                                        setActiveWhIndex(null);
-                                                      }}
-                                                      onClick={async (e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setFieldValue(`items.${idx}.warehouse`, wh);
-                                                        if (item.itemName) {
-                                                          const stock = await fetchStockForWarehouse(item.itemName, wh);
-                                                          setFieldValue(`items.${idx}.availableQty`, stock);
-                                                        }
-                                                        setActiveWhIndex(null);
-                                                      }}
-                                                      className={`p-2.5 cursor-pointer transition text-xs font-bold flex items-center justify-between gap-2 ${isHighlighted ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-l-4 border-emerald-500' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
-                                                    >
-                                                      <span className="truncate">{wh}</span>
-                                                      {item.itemName && (
-                                                        <span className={`font-mono text-[11px] font-bold shrink-0 ${whStock !== null && whStock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                                          {(whStock ?? 0).toLocaleString()} {item.uom || selectedProd?.uom || 'Nos'}
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })()}
-                                    </td>
-
-                                    {/* STOCK IN WAREHOUSE WITH LOOSE PIECES BREAKDOWN */}
+                                    {/* AVAILABLE STOCK */}
                                     <td className="p-2 text-center bg-success/5 text-xs w-[140px]">
                                       <div className="flex flex-col items-center justify-center font-mono">
                                         <span className="font-black text-success text-xs">
-                                          {isTile && pcsPerBox > 1 ? `${availBoxes.toLocaleString()} Boxes` : totalAvailStock.toLocaleString()}
+                                          {totalAvailStock.toLocaleString()}
                                         </span>
-                                        {isTile && pcsPerBox > 1 && (
-                                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-sans">
-                                            {availLoosePcs > 0 ? `+ ${availLoosePcs} pcs loose` : `(0 loose pcs)`}
-                                          </span>
-                                        )}
-                                        {!isTile && uomName && (
-                                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-sans">
-                                            {uomName}
-                                          </span>
-                                        )}
+                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-sans">
+                                          {item.uom || selectedProd?.uom || 'MTR'}
+                                        </span>
                                       </div>
                                     </td>
 
-                                    {/* QTY (UOM) WITH DEDICATED BOXES & LOOSE PIECES INPUTS FOR TILES */}
-                                    <td className="p-2 min-w-[250px]">
-                                      {isTile ? (
-                                        (() => {
-                                          // Parse tile dimensions from product description or SKU (e.g. "60 × 60 cm" or "Size: 60 × 60 cm")
-                                          let tileWidthCm = 60;
-                                          let tileHeightCm = 60;
-                                          const desc = selectedProd?.product_description || '';
-                                          const sku = selectedProd?.item_sr_no || '';
-                                          const sizeMatch = desc.match(/Size:\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*cm/i) ||
-                                            sku.match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
-                                          if (sizeMatch) {
-                                            tileHeightCm = Number(sizeMatch[1]) || 60;
-                                            tileWidthCm = Number(sizeMatch[2]) || 60;
-                                          }
-                                          const perPieceSqm = (tileHeightCm * tileWidthCm) / 10000;
-                                          const perBoxSqm = perPieceSqm * pcsPerBox;
+                                    {/* QTY (UOM) */}
+                                    <td className="p-2 min-w-[140px]">
+                                      {(() => {
+                                        const u = String(uomName || selectedProd?.uom || 'MTR').trim().toUpperCase();
+                                        const isDecimalUom = [
+                                          'MTR', 'METER', 'METERS', 'YD', 'YARD', 'YARDS', 'KG', 'LBS',
+                                          'LTR', 'FT', 'FEET', 'INCH', 'SQM', 'SQ.M'
+                                        ].some(du => u.includes(du));
+                                        const isOverStock = Boolean(item.itemName && Number(item.qty || 0) > totalAvailStock);
 
-                                          const currentQty = Number(item.qty || 0);
-                                          const boxes = Math.floor(currentQty);
-                                          const loosePcs = Math.round((currentQty - boxes) * pcsPerBox);
-                                          const totalLineSqm = (boxes * perBoxSqm) + (loosePcs * perPieceSqm);
-
-                                          const isOverStock = Boolean(item.itemName && currentQty > totalAvailStock);
-
-                                          return (
-                                            <div className="flex flex-col gap-1">
-                                              {/* ── TOP BADGES: Per Box Sq.Mtr & Per Piece Sq.Mtr ── */}
-                                              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400 px-1 font-mono">
-                                                <span className="text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-1.5 py-0.5 rounded border border-teal-200 dark:border-teal-800/60 font-bold">
-                                                  Box: {perBoxSqm.toFixed(2)} sq.m
-                                                </span>
-                                                <span className="text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60 font-bold">
-                                                  Pc: {perPieceSqm.toFixed(4)} sq.m
-                                                </span>
-                                              </div>
-
-                                              {/* ── INPUTS CONTAINER ── */}
-                                              <div className={`flex items-center gap-2 p-1.5 rounded-lg border shadow-inner transition ${isOverStock ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-300 dark:border-rose-800' : 'bg-slate-50 dark:bg-slate-800/90 border-stroke dark:border-strokedark'}`}>
-                                                {/* BOXES INPUT */}
-                                                <div className="flex-1 flex items-center bg-white dark:bg-boxdark border border-stroke dark:border-strokedark rounded-md px-2 py-1 focus-within:border-primary shadow-sm">
-                                                  <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    onKeyDown={blockInvalidChar}
-                                                    value={(() => {
-                                                      const b = Math.floor(Number(item.qty || 0));
-                                                      return b === 0 ? '' : b;
-                                                    })()}
-                                                    placeholder="0"
-                                                    onChange={(e) => {
-                                                      const val = e.target.value.trim();
-                                                      const newBoxes = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
-                                                      const currentLoose = Math.round((Number(item.qty || 0) - Math.floor(Number(item.qty || 0))) * pcsPerBox);
-                                                      const combinedQty = Number((newBoxes + currentLoose / pcsPerBox).toFixed(3));
-                                                      setFieldValue(`items.${idx}.qty`, combinedQty);
-
-                                                      const currentRp = Math.max(0, Number(item.rp) || 0);
-                                                      const gross = combinedQty * currentRp;
-                                                      const disPer = Math.max(0, Number(item.discountPer) || 0);
-                                                      if (disPer > 0) {
-                                                        setFieldValue(`items.${idx}.discountAmt`, Number(((gross * disPer) / 100).toFixed(2)));
-                                                      }
-                                                    }}
-                                                    className="w-full bg-transparent text-center font-black text-sm text-primary outline-none min-w-[36px]"
-                                                  />
-                                                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 pl-1 select-none">Box</span>
-                                                </div>
-
-                                                <span className="text-gray-400 font-black text-sm select-none">+</span>
-
-                                                {/* LOOSE PIECES INPUT */}
-                                                <div className="flex-1 flex items-center bg-white dark:bg-boxdark border border-stroke dark:border-strokedark rounded-md px-2 py-1 focus-within:border-emerald-500 shadow-sm">
-                                                  <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    onKeyDown={blockInvalidChar}
-                                                    value={(() => {
-                                                      const currentLoose = Math.round((Number(item.qty || 0) - Math.floor(Number(item.qty || 0))) * pcsPerBox);
-                                                      return currentLoose === 0 ? '' : currentLoose;
-                                                    })()}
-                                                    placeholder={`${pcsPerBox}`}
-                                                    onChange={(e) => {
-                                                      const val = e.target.value.trim();
-                                                      const enteredLoose = val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0);
-                                                      const currentBoxes = Math.floor(Number(item.qty || 0));
-
-                                                      // Automatic carryover if loose pieces >= pieces_per_box
-                                                      const extraBoxes = Math.floor(enteredLoose / pcsPerBox);
-                                                      const remLoose = enteredLoose % pcsPerBox;
-                                                      const finalBoxes = currentBoxes + extraBoxes;
-                                                      const combinedQty = remLoose > 0
-                                                        ? Number((finalBoxes + remLoose / pcsPerBox).toFixed(3))
-                                                        : finalBoxes;
-
-                                                      setFieldValue(`items.${idx}.qty`, combinedQty);
-
-                                                      const currentRp = Math.max(0, Number(item.rp) || 0);
-                                                      const gross = combinedQty * currentRp;
-                                                      const disPer = Math.max(0, Number(item.discountPer) || 0);
-                                                      if (disPer > 0) {
-                                                        setFieldValue(`items.${idx}.discountAmt`, Number(((gross * disPer) / 100).toFixed(2)));
-                                                      }
-                                                    }}
-                                                    className="w-full bg-transparent text-center font-black text-sm text-emerald-600 dark:text-emerald-400 outline-none min-w-[36px]"
-                                                  />
-                                                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 pl-1 select-none">Pcs</span>
-                                                </div>
-                                              </div>
-
-                                              {/* ── BOTTOM TOTAL SQ.MTR CALCULATION ── */}
-                                              <div className="text-center font-mono text-[10px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50/70 dark:bg-teal-950/30 rounded py-0.5 border border-teal-200/60 dark:border-teal-800/40">
-                                                Total: <span className="text-xs font-black">{totalLineSqm.toFixed(2)}</span> sq.m
-                                                <span className="text-slate-400 font-sans font-normal ml-1">({boxes} Box{boxes !== 1 ? 'es' : ''}{loosePcs > 0 ? ` + ${loosePcs} Pcs` : ''})</span>
-                                              </div>
-                                            </div>
-                                          );
-                                        })()
-                                      ) : (
-                                        /* STANDARD SINGLE QTY INPUT FOR NON-TILE ITEMS */
-                                        (() => {
-                                          const u = String(uomName || selectedProd?.uom || '').trim().toUpperCase();
-                                          const isDecimalUom = [
-                                            'KG', 'KILOGRAM', 'GM', 'GRAM', 'TON', 'METRIC TON', 'LBS',
-                                            'LTR', 'LITER', 'LITRE', 'ML', 'GAL',
-                                            'MTR', 'METER', 'FT', 'FEET', 'INCH', 'CM', 'MM', 'YD',
-                                            'SQM', 'SQ.M', 'SQ.MTR', 'SQ.FT', 'SQF', 'SQY', 'SQUARE METER'
-                                          ].includes(u);
-                                          const isOverStock = Boolean(item.itemName && Number(item.qty || 0) > totalAvailStock);
-
-                                          return (
-                                            <div className={`flex items-center gap-1.5 rounded px-2 py-1 border transition ${isOverStock ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-400 dark:border-rose-800' : 'bg-slate-50 dark:bg-slate-800 border-stroke dark:border-strokedark'}`}>
-                                              <input
-                                                type="text"
-                                                inputMode={isDecimalUom ? "decimal" : "numeric"}
-                                                onKeyDown={(e) => {
-                                                  blockInvalidChar(e);
-                                                  if (!isDecimalUom && (e.key === '.' || e.key === 'Decimal')) {
-                                                    e.preventDefault();
+                                        return (
+                                          <div className={`flex items-center gap-1.5 rounded px-2 py-1.5 border transition ${isOverStock ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-400 dark:border-rose-800' : 'bg-slate-50 dark:bg-slate-800 border-stroke dark:border-strokedark'}`}>
+                                            <input
+                                              type="text"
+                                              inputMode={isDecimalUom ? "decimal" : "numeric"}
+                                              onKeyDown={(e) => {
+                                                blockInvalidChar(e);
+                                                if (!isDecimalUom && (e.key === '.' || e.key === 'Decimal')) {
+                                                  e.preventDefault();
+                                                }
+                                              }}
+                                              name={`items.${idx}.qty`}
+                                              value={item.qty === 0 ? '' : item.qty}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                const regex = isDecimalUom ? /^\d*\.?\d*$/ : /^\d*$/;
+                                                if (val === '' || regex.test(val)) {
+                                                  setFieldValue(`items.${idx}.qty`, val);
+                                                  const newQty = parseFloat(val) || 0;
+                                                  const currentRp = Math.max(0, Number(item.rp) || 0);
+                                                  const gross = newQty * currentRp;
+                                                  const disPer = Math.max(0, Number(item.discountPer) || 0);
+                                                  if (disPer > 0) {
+                                                    setFieldValue(`items.${idx}.discountAmt`, Number(((gross * disPer) / 100).toFixed(2)));
                                                   }
-                                                }}
-                                                name={`items.${idx}.qty`}
-                                                value={item.qty === 0 ? '' : item.qty}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  const regex = isDecimalUom ? /^\d*\.?\d*$/ : /^\d*$/;
-                                                  if (val === '' || regex.test(val)) {
-                                                    setFieldValue(`items.${idx}.qty`, val);
-                                                    const newQty = parseFloat(val) || 0;
-                                                    const currentRp = Math.max(0, Number(item.rp) || 0);
-                                                    const gross = newQty * currentRp;
-                                                    const disPer = Math.max(0, Number(item.discountPer) || 0);
-                                                    if (disPer > 0) {
-                                                      setFieldValue(`items.${idx}.discountAmt`, Number(((gross * disPer) / 100).toFixed(2)));
-                                                    }
-                                                  }
-                                                }}
-                                                placeholder="1"
-                                                className="w-full bg-transparent text-center font-black text-sm text-primary outline-none"
-                                              />
-                                              {uomName && (
-                                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap select-none">
-                                                  {uomName}
-                                                </span>
-                                              )}
-                                            </div>
-                                          );
-                                        })()
-                                      )}
+                                                }
+                                              }}
+                                              placeholder="1"
+                                              className="w-full bg-transparent text-center font-black text-sm text-primary outline-none"
+                                            />
+                                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap select-none">
+                                              {uomName || selectedProd?.uom || 'MTR'}
+                                            </span>
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="p-2">
                                       <input
@@ -3888,7 +3504,7 @@ const NewInvoice = () => {
                 </div>
 
                 {/* --- TILE INVENTORY PRODUCTS DYNAMIC FIELDARRAY --- */}
-                {values.showTileSection && (
+                {false && (
                   <div className={`border border-teal-400 dark:border-teal-800/80 bg-teal-50/20 dark:bg-teal-950/10 rounded-sm mt-6 relative ${activeTileProdIndex !== null || activeTileWhIndex !== null ? 'z-30' : 'z-20'} overflow-visible pb-4`}>
                     <FieldArray name="tileItems">
                       {({ push, remove }) => {
@@ -4381,7 +3997,6 @@ const NewInvoice = () => {
                                 <tr>
                                   <th className="p-2 w-8 text-center">S#</th>
                                   <th className="p-2 min-w-[240px]">Returned Product (Name / Code)</th>
-                                  <th className="p-2 w-44">Return Warehouse Zone</th>
                                   <th className="p-2 w-32 text-center">Return Qty</th>
                                   <th className="p-2 w-32 text-right">Return Rate (RP)</th>
                                   <th className="p-2 w-36 text-right pr-4">Line Credit Total</th>
@@ -4566,90 +4181,6 @@ const NewInvoice = () => {
                                         </div>
                                       </td>
 
-                                      {/* RETURN WAREHOUSE SELECTOR */}
-                                      <td className="p-2 w-44 relative return-wh-container">
-                                        <div className="relative">
-                                          <input
-                                            type="text"
-                                            autoComplete="off"
-                                            value={currentWh}
-                                            onFocus={() => {
-                                              setActiveReturnWhIndex(rIdx);
-                                              setHighlightedReturnWhIndex(0);
-                                            }}
-                                            onClick={() => {
-                                              setActiveReturnWhIndex(rIdx);
-                                            }}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'ArrowDown') {
-                                                e.preventDefault();
-                                                setHighlightedReturnWhIndex(prev => prev < filteredWhs.length - 1 ? prev + 1 : 0);
-                                              } else if (e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                setHighlightedReturnWhIndex(prev => prev > 0 ? prev - 1 : filteredWhs.length - 1);
-                                              } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                if (filteredWhs[highlightedReturnWhIndex]) {
-                                                  setFieldValue(`returnItems.${rIdx}.warehouse`, filteredWhs[highlightedReturnWhIndex]);
-                                                  setActiveReturnWhIndex(null);
-                                                }
-                                              } else if (e.key === 'Escape' || e.key === 'Tab') {
-                                                setActiveReturnWhIndex(null);
-                                              }
-                                            }}
-                                            onChange={(e) => {
-                                              setFieldValue(`returnItems.${rIdx}.warehouse`, e.target.value);
-                                              setActiveReturnWhIndex(rIdx);
-                                              setHighlightedReturnWhIndex(0);
-                                            }}
-                                            placeholder={`Default (${values.dispatchWarehouse || 'None'})`}
-                                            className="w-full bg-white dark:bg-boxdark border border-rose-200 dark:border-rose-900 rounded p-1.5 pr-6 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-rose-500 shadow-sm"
-                                          />
-
-                                          {Boolean(currentWh) && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setFieldValue(`returnItems.${rIdx}.warehouse`, '');
-                                                setActiveReturnWhIndex(null);
-                                              }}
-                                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-meta-4 transition-colors z-10"
-                                              title="Deselect Warehouse"
-                                            >
-                                              <FiX className="w-3 h-3" />
-                                            </button>
-                                          )}
-
-                                          {isCurrentWhActive && filteredWhs.length > 0 && (
-                                            <div className="absolute left-0 min-w-[230px] max-w-[300px] top-full mt-1 z-[99999] max-h-[180px] overflow-y-auto rounded-xl border border-rose-200 dark:border-rose-800 bg-white dark:bg-[#1A222C] shadow-2xl divide-y divide-slate-100 dark:divide-slate-800 scrollbar-thin">
-                                              {filteredWhs.map((wh, wIdx) => {
-                                                const whStock = rItem.itemName ? getItemWarehouseStock(rItem.itemName, wh) : null;
-                                                return (
-                                                  <div
-                                                    key={wh}
-                                                    onMouseEnter={() => setHighlightedReturnWhIndex(wIdx)}
-                                                    onMouseDown={(e) => {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      setFieldValue(`returnItems.${rIdx}.warehouse`, wh);
-                                                      setActiveReturnWhIndex(null);
-                                                    }}
-                                                    className={`p-2.5 cursor-pointer transition text-xs font-bold flex items-center justify-between gap-2 ${wIdx === highlightedReturnWhIndex ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-l-4 border-rose-500' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
-                                                  >
-                                                    <span className="truncate">{wh}</span>
-                                                    {rItem.itemName && (
-                                                      <span className={`font-mono text-[11px] font-bold shrink-0 ${whStock !== null && whStock > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                                        {(whStock ?? 0).toLocaleString()} {rItem.uom || 'Nos'}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </td>
 
                                       {/* RETURN QTY */}
                                       <td className="p-2 w-32">
@@ -4693,44 +4224,7 @@ const NewInvoice = () => {
                                       {/* ACTION */}
                                       <td className="p-1 w-14 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const matchedProd = productsList.find((p: any) => 
-                                                (rItem.skuCode && String(p.item_sr_no).trim().toLowerCase() === String(rItem.skuCode).trim().toLowerCase()) ||
-                                                (rItem.itemName && String(p.product_name).trim().toLowerCase() === String(rItem.itemName).trim().toLowerCase())
-                                              );
-                                              const pcsPerBox = Number(matchedProd?.pieces_per_box ?? matchedProd?.pcs_per_box ?? 8);
-                                              const sqmPerBox = 1.44;
-                                              const bQty = Number(rItem.qty || 1);
-                                              const pBox = Number(rItem.rp || matchedProd?.retail_price || 0);
-                                              const pPiece = pBox > 0 && pcsPerBox > 0 ? (pBox / pcsPerBox) : 0;
-                                              const pSqm = pBox > 0 && sqmPerBox > 0 ? (pBox / sqmPerBox) : 0;
-                                              const newTileReturn = {
-                                                id: Date.now(),
-                                                itemName: rItem.itemName || '',
-                                                skuCode: rItem.skuCode || '',
-                                                warehouse: rItem.warehouse || values.dispatchWarehouse || '',
-                                                boxQty: bQty,
-                                                loosePcs: 0,
-                                                piecesPerBox: pcsPerBox,
-                                                sqmPerBox: sqmPerBox,
-                                                pricePerBox: pBox,
-                                                pricePerSqm: Number(pSqm.toFixed(2)),
-                                                pricePerPiece: Number(pPiece.toFixed(2)),
-                                                totalAmount: Number((bQty * pBox).toFixed(2)),
-                                                totalSqm: Number((bQty * sqmPerBox).toFixed(2)),
-                                                isTileItem: true
-                                              };
-                                              setFieldValue('showTileReturnSection', true);
-                                              setFieldValue('tileReturnItems', [...(values.tileReturnItems || []), newTileReturn]);
-                                              remove(rIdx);
-                                            }}
-                                            className="px-1 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 hover:bg-amber-200 transition"
-                                            title="Switch this item to Tile Return (boxes, loose pcs, m²)"
-                                          >
-                                            ⇄ Tile
-                                          </button>
+                                          
                                           <button
                                             type="button"
                                             onClick={() => remove(rIdx)}
@@ -4763,7 +4257,7 @@ const NewInvoice = () => {
                 )}
 
                 {/* --- RETURN TILE PRODUCTS DYNAMIC FIELDARRAY --- */}
-                {values.showTileReturnSection && (
+                {false && (
                   <div className={`border border-amber-300 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10 rounded-sm mt-6 relative ${activeTileReturnProdIndex !== null || activeTileReturnWhIndex !== null ? 'z-30' : 'z-10'} overflow-visible pb-4`}>
                     <FieldArray name="tileReturnItems">
                       {({ push, remove }) => {
@@ -5270,44 +4764,6 @@ const NewInvoice = () => {
                   </div>
                 )}
 
-                {/* --- LOCATION GATE PASSES DYNAMIC SECTION --- */}
-                {(() => {
-                  const allRows = [
-                    ...values.items,
-                    ...(values.showTileSection ? (values.tileItems || []) : []),
-                    ...(values.showReturnSection ? (values.returnItems || []) : []),
-                    ...(values.showTileReturnSection ? (values.tileReturnItems || []) : [])
-                  ];
-                  const uniqueLocations = Array.from(new Set(
-                    allRows
-                      .map((i: any) => i.warehouse || values.dispatchWarehouse)
-                      .filter(Boolean)
-                  ));
-                  if (uniqueLocations.length === 0) return null;
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 dark:bg-meta-4/5 p-4 rounded-sm border border-stroke dark:border-strokedark mt-6">
-                      <div className="col-span-full mb-1">
-                        <h4 className="font-bold text-gray-700 dark:text-gray-300">Location Gate Passes</h4>
-                        <p className="text-xs text-gray-500">Provide a gate pass number for each dispatch location involved in this invoice.</p>
-                      </div>
-                      {uniqueLocations.map(loc => (
-                        <div key={loc as string}>
-                          <label className="block font-bold text-black dark:text-white mb-1 flex items-center gap-2">
-                            <span className="truncate">{loc as string}</span> *
-                          </label>
-                          <input 
-                            type="text" 
-                            name={`gatePasses.${loc as string}`} 
-                            value={values.gatePasses[loc as string] || ''} 
-                            onChange={handleChange} 
-                            placeholder={`Gate pass for ${loc}`} 
-                            className={`w-full rounded border p-2 text-sm bg-transparent font-bold outline-none text-black dark:text-white ${hasAttempted && !values.gatePasses[loc as string] ? 'border-red-500 bg-red-50/10' : 'border-stroke dark:border-strokedark focus:border-primary'}`} 
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
                 <div className="flex flex-col md:flex-row justify-between items-start gap-6 border border-stroke p-4 rounded-sm bg-slate-50/10 mt-6 relative z-0">
                   <div className="w-full md:w-1/2 space-y-4">
                     {netPayableBeforeFloor < 0 ? (

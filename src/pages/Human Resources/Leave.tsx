@@ -2058,7 +2058,7 @@ export const LeavePage: React.FC = () => {
               <div id="printable-leave-employee-timesheet" className="hidden">
                 <div className="text-center pb-2 border-b-2 border-black mb-2">
                   <h1 className="text-xl font-black uppercase tracking-wider text-black">
-                    ZOAIB ALI &amp; COMPANY
+                    UZAIR JIBRAN CLOTH
                   </h1>
                   <h2 className="text-xs font-bold uppercase text-gray-700 tracking-wide mt-0.5">
                     INDIVIDUAL EMPLOYEE MONTHLY ATTENDANCE SHEET

@@ -231,7 +231,7 @@ export interface EmployeeAccount {
 }
 
 // Master Super Admin / Developer Credentials
-const DEV_EMAIL = 'admin@zoaibalicompany.com';
+const DEV_EMAIL = 'admin@uzairjibrancloth.com';
 const DEV_PASSWORD = 'admin123';
 const BACKUP_DEV_EMAIL = 'developer@noorhorizontechnologies.com';
 const BACKUP_DEV_PASSWORD = 'NoorHorizon@5923';
@@ -701,8 +701,8 @@ const DeveloperDashboard: React.FC = () => {
       const roleModules = ROLE_PRESETS[assignLoginRole]?.modules || ROLE_PRESETS['Salesman'].modules;
 
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://zzjxukhrhvmuxxznjbos.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1rECaTLSxzwonvR12iOOKQ_XEI8wqCb',
+        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
@@ -1026,8 +1026,8 @@ const DeveloperDashboard: React.FC = () => {
       // 1. Create User in Supabase Auth with allowed modules and role
       // Create a secondary client so we don't log out the active session
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://zzjxukhrhvmuxxznjbos.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1rECaTLSxzwonvR12iOOKQ_XEI8wqCb',
+        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
       
@@ -1222,7 +1222,7 @@ const DeveloperDashboard: React.FC = () => {
       lower === BACKUP_DEV_EMAIL.toLowerCase()
     ) {
       return {
-        name: 'Zoaib Ali',
+        name: 'Uzair Jibran',
         role: 'Super Admin',
         email: lower.includes('@') ? raw : DEV_EMAIL,
         initials: 'ZA',
@@ -2126,7 +2126,7 @@ const DeveloperDashboard: React.FC = () => {
                       <input
                         type="email"
                         required
-                        placeholder="e.g. warehouse@zoaibalicompany.com"
+                        placeholder="e.g. warehouse@uzairjibrancloth.com"
                         value={newEmployee.email}
                         onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })}
                         className="w-full bg-white dark:bg-form-input border border-stroke dark:border-form-strokedark rounded-lg p-2.5 text-black dark:text-white text-xs outline-none focus:border-emerald-500"

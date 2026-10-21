@@ -1,7 +1,6 @@
-# TailAdmin React - Free React Tailwind Admin Dashboard Template
+# UzairJibranCloths
 
-TailAdmin is a free and open-source admin dashboard template built on **React and Tailwind CSS**, providing developers with everything they need to create a comprehensive, data-driven back-end, 
-dashboard, or admin panel solution for upcoming web projects.
+Enterprise Management & Point of Sale / ERP System for Uzair Jibran Cloth.
 
 [![tailwind react admin template](https://ucarecdn.com/d2a6daed-eb9c-4c2f-8a95-4419c450e23a/tailadminreact.jpg)](https://react-demo.tailadmin.com/)
 

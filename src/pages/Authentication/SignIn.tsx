@@ -67,12 +67,12 @@ const SignIn: React.FC = () => {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-800 flex items-center justify-center shadow-lg shadow-emerald-600/30 border border-emerald-400/40 relative overflow-hidden select-none shrink-0">
               <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
               <span className="relative z-10 font-cinzel font-black tracking-widest text-[15px] text-white dark:text-[#0B0F17] leading-none pl-0.5">
-                ZAC
+                UJC
               </span>
             </div>
             <div className="flex items-center gap-1.5 leading-tight">
-              <span className="text-[19px] font-black text-emerald-600 dark:text-emerald-400">ZOAIB ALI</span>
-              <span className="text-[19px] font-black text-slate-800 dark:text-slate-100">& COMPANY</span>
+              <span className="text-[19px] font-black text-emerald-600 dark:text-emerald-400">UZAIR JIBRAN</span>
+              <span className="text-[19px] font-black text-slate-800 dark:text-slate-100">CLOTH</span>
             </div>
           </div>
           <ul className="flex items-center gap-2 m-0 list-none">

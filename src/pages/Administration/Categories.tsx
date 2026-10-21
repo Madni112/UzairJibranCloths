@@ -342,7 +342,7 @@ const Categories = () => {
                     {/* Parent Category */}
                     <div>
                         <label className="block text-gray-500 mb-1.5 text-xs font-bold">
-                            Parent Category (e.g. Tiles)
+                            Parent Category (e.g. Cotton, Silk, Lawn, Wool)
                         </label>
                         <div className="relative">
                             <input

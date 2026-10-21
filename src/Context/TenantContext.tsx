@@ -9,7 +9,7 @@ export interface TenantContextType {
 const TenantContext = createContext<TenantContextType>({
   tenantSlug: 'default',
   branchId: 1,
-  tenantName: 'Zoaib Ali & Company'
+  tenantName: 'UZAIR JIBRAN CLOTH'
 });
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -18,7 +18,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         tenantSlug: 'default',
         branchId: 1,
-        tenantName: 'Zoaib Ali & Company'
+        tenantName: 'UZAIR JIBRAN CLOTH'
       }}
     >
       {children}

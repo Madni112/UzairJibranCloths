@@ -45,9 +45,9 @@ const DropdownUser = () => {
     const themeHandler = () => {
       setAccentColor(getSavedAccentColor());
     };
-    window.addEventListener('zoaib_ali_theme_color_changed', themeHandler);
+    window.addEventListener('uzair_jibran_theme_color_changed', themeHandler);
     return () => {
-      window.removeEventListener('zoaib_ali_theme_color_changed', themeHandler);
+      window.removeEventListener('uzair_jibran_theme_color_changed', themeHandler);
     };
   }, []);
 
@@ -60,9 +60,9 @@ const DropdownUser = () => {
     logout();
   };
 
-  const displayEmail = userEmail || profile?.email || 'admin@zoaibalicompany.com';
+  const displayEmail = userEmail || profile?.email || 'uzairjibran@nht.com';
   const displayRole = role || profile?.role || 'Super Admin';
-  const displayCompanyName = 'Zoaib Ali & Company';
+  const displayCompanyName = 'UZAIR JIBRAN CLOTH';
   const displayName = profile?.user_metadata?.full_name || profile?.user_metadata?.name || displayCompanyName;
 
   return (

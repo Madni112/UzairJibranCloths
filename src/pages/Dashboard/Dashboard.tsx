@@ -657,7 +657,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
   // 1. Sales vs Purchases Trend Chart
   const salesVsPurchasesOptions: any = {
     chart: { type: 'area', height: 300, toolbar: { show: false }, zoom: { enabled: false } },
-    colors: ['#059669', '#D97706'],
+    colors: ['#6366F1', '#8B5CF6'],
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     xaxis: {
@@ -685,7 +685,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
   const customerSalesChartOptions: any = {
     chart: { type: 'bar', height: 300, toolbar: { show: false } },
-    colors: ['#059669'],
+    colors: ['#6366F1'],
     plotOptions: {
       bar: {
         borderRadius: 4,
@@ -717,7 +717,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
   const bankDonutOptions: any = {
     chart: { type: 'donut' },
-    colors: totalBankBalance > 0 ? ['#059669', '#0D9488', '#10B981', '#14B8A6', '#334155'] : ['#CBD5E1'],
+    colors: totalBankBalance > 0 ? ['#6366F1', '#8B5CF6', '#4F46E5', '#A855F7', '#3B82F6'] : ['#CBD5E1'],
     labels: totalBankBalance > 0 ? metrics.bankAccounts.map((b) => b.accountTitle) : ['Zero Balance'],
     legend: { position: 'bottom' },
     tooltip: { y: { formatter: (val: number) => `Rs. ${totalBankBalance > 0 ? val.toLocaleString() : '0.00'}` } }
