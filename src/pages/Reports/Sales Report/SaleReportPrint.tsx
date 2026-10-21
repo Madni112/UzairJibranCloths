@@ -180,7 +180,14 @@ const SaleReportPrint = () => {
               if (!filters.salesman.includes(inv.salesman)) return false;
             }
             if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
-              if (!filters.location.includes(inv.dispatch_warehouse)) return false;
+              const invWh = (inv.dispatch_warehouse || inv.location || '').trim().toLowerCase();
+              const items = parseItems(inv.items);
+              const hasWhMatch = filters.location.some((fl: string) => fl.toLowerCase() === invWh) ||
+                items.some((it: any) => {
+                  const iw = (it.warehouse || it.location || '').trim().toLowerCase();
+                  return iw && filters.location.some((fl: string) => fl.toLowerCase() === iw);
+                });
+              if (!hasWhMatch) return false;
             }
             return true;
           });
@@ -193,6 +200,16 @@ const SaleReportPrint = () => {
 
             if (filters.customer && filters.customer.length > 0 && !filters.customer.includes('All')) {
               if (!filters.customer.includes(ret.customer_name)) return false;
+            }
+            if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
+              const retWh = (ret.warehouse_name || ret.dispatch_warehouse || ret.source_warehouse || ret.location || '').trim().toLowerCase();
+              const items = parseItems(ret.items || ret.returned_items);
+              const hasWhMatch = filters.location.some((fl: string) => fl.toLowerCase() === retWh) ||
+                items.some((it: any) => {
+                  const iw = (it.warehouse || it.location || '').trim().toLowerCase();
+                  return iw && filters.location.some((fl: string) => fl.toLowerCase() === iw);
+                });
+              if (!hasWhMatch) return false;
             }
             return true;
           });
@@ -302,7 +319,9 @@ const SaleReportPrint = () => {
                 returned_amount: 0,
                 net_revenue: 0,
                 products_map: {},
-                transactions: []
+                transactions: [],
+                sold_by_wh: {},
+                ret_by_wh: {}
               };
             }
             const leafNode = subNode.categories_map[lKey];
@@ -341,7 +360,9 @@ const SaleReportPrint = () => {
                   gross_sales: 0,
                   returned_amount: 0,
                   net_sales: 0,
-                  last_sale_date: '-'
+                  last_sale_date: '-',
+                  sold_by_wh: {},
+                  ret_by_wh: {}
                 };
               }
             });
@@ -360,6 +381,11 @@ const SaleReportPrint = () => {
             items.forEach((it: any) => {
               const pName = (it.itemName || it.product_name || it.name || '').trim();
               if (!pName) return;
+
+              const itemWh = (it.warehouse || it.location || inv.dispatch_warehouse || inv.location || 'SHOP').trim();
+              if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
+                if (!filters.location.some((fl: string) => fl.toLowerCase() === itemWh.toLowerCase())) return;
+              }
 
               if (filters.product && filters.product.length > 0 && !filters.product.includes('All')) {
                 if (!filters.product.includes(pName)) return;
@@ -412,9 +438,17 @@ const SaleReportPrint = () => {
                   gross_sales: 0,
                   returned_amount: 0,
                   net_sales: 0,
-                  last_sale_date: invDate
+                  last_sale_date: invDate,
+                  sold_by_wh: {},
+                  ret_by_wh: {}
                 };
               }
+
+              if (!leafNode.products_map[pKey].sold_by_wh) leafNode.products_map[pKey].sold_by_wh = {};
+              leafNode.products_map[pKey].sold_by_wh[itemWh] = (leafNode.products_map[pKey].sold_by_wh[itemWh] || 0) + qty;
+
+              if (!leafNode.sold_by_wh) leafNode.sold_by_wh = {};
+              leafNode.sold_by_wh[itemWh] = (leafNode.sold_by_wh[itemWh] || 0) + qty;
 
               leafNode.products_map[pKey].sold_qty += qty;
               leafNode.products_map[pKey].gross_sales += grossItemSales;
@@ -471,6 +505,11 @@ const SaleReportPrint = () => {
               const pName = (it.itemName || it.product_name || it.name || '').trim();
               if (!pName) return;
 
+              const retWh = (it.warehouse || it.location || ret.warehouse_name || ret.dispatch_warehouse || ret.source_warehouse || ret.location || 'SHOP').trim();
+              if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
+                if (!filters.location.some((fl: string) => fl.toLowerCase() === retWh.toLowerCase())) return;
+              }
+
               if (filters.product && filters.product.length > 0 && !filters.product.includes('All')) {
                 if (!filters.product.includes(pName)) return;
               }
@@ -519,9 +558,17 @@ const SaleReportPrint = () => {
                   gross_sales: 0,
                   returned_amount: 0,
                   net_sales: 0,
-                  last_sale_date: '-'
+                  last_sale_date: '-',
+                  sold_by_wh: {},
+                  ret_by_wh: {}
                 };
               }
+
+              if (!leafNode.products_map[pKey].ret_by_wh) leafNode.products_map[pKey].ret_by_wh = {};
+              leafNode.products_map[pKey].ret_by_wh[retWh] = (leafNode.products_map[pKey].ret_by_wh[retWh] || 0) + qty;
+
+              if (!leafNode.ret_by_wh) leafNode.ret_by_wh = {};
+              leafNode.ret_by_wh[retWh] = (leafNode.ret_by_wh[retWh] || 0) + qty;
 
               leafNode.products_map[pKey].returned_qty += qty;
               leafNode.products_map[pKey].returned_amount += lineTotal;
@@ -585,16 +632,30 @@ const SaleReportPrint = () => {
                   const pNetQty = p.sold_qty - p.returned_qty;
                   const pNetSales = Math.max(0, p.gross_sales - p.returned_amount);
                   const pShare = leafNode.net_revenue > 0 ? (pNetSales / leafNode.net_revenue) * 100 : 0;
+
+                  const net_by_wh: Record<string, number> = {};
+                  const allWhs = new Set([...Object.keys(p.sold_by_wh || {}), ...Object.keys(p.ret_by_wh || {})]);
+                  allWhs.forEach((wh) => {
+                    net_by_wh[wh] = (p.sold_by_wh?.[wh] || 0) - (p.ret_by_wh?.[wh] || 0);
+                  });
+
                   return {
                     ...p,
                     net_qty: pNetQty,
                     final_net_sales: pNetSales,
-                    share_of_category: pShare
+                    share_of_category: pShare,
+                    net_by_wh
                   };
                 });
 
                 productList.sort((a, b) => b.final_net_sales - a.final_net_sales);
                 leafNode.transactions.sort((a: any, b: any) => (a.date || '').localeCompare(b.date || ''));
+
+                const catNetByWh: Record<string, number> = {};
+                const allCatWhs = new Set([...Object.keys(leafNode.sold_by_wh || {}), ...Object.keys(leafNode.ret_by_wh || {})]);
+                allCatWhs.forEach((wh) => {
+                  catNetByWh[wh] = (leafNode.sold_by_wh?.[wh] || 0) - (leafNode.ret_by_wh?.[wh] || 0);
+                });
 
                 compiledCategoryRows.push({
                   category_name: leafNode.category_name,
@@ -609,6 +670,9 @@ const SaleReportPrint = () => {
                   gross_sales: leafNode.gross_sales,
                   returned_amount: leafNode.returned_amount,
                   net_revenue: leafNode.net_revenue,
+                  sold_by_wh: leafNode.sold_by_wh || {},
+                  ret_by_wh: leafNode.ret_by_wh || {},
+                  net_by_wh: catNetByWh,
                   contribution_pct: allCategoriesRevenue > 0 ? (leafNode.net_revenue / allCategoriesRevenue) * 100 : 0
                 });
               });
@@ -2639,6 +2703,62 @@ const SaleReportPrint = () => {
     return categoryHierarchyTree.slice(start, start + pSize);
   }, [categoryHierarchyTree, currentPage, pageSize, isPrinting]);
 
+  const isMultiWarehouse = useMemo(() => {
+    if (Array.isArray(filters.location)) {
+      const locs = filters.location.filter((l: string) => l && l !== 'All');
+      if (locs.length === 1) return false;
+      if (locs.length > 1) return true;
+    } else if (typeof filters.location === 'string' && filters.location && filters.location !== 'All') {
+      return false;
+    }
+    return true;
+  }, [filters.location]);
+
+  const renderWhBreakdown = (whMap: Record<string, number> | undefined, colorType: 'sold' | 'return' | 'net') => {
+    if (!isMultiWarehouse || !whMap) return null;
+
+    let targetWarehouses: string[] = [];
+    if (Array.isArray(filters.location)) {
+      const sel = filters.location.filter((l: string) => l && l !== 'All');
+      if (sel.length > 1) {
+        targetWarehouses = sel;
+      }
+    }
+    if (targetWarehouses.length === 0) {
+      targetWarehouses = Object.keys(whMap);
+    }
+
+    if (targetWarehouses.length <= 1) return null;
+    const hasAnyVal = targetWarehouses.some(w => Number(whMap[w] || 0) !== 0);
+    if (!hasAnyVal) return null;
+
+    const colorStyles = {
+      sold: 'text-slate-700 bg-slate-100/90 border-slate-300',
+      return: 'text-rose-700 bg-rose-50 border-rose-300',
+      net: 'text-primary bg-indigo-50/80 border-indigo-200'
+    }[colorType];
+
+    return (
+      <div className="flex flex-col items-end gap-0.5 mt-1 pt-1 border-t border-dashed border-gray-300 print:mt-0.5 print:pt-0.5">
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {targetWarehouses.map((wh) => {
+            const qty = Number(whMap[wh] || 0);
+            return (
+              <span
+                key={wh}
+                className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8.5px] font-mono font-bold border ${colorStyles} leading-tight whitespace-nowrap`}
+                title={`${wh}: ${qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+              >
+                <span className="font-sans uppercase opacity-75 text-[8px]">{wh}:</span>
+                <span>{qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return <div className="flex h-64 items-center justify-center"><Spinner /></div>;
 
   return (
@@ -3112,15 +3232,15 @@ const SaleReportPrint = () => {
                         <table className="w-full table-fixed border-collapse text-[11px] font-sans antialiased text-left print:w-full">
                           <colgroup>
                             <col style={{ width: '3%' }} />
-                            <col style={{ width: '22%' }} />
-                            <col style={{ width: '13%' }} />
+                            <col style={{ width: isMultiWarehouse ? '19%' : '22%' }} />
+                            <col style={{ width: isMultiWarehouse ? '11%' : '13%' }} />
                             <col style={{ width: '4%' }} />
-                            <col style={{ width: '6.5%' }} />
-                            <col style={{ width: '5.5%' }} />
-                            <col style={{ width: '6.5%' }} />
-                            <col style={{ width: '13%' }} />
+                            <col style={{ width: isMultiWarehouse ? '8%' : '6.5%' }} />
+                            <col style={{ width: isMultiWarehouse ? '7%' : '5.5%' }} />
+                            <col style={{ width: isMultiWarehouse ? '8%' : '6.5%' }} />
+                            <col style={{ width: isMultiWarehouse ? '12%' : '13%' }} />
                             <col style={{ width: '8.5%' }} />
-                            <col style={{ width: '13%' }} />
+                            <col style={{ width: isMultiWarehouse ? '12%' : '13%' }} />
                             <col style={{ width: '5%' }} />
                           </colgroup>
                           <thead>
@@ -3152,14 +3272,17 @@ const SaleReportPrint = () => {
                                   <td className="p-1.5 border border-gray-300 font-sans font-bold text-black">{p.product_name}</td>
                                   <td className="p-1.5 border border-gray-300 text-center text-gray-600 text-[10.5px] font-mono break-all">{p.sku || '-'}</td>
                                   <td className="p-1.5 border border-gray-300 text-center text-gray-700 font-bold">{p.uom}</td>
-                                  <td className="p-1.5 border border-gray-300 text-right text-black font-bold whitespace-nowrap">
-                                    {Number(p.sold_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  <td className="p-1.5 border border-gray-300 text-right text-black font-bold">
+                                    <div>{Number(p.sold_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    {renderWhBreakdown(p.sold_by_wh, 'sold')}
                                   </td>
-                                  <td className="p-1.5 border border-gray-300 text-right text-rose-700 font-bold whitespace-nowrap">
-                                    {Number(p.returned_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  <td className="p-1.5 border border-gray-300 text-right text-rose-700 font-bold">
+                                    <div>{Number(p.returned_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    {renderWhBreakdown(p.ret_by_wh, 'return')}
                                   </td>
-                                  <td className="p-1.5 border border-gray-300 text-right text-primary font-black whitespace-nowrap">
-                                    {Number(p.net_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  <td className="p-1.5 border border-gray-300 text-right text-primary font-black">
+                                    <div>{Number(p.net_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    {renderWhBreakdown(p.net_by_wh, 'net')}
                                   </td>
                                   <td className="p-1.5 border border-gray-300 text-right text-gray-800 font-bold whitespace-nowrap">
                                     Rs. {Number(p.gross_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -3182,14 +3305,17 @@ const SaleReportPrint = () => {
                               <td colSpan={4} className="p-1.5 border border-black text-right uppercase tracking-wider text-gray-800 truncate">
                                 Subtotal ({cat.category_name} : {(cat.products || []).length} Products):
                               </td>
-                              <td className="p-1.5 border border-black text-right font-bold text-black whitespace-nowrap">
-                                {Number(cat.gross_units || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              <td className="p-1.5 border border-black text-right font-bold text-black">
+                                <div>{Number(cat.gross_units || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                {renderWhBreakdown(cat.sold_by_wh, 'sold')}
                               </td>
-                              <td className="p-1.5 border border-black text-right font-bold text-rose-700 whitespace-nowrap">
-                                {Number(cat.returned_units || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              <td className="p-1.5 border border-black text-right font-bold text-rose-700">
+                                <div>{Number(cat.returned_units || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                {renderWhBreakdown(cat.ret_by_wh, 'return')}
                               </td>
-                              <td className="p-1.5 border border-black text-right font-black text-primary whitespace-nowrap">
-                                {Number(cat.net_units || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              <td className="p-1.5 border border-black text-right font-black text-primary">
+                                <div>{Number(cat.net_units || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                {renderWhBreakdown(cat.net_by_wh, 'net')}
                               </td>
                               <td className="p-1.5 border border-black text-right font-bold text-gray-900 whitespace-nowrap">
                                 Rs. {Number(cat.gross_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
