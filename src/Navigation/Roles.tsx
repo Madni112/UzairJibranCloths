@@ -164,18 +164,6 @@ export const adminRoutes = [
         icon: MdDashboard,
         path: '/Administration/Products/Bulk-Upload',
         component: <BulkProductUpload />,
-      },
-      {
-        path: '/Administration/Transportation/List',
-        component: <TransportationList />,
-        label: 'Transportation',
-        icon: MdLocalShipping
-      },
-      {
-        path: '/Administration/StockTransfer/List',
-        component: <StockTransferList />,
-        label: 'Stock Transfer',
-        icon: MdCompareArrows
       }
       /* 
       {
@@ -316,6 +304,18 @@ export const adminRoutes = [
         component: <LocationList />,
         label: 'Assigned Locations',
         icon: MdLocationOn
+      },
+      {
+        path: '/Administration/StockTransfer/List',
+        component: <StockTransferList />,
+        label: 'Stock Transfer',
+        icon: MdCompareArrows
+      },
+      {
+        path: '/Administration/Transportation/List',
+        component: <TransportationList />,
+        label: 'Transportation',
+        icon: MdLocalShipping
       },
       {
         label: 'Delivery Challan',
