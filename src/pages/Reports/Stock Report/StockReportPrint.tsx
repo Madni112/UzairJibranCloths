@@ -29,24 +29,30 @@ const StockReportPrint = () => {
 
     // Helper to construct the 3-tier category hierarchy tree from any row subset
     const buildCategoryTreeFromRows = (rows: any[]) => {
-        const parentMap: { [pKey: string]: {
-            parent_name: string;
-            total_units: number;
-            total_valuation: number;
-            total_skus: number;
-            sub_categories_map: { [sKey: string]: {
-                sub_name: string;
+        const parentMap: {
+            [pKey: string]: {
+                parent_name: string;
                 total_units: number;
                 total_valuation: number;
                 total_skus: number;
-                categories_map: { [lKey: string]: {
-                    category_name: string;
-                    total_units: number;
-                    total_valuation: number;
-                    products: any[];
-                }}
-            }}
-        }} = {};
+                sub_categories_map: {
+                    [sKey: string]: {
+                        sub_name: string;
+                        total_units: number;
+                        total_valuation: number;
+                        total_skus: number;
+                        categories_map: {
+                            [lKey: string]: {
+                                category_name: string;
+                                total_units: number;
+                                total_valuation: number;
+                                products: any[];
+                            }
+                        }
+                    }
+                }
+            }
+        } = {};
 
         let totalVal = 0;
         rows.forEach((row: any) => {
@@ -141,15 +147,17 @@ const StockReportPrint = () => {
 
     // ── SUMMARY VIEW: FLAT CATEGORY ROWS (Matching Purchase & Sales) ──
     const categorySummaryRows = useMemo(() => {
-        const summaryMap: { [key: string]: {
-            parent_name: string;
-            sub_name: string;
-            category_name: string;
-            products_count: number;
-            total_units: number;
-            total_valuation: number;
-            contribution_pct: number;
-        }} = {};
+        const summaryMap: {
+            [key: string]: {
+                parent_name: string;
+                sub_name: string;
+                category_name: string;
+                products_count: number;
+                total_units: number;
+                total_valuation: number;
+                contribution_pct: number;
+            }
+        } = {};
 
         let grandValuation = 0;
         reportRows.forEach((row: any) => {
@@ -539,7 +547,7 @@ const StockReportPrint = () => {
                     p_start_date: dateFromClean || null,
                     p_end_date: dateToClean || null
                 });
-                
+
                 if (stockError) {
                     console.error("RPC Error:", stockError);
                     toast.error(stockError.message || "Failed to compile stock data.");
@@ -551,14 +559,14 @@ const StockReportPrint = () => {
                     stockMap.set(String(row.product_name).toLowerCase(), row);
                 });
 
-                const targetLocFilter = Array.isArray(filters.location) && filters.location.length > 0 
-                    ? filters.location.map((l: string) => l.trim().toLowerCase()) 
+                const targetLocFilter = Array.isArray(filters.location) && filters.location.length > 0
+                    ? filters.location.map((l: string) => l.trim().toLowerCase())
                     : [];
 
                 const calculatedAggregatedRows = (baseProducts || []).map(product => {
                     const name = String(product.product_name || '').trim().toLowerCase();
                     const stock = stockMap.get(name) || { opening_stock: 0, prior_in: 0, prior_out: 0, period_in: 0, period_out: 0 };
-                    
+
                     const computedOpening = Number(stock.opening_stock) + Number(stock.prior_in) - Number(stock.prior_out);
                     const netActivity = Number(stock.period_in) - Number(stock.period_out);
                     let trueRemainingStock = computedOpening + netActivity;
@@ -904,7 +912,7 @@ const StockReportPrint = () => {
             await exportToExcel({
                 fileName: `Stock_Report_Tab${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`,
                 sheetName: tabTitle.substring(0, 30),
-                companyName: businessName || 'AL MUHAMMADI',
+                companyName: businessName || 'Zoaib Ali & Company',
                 reportTitle: `Master Dynamic Inventory - ${tabTitle}`,
                 filterSummary: filterMeta,
                 columns,
@@ -924,7 +932,7 @@ const StockReportPrint = () => {
 
     const handleShareWhatsApp = () => {
         const lines = [
-            `📊 *${businessName || 'AL MUHAMMADI'}*`,
+            `📊 *${businessName || 'Zoaib Ali & Company'}*`,
             `📦 *Stock Valuation & Inventory Summary*`,
             `━━━━━━━━━━━━━━━━━━━━━`,
             `📑 *SKU Products Tracked:* ${reportRows.length}`,
@@ -958,7 +966,7 @@ const StockReportPrint = () => {
             <div className="print-root-container w-full bg-white p-4 space-y-6 print:p-0 print:space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50 p-3 rounded border print-hidden-element print:hidden">
                     <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-2 font-bold hover:underline cursor-pointer"><MdArrowBack size={16} /> Back to Report Filter</button>
-                    
+
                     {/* View Switcher Toggle (Exclusively for Tab 7: Category-Wise Stock Valuation Ledger) */}
                     {activeTab === 7 && (
                         <div className="flex bg-slate-200 p-0.5 rounded-lg border border-slate-300">
@@ -968,9 +976,8 @@ const StockReportPrint = () => {
                                     setActiveViewMode('summary');
                                     setCurrentPage(1);
                                 }}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${
-                                    activeViewMode === 'summary' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-600 hover:text-black'
-                                }`}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${activeViewMode === 'summary' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-600 hover:text-black'
+                                    }`}
                             >
                                 <MdTableChart size={14} /> Summary View
                             </button>
@@ -980,9 +987,8 @@ const StockReportPrint = () => {
                                     setActiveViewMode('detailed');
                                     setCurrentPage(1);
                                 }}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${
-                                    activeViewMode === 'detailed' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-600 hover:text-black'
-                                }`}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition cursor-pointer ${activeViewMode === 'detailed' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-600 hover:text-black'
+                                    }`}
                             >
                                 <MdViewList size={14} /> Detailed View
                             </button>
@@ -1003,7 +1009,7 @@ const StockReportPrint = () => {
                 </div>
 
                 <div className="text-center space-y-1 py-4 border-b border-double border-slate-300">
-                    <h1 className="text-xl font-black uppercase tracking-widest font-serif">AL MUHAMMADI</h1>
+                    <h1 className="text-xl font-black uppercase tracking-widest font-serif">Zoaib Ali & Company</h1>
                     <p className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Master Dynamic Inventory Valuation & Real-Time Stock Balance Ledger</p>
 
                     <div className="text-[10px] pt-1 font-mono flex justify-between px-2 text-gray-600">
@@ -1200,531 +1206,531 @@ const StockReportPrint = () => {
                             {activeTab === 1 && (
                                 <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
                                     <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
-                                <tr>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-10">Index</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Identifier</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
-                                    <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Opening Stock</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2 text-emerald-700">Stock In</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2 text-rose-700">Stock Out</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Net Movement</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-3 font-bold">Remaining Stock</th>
-                                </tr>
-                                <tr>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRows.map((row, idx) => (
-                                    <tr key={row.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
-                                        <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
-                                        <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
-                                        <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
-                                        <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
-                                        <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
-                                        <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
-                                        <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-gray-700">{Number(row.computed_opening || 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-emerald-700 font-bold">+{Number(row.period_stock_in || 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-rose-700 font-bold">-{Number(row.period_stock_out || 0).toLocaleString()}</td>
-                                        <td className={`p-2 border border-slate-300 text-right pr-2 font-mono font-bold ${row.net_activity >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                                            {row.net_activity > 0 ? `+${row.net_activity.toLocaleString()}` : row.net_activity.toLocaleString()}
-                                        </td>
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black font-mono">{Number(row.computed_true_stock || 0).toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                {!isPrinting && pageSize !== 'all' && (
-                                    <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
-                                        <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 text-gray-700">{paginatedRows.reduce((s, r) => s + (r.computed_opening || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 text-emerald-700">+{paginatedRows.reduce((s, r) => s + (r.period_stock_in || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 text-red-700">-{paginatedRows.reduce((s, r) => s + (r.period_stock_out || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 text-purple-700">{paginatedRows.reduce((s, r) => s + (r.net_activity || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                    </tr>
-                                )}
-                                <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
-                                    <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Summary (All {reportRows.length} Records):</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2 text-gray-700">{reportRows.reduce((s, r) => s + (r.computed_opening || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2 text-emerald-700">+{reportRows.reduce((s, r) => s + (r.period_stock_in || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2 text-red-700">-{reportRows.reduce((s, r) => s + (r.period_stock_out || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2 text-purple-700">{reportRows.reduce((s, r) => s + (r.net_activity || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
-
-                    {/* --- 📊 RENDER CHANNEL 2: STANDARD LEDGER BALANCES & VALUATION (TABS 2, 6) --- */}
-                    {(activeTab === 2 || activeTab === 6) && (
-                        <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
-                            <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
-                                <tr>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Identifier</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
-                                    <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Dynamic Remaining Quantity</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Unit Rate (Rs.)</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-3">Total Valuation (Rs.)</th>
-                                </tr>
-                                <tr>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRows.map((row, idx) => {
-                                    const qty = Number(row.computed_true_stock || 0);
-                                    const rate = Number(row.retail_price || row.sale_price || row.purchase_price || 0);
-                                    const val = Number(row.calculated_valuation ?? (qty * rate));
-
-                                    return (
-                                        <tr key={row.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
-                                            <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
-                                            <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
-                                            <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 text-right pr-2 text-success font-black">{qty.toLocaleString()}</td>
-                                            <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-gray-700">{rate > 0 ? rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
-                                            <td className="p-2 border border-slate-300 text-right pr-3 font-mono font-bold text-slate-900">{val > 0 ? val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                                        <tr>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-10">Index</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Identifier</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
+                                            <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Opening Stock</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2 text-emerald-700">Stock In</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2 text-rose-700">Stock Out</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Net Movement</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-3 font-bold">Remaining Stock</th>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot>
-                                {!isPrinting && pageSize !== 'all' && (
-                                    <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
-                                        <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 text-success font-black text-sm">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2">-</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-slate-900 font-black text-sm">{paginatedRows.reduce((s, r) => s + (Number(r.calculated_valuation ?? ((r.computed_true_stock || 0) * (r.retail_price || r.sale_price || r.purchase_price || 0)))), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                    </tr>
-                                )}
-                                <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
-                                    <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Balance Sum (All {reportRows.length} Records):</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2 text-success font-black text-sm">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2">-</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-3 text-emerald-800 font-black text-sm">Rs. {reportRows.reduce((s, r) => s + (Number(r.calculated_valuation ?? ((r.computed_true_stock || 0) * (r.retail_price || r.sale_price || r.purchase_price || 0)))), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
+                                        <tr>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedRows.map((row, idx) => (
+                                            <tr key={row.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
+                                                <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
+                                                <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
+                                                <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
+                                                <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
+                                                <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
+                                                <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
+                                                <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-gray-700">{Number(row.computed_opening || 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-emerald-700 font-bold">+{Number(row.period_stock_in || 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-rose-700 font-bold">-{Number(row.period_stock_out || 0).toLocaleString()}</td>
+                                                <td className={`p-2 border border-slate-300 text-right pr-2 font-mono font-bold ${row.net_activity >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                                    {row.net_activity > 0 ? `+${row.net_activity.toLocaleString()}` : row.net_activity.toLocaleString()}
+                                                </td>
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black font-mono">{Number(row.computed_true_stock || 0).toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        {!isPrinting && pageSize !== 'all' && (
+                                            <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
+                                                <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 text-gray-700">{paginatedRows.reduce((s, r) => s + (r.computed_opening || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 text-emerald-700">+{paginatedRows.reduce((s, r) => s + (r.period_stock_in || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 text-red-700">-{paginatedRows.reduce((s, r) => s + (r.period_stock_out || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 text-purple-700">{paginatedRows.reduce((s, r) => s + (r.net_activity || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                            </tr>
+                                        )}
+                                        <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
+                                            <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Summary (All {reportRows.length} Records):</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2 text-gray-700">{reportRows.reduce((s, r) => s + (r.computed_opening || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2 text-emerald-700">+{reportRows.reduce((s, r) => s + (r.period_stock_in || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2 text-red-700">-{reportRows.reduce((s, r) => s + (r.period_stock_out || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2 text-purple-700">{reportRows.reduce((s, r) => s + (r.net_activity || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            )}
 
-                    {/* --- 📊 RENDER CHANNEL 3: STOCK STATUS REPORT (TAB 3) --- */}
-                    {activeTab === 3 && (
-                        <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
-                            <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
-                                <tr>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Identifier</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
-                                    <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Warehouse Location</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center">Stock Availability Status</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-3">Dynamic Remaining Quantity</th>
-                                </tr>
-                                <tr>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRows.map((row, idx) => {
-                                    const breakdowns: Array<{ location: string; qty: number }> = (row.locationBreakdown && row.locationBreakdown.length > 0)
-                                        ? row.locationBreakdown
-                                        : [{ location: formatLocation(row.warehouse_location || row.location), qty: Number(row.computed_true_stock || 0) }];
+                            {/* --- 📊 RENDER CHANNEL 2: STANDARD LEDGER BALANCES & VALUATION (TABS 2, 6) --- */}
+                            {(activeTab === 2 || activeTab === 6) && (
+                                <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
+                                        <tr>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Identifier</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
+                                            <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Dynamic Remaining Quantity</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-2">Unit Rate (Rs.)</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-3">Total Valuation (Rs.)</th>
+                                        </tr>
+                                        <tr>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedRows.map((row, idx) => {
+                                            const qty = Number(row.computed_true_stock || 0);
+                                            const rate = Number(row.retail_price || row.sale_price || row.purchase_price || 0);
+                                            const val = Number(row.calculated_valuation ?? (qty * rate));
 
-                                    return (
-                                        <tr key={row.id || idx} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
-                                            <td className="p-2 border border-slate-300 text-center text-gray-400 align-middle">{startIndex + idx + 1}</td>
-                                            <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase align-middle">{row.product_name}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center align-middle">{row.bin || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-800 align-middle">{row.sub_sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-700 align-middle">{row.sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-600 align-middle">{row.category || '-'}</td>
-                                            
-                                            {/* Multi-Location Expanded Sub-Rows */}
-                                            <td className="p-0 border border-slate-300 align-top">
-                                                <div className="divide-y divide-slate-300 h-full flex flex-col justify-stretch">
-                                                    {breakdowns.map((b, bIdx) => (
-                                                        <div key={bIdx} className="p-2 font-sans text-gray-700 font-bold flex-1 flex items-center min-h-[34px]">
-                                                            {b.location}
+                                            return (
+                                                <tr key={row.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
+                                                    <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
+                                                    <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
+                                                    <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 text-right pr-2 text-success font-black">{qty.toLocaleString()}</td>
+                                                    <td className="p-2 border border-slate-300 text-right pr-2 font-mono text-gray-700">{rate > 0 ? rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                                                    <td className="p-2 border border-slate-300 text-right pr-3 font-mono font-bold text-slate-900">{val > 0 ? val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        {!isPrinting && pageSize !== 'all' && (
+                                            <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
+                                                <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 text-success font-black text-sm">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2">-</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-slate-900 font-black text-sm">{paginatedRows.reduce((s, r) => s + (Number(r.calculated_valuation ?? ((r.computed_true_stock || 0) * (r.retail_price || r.sale_price || r.purchase_price || 0)))), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            </tr>
+                                        )}
+                                        <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
+                                            <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Balance Sum (All {reportRows.length} Records):</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2 text-success font-black text-sm">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2">-</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-3 text-emerald-800 font-black text-sm">Rs. {reportRows.reduce((s, r) => s + (Number(r.calculated_valuation ?? ((r.computed_true_stock || 0) * (r.retail_price || r.sale_price || r.purchase_price || 0)))), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            )}
+
+                            {/* --- 📊 RENDER CHANNEL 3: STOCK STATUS REPORT (TAB 3) --- */}
+                            {activeTab === 3 && (
+                                <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
+                                        <tr>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Identifier</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
+                                            <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Warehouse Location</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center">Stock Availability Status</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right pr-3">Dynamic Remaining Quantity</th>
+                                        </tr>
+                                        <tr>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedRows.map((row, idx) => {
+                                            const breakdowns: Array<{ location: string; qty: number }> = (row.locationBreakdown && row.locationBreakdown.length > 0)
+                                                ? row.locationBreakdown
+                                                : [{ location: formatLocation(row.warehouse_location || row.location), qty: Number(row.computed_true_stock || 0) }];
+
+                                            return (
+                                                <tr key={row.id || idx} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
+                                                    <td className="p-2 border border-slate-300 text-center text-gray-400 align-middle">{startIndex + idx + 1}</td>
+                                                    <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase align-middle">{row.product_name}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center align-middle">{row.bin || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-800 align-middle">{row.sub_sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-700 align-middle">{row.sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-600 align-middle">{row.category || '-'}</td>
+
+                                                    {/* Multi-Location Expanded Sub-Rows */}
+                                                    <td className="p-0 border border-slate-300 align-top">
+                                                        <div className="divide-y divide-slate-300 h-full flex flex-col justify-stretch">
+                                                            {breakdowns.map((b, bIdx) => (
+                                                                <div key={bIdx} className="p-2 font-sans text-gray-700 font-bold flex-1 flex items-center min-h-[34px]">
+                                                                    {b.location}
+                                                                </div>
+                                                            ))}
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            </td>
+                                                    </td>
 
-                                            <td className="p-0 border border-slate-300 align-top">
-                                                <div className="divide-y divide-slate-300 h-full flex flex-col justify-stretch">
-                                                    {breakdowns.map((b, bIdx) => {
-                                                        const bQty = Number(b.qty || 0);
-                                                        let statusBadge = (
-                                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-100 text-green-800 border border-green-300">
-                                                                In Stock
-                                                            </span>
-                                                        );
-                                                        if (bQty <= 0) {
-                                                            statusBadge = (
-                                                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-300">
-                                                                    Out of Stock
-                                                                </span>
-                                                            );
-                                                        } else if (bQty <= 10) {
-                                                            statusBadge = (
-                                                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-yellow-100 text-yellow-800 border border-yellow-300">
-                                                                    Low Stock
-                                                                </span>
-                                                            );
-                                                        }
-                                                        return (
-                                                            <div key={bIdx} className="p-2 flex-1 flex items-center justify-center min-h-[34px]">
-                                                                {statusBadge}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </td>
+                                                    <td className="p-0 border border-slate-300 align-top">
+                                                        <div className="divide-y divide-slate-300 h-full flex flex-col justify-stretch">
+                                                            {breakdowns.map((b, bIdx) => {
+                                                                const bQty = Number(b.qty || 0);
+                                                                let statusBadge = (
+                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-100 text-green-800 border border-green-300">
+                                                                        In Stock
+                                                                    </span>
+                                                                );
+                                                                if (bQty <= 0) {
+                                                                    statusBadge = (
+                                                                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-300">
+                                                                            Out of Stock
+                                                                        </span>
+                                                                    );
+                                                                } else if (bQty <= 10) {
+                                                                    statusBadge = (
+                                                                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-yellow-100 text-yellow-800 border border-yellow-300">
+                                                                            Low Stock
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div key={bIdx} className="p-2 flex-1 flex items-center justify-center min-h-[34px]">
+                                                                        {statusBadge}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
 
-                                            <td className="p-0 border border-slate-300 align-top">
-                                                <div className="divide-y divide-slate-300 h-full flex flex-col justify-stretch">
-                                                    {breakdowns.map((b, bIdx) => {
-                                                        const bQty = Number(b.qty || 0);
-                                                        return (
-                                                            <div key={bIdx} className="p-2 pr-3 text-right text-success font-black flex-1 flex items-center justify-end min-h-[34px]">
-                                                                {bQty.toLocaleString()}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </td>
+                                                    <td className="p-0 border border-slate-300 align-top">
+                                                        <div className="divide-y divide-slate-300 h-full flex flex-col justify-stretch">
+                                                            {breakdowns.map((b, bIdx) => {
+                                                                const bQty = Number(b.qty || 0);
+                                                                return (
+                                                                    <div key={bIdx} className="p-2 pr-3 text-right text-success font-black flex-1 flex items-center justify-end min-h-[34px]">
+                                                                        {bQty.toLocaleString()}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        {!isPrinting && pageSize !== 'all' && (
+                                            <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
+                                                <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                            </tr>
+                                        )}
+                                        <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
+                                            <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Available Units (All {reportRows.length} Records):</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot>
-                                {!isPrinting && pageSize !== 'all' && (
-                                    <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
-                                        <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                    </tr>
-                                )}
-                                <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
-                                    <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Available Units (All {reportRows.length} Records):</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
+                                    </tfoot>
+                                </table>
+                            )}
 
-                    {/* --- 📊 RENDER CHANNEL 3: STOCK TRANSFER STATEMENT (TAB 4) --- */}
-                    {activeTab === 4 && (
-                        <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
-                            <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
-                                <tr>
-                                    <th className="p-2 border border-slate-300 text-center w-12">Index</th>
-                                    <th className="p-2 border border-slate-300">Transfer Slip #</th>
-                                    <th className="p-2 border border-slate-300">Transfer Date</th>
-                                    <th className="p-2 border border-slate-300">From Location</th>
-                                    <th className="p-2 border border-slate-300">To Location</th>
-                                    <th className="p-2 border border-slate-300">Items Transferred</th>
-                                    <th className="p-2 border border-slate-300 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRows.map((tr, idx) => {
-                                    const itemsArray = Array.isArray(tr.items) ? tr.items : JSON.parse(tr.items || '[]');
-                                    const itemSummary = itemsArray.map((i: any) => `${i.itemName || i.product_name} (${i.qty || 1} ${i.uom || ''})`).join(', ');
-
-                                    return (
-                                        <tr key={tr.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
-                                            <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
-                                            <td className="p-2 border border-slate-300 font-bold text-primary font-sans">{tr.transfer_no || `TRF-${tr.id}`}</td>
-                                            <td className="p-2 border border-slate-300">{tr.transfer_date || tr.created_at?.split('T')[0]}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-red-700 font-bold">{tr.from_location}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-green-700 font-bold">{tr.to_location}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-gray-700">{itemSummary || 'N/A'}</td>
-                                            <td className="p-2 border border-slate-300 text-center font-bold text-purple-700 uppercase">{tr.status || 'Confirmed'}</td>
+                            {/* --- 📊 RENDER CHANNEL 3: STOCK TRANSFER STATEMENT (TAB 4) --- */}
+                            {activeTab === 4 && (
+                                <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
+                                        <tr>
+                                            <th className="p-2 border border-slate-300 text-center w-12">Index</th>
+                                            <th className="p-2 border border-slate-300">Transfer Slip #</th>
+                                            <th className="p-2 border border-slate-300">Transfer Date</th>
+                                            <th className="p-2 border border-slate-300">From Location</th>
+                                            <th className="p-2 border border-slate-300">To Location</th>
+                                            <th className="p-2 border border-slate-300">Items Transferred</th>
+                                            <th className="p-2 border border-slate-300 text-center">Status</th>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
+                                    </thead>
+                                    <tbody>
+                                        {paginatedRows.map((tr, idx) => {
+                                            const itemsArray = Array.isArray(tr.items) ? tr.items : JSON.parse(tr.items || '[]');
+                                            const itemSummary = itemsArray.map((i: any) => `${i.itemName || i.product_name} (${i.qty || 1} ${i.uom || ''})`).join(', ');
 
-                    {/* --- 📊 RENDER CHANNEL 4: REAL-TIME ADAPTIVE PRICING COLUMNS VISIBILITY SHEET (TAB 5) --- */}
-                    {activeTab === 5 && (
-                        <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
-                            <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
-                                <tr>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Name</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
-                                    <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Bal Qty</th>
-                                    {filters.showSalePrice && <th rowSpan={2} className="p-2 border border-slate-300 text-right w-28">Retail Sale (PKR)</th>}
-                                    {filters.showPurchasePrice && <th rowSpan={2} className="p-2 border border-slate-300 text-right w-28">Purchase Cost (PKR)</th>}
-                                    {filters.showFinalPrice && <th rowSpan={2} className="p-2 border border-slate-300 text-right w-32 pr-3">Net Asset Valuation</th>}
-                                    {filters.showSpecifications && <th rowSpan={2} className="p-2 border border-slate-300 font-sans text-gray-500">Technical Specifications Sheet Overview</th>}
-                                </tr>
-                                <tr>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRows.map((row, idx) => {
-                                    const qty = Number(row.computed_true_stock || 0);
-                                    const sPrice = Number(row.sale_price ?? row.retail_price ?? row.price ?? row.unit_price ?? row.mrp ?? row.rp ?? 0);
-                                    const pPrice = Number(row.purchase_price ?? row.cost_price ?? row.buy_price ?? row.cost ?? row.tp ?? 0);
-                                    const netValue = qty * sPrice;
+                                            return (
+                                                <tr key={tr.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
+                                                    <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
+                                                    <td className="p-2 border border-slate-300 font-bold text-primary font-sans">{tr.transfer_no || `TRF-${tr.id}`}</td>
+                                                    <td className="p-2 border border-slate-300">{tr.transfer_date || tr.created_at?.split('T')[0]}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-red-700 font-bold">{tr.from_location}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-green-700 font-bold">{tr.to_location}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-gray-700">{itemSummary || 'N/A'}</td>
+                                                    <td className="p-2 border border-slate-300 text-center font-bold text-purple-700 uppercase">{tr.status || 'Confirmed'}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
 
-                                    return (
-                                        <tr key={row.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
-                                            <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
-                                            <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
-                                            <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 text-center text-primary font-black">{qty.toLocaleString()}</td>
-                                            {filters.showSalePrice && <td className="p-2 border border-slate-300 text-right text-gray-600">Rs. {sPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>}
-                                            {filters.showPurchasePrice && <td className="p-2 border border-slate-300 text-right text-purple-700">Rs. {pPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>}
-                                            {filters.showFinalPrice && <td className="p-2 border border-slate-300 text-right text-success font-black pr-3">Rs. {netValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>}
-                                            {filters.showSpecifications && (
-                                                 <td className="p-2 border border-slate-300 font-sans text-[10px] text-gray-500 whitespace-normal break-words leading-relaxed max-w-sm">
-                                                    {row.product_description || row.specifications || row.description || (row.hs_code ? `HS: ${row.hs_code}` : 'N/A')}
+                            {/* --- 📊 RENDER CHANNEL 4: REAL-TIME ADAPTIVE PRICING COLUMNS VISIBILITY SHEET (TAB 5) --- */}
+                            {activeTab === 5 && (
+                                <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
+                                        <tr>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Name</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
+                                            <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Bal Qty</th>
+                                            {filters.showSalePrice && <th rowSpan={2} className="p-2 border border-slate-300 text-right w-28">Retail Sale (PKR)</th>}
+                                            {filters.showPurchasePrice && <th rowSpan={2} className="p-2 border border-slate-300 text-right w-28">Purchase Cost (PKR)</th>}
+                                            {filters.showFinalPrice && <th rowSpan={2} className="p-2 border border-slate-300 text-right w-32 pr-3">Net Asset Valuation</th>}
+                                            {filters.showSpecifications && <th rowSpan={2} className="p-2 border border-slate-300 font-sans text-gray-500">Technical Specifications Sheet Overview</th>}
+                                        </tr>
+                                        <tr>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedRows.map((row, idx) => {
+                                            const qty = Number(row.computed_true_stock || 0);
+                                            const sPrice = Number(row.sale_price ?? row.retail_price ?? row.price ?? row.unit_price ?? row.mrp ?? row.rp ?? 0);
+                                            const pPrice = Number(row.purchase_price ?? row.cost_price ?? row.buy_price ?? row.cost ?? row.tp ?? 0);
+                                            const netValue = qty * sPrice;
+
+                                            return (
+                                                <tr key={row.id} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
+                                                    <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
+                                                    <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
+                                                    <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 text-center text-primary font-black">{qty.toLocaleString()}</td>
+                                                    {filters.showSalePrice && <td className="p-2 border border-slate-300 text-right text-gray-600">Rs. {sPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>}
+                                                    {filters.showPurchasePrice && <td className="p-2 border border-slate-300 text-right text-purple-700">Rs. {pPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>}
+                                                    {filters.showFinalPrice && <td className="p-2 border border-slate-300 text-right text-success font-black pr-3">Rs. {netValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>}
+                                                    {filters.showSpecifications && (
+                                                        <td className="p-2 border border-slate-300 font-sans text-[10px] text-gray-500 whitespace-normal break-words leading-relaxed max-w-sm">
+                                                            {row.product_description || row.specifications || row.description || (row.hs_code ? `HS: ${row.hs_code}` : 'N/A')}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        {!isPrinting && pageSize !== 'all' && (
+                                            <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
+                                                <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
+                                                <td className="p-2 border border-slate-300 text-center text-primary font-black">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                                {filters.showSalePrice && <td className="p-2 border border-slate-300"></td>}
+                                                {filters.showPurchasePrice && <td className="p-2 border border-slate-300"></td>}
+                                                {filters.showFinalPrice && (
+                                                    <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">
+                                                        Rs. {paginatedRows.reduce((s, r) => {
+                                                            const q = Number(r.computed_true_stock || 0);
+                                                            const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
+                                                            return s + (q * sp);
+                                                        }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                )}
+                                                {filters.showSpecifications && <td className="p-2 border border-slate-300"></td>}
+                                            </tr>
+                                        )}
+                                        <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
+                                            <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Assets Valuation (All {reportRows.length} Records):</td>
+                                            <td className="p-2 border border-slate-300 text-center text-primary font-black">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                            {filters.showSalePrice && <td className="p-2 border border-slate-300"></td>}
+                                            {filters.showPurchasePrice && <td className="p-2 border border-slate-300"></td>}
+                                            {filters.showFinalPrice && (
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">
+                                                    Rs. {reportRows.reduce((s, r) => {
+                                                        const q = Number(r.computed_true_stock || 0);
+                                                        const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
+                                                        return s + (q * sp);
+                                                    }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
                                             )}
+                                            {filters.showSpecifications && <td className="p-2 border border-slate-300"></td>}
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot>
-                                {!isPrinting && pageSize !== 'all' && (
-                                    <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
-                                        <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
-                                        <td className="p-2 border border-slate-300 text-center text-primary font-black">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                        {filters.showSalePrice && <td className="p-2 border border-slate-300"></td>}
-                                        {filters.showPurchasePrice && <td className="p-2 border border-slate-300"></td>}
-                                        {filters.showFinalPrice && (
-                                            <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">
-                                                Rs. {paginatedRows.reduce((s, r) => {
-                                                    const q = Number(r.computed_true_stock || 0);
-                                                    const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
-                                                    return s + (q * sp);
-                                                }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </td>
-                                        )}
-                                        {filters.showSpecifications && <td className="p-2 border border-slate-300"></td>}
-                                    </tr>
-                                )}
-                                <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
-                                    <td colSpan={7} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Assets Valuation (All {reportRows.length} Records):</td>
-                                    <td className="p-2 border border-slate-300 text-center text-primary font-black">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                    {filters.showSalePrice && <td className="p-2 border border-slate-300"></td>}
-                                    {filters.showPurchasePrice && <td className="p-2 border border-slate-300"></td>}
-                                    {filters.showFinalPrice && (
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm">
-                                            Rs. {reportRows.reduce((s, r) => {
-                                                const q = Number(r.computed_true_stock || 0);
-                                                const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
-                                                return s + (q * sp);
-                                            }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </td>
-                                    )}
-                                    {filters.showSpecifications && <td className="p-2 border border-slate-300"></td>}
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
+                                    </tfoot>
+                                </table>
+                            )}
 
-                    {/* --- 📊 RENDER CHANNEL 5: FLAT CATEGORY SUMMARY STATEMENT (TAB 7 - SUMMARY VIEW) --- */}
-                    {activeTab === 7 && (
-                        <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
-                            <thead className="bg-slate-100 border-b border-slate-400 font-black uppercase text-slate-800 font-mono text-[10px]">
-                                <tr>
-                                    <th className="p-2 border border-slate-300 text-center w-12">S#</th>
-                                    <th className="p-2 border border-slate-300">Parent Category</th>
-                                    <th className="p-2 border border-slate-300">Sub-Category</th>
-                                    <th className="p-2 border border-slate-300">Leaf Category Title</th>
-                                    <th className="p-2 border border-slate-300 text-center w-24 text-emerald-800">Products</th>
-                                    <th className="p-2 border border-slate-300 text-right w-28">Stock Units</th>
-                                    <th className="p-2 border border-slate-300 text-right w-36 pr-3 text-emerald-800">Asset Valuation (PKR)</th>
-                                    <th className="p-2 border border-slate-300 text-right pr-2 w-20">Share %</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedCategorySummaryRows.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="text-center py-10 font-bold italic border border-slate-300 text-gray-400 bg-gray-50">
-                                            No category records found matching selected criteria.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    paginatedCategorySummaryRows.map((cat, idx) => {
-                                        const displayIdx = (!isPrinting && pageSize !== 'all') ? startIndex + idx + 1 : idx + 1;
-                                        return (
-                                            <tr key={idx} className="border-b border-slate-300 hover:bg-slate-50 font-semibold font-mono text-xs">
-                                                <td className="p-2 border border-slate-300 text-center text-gray-400">{displayIdx}</td>
-                                                <td className="p-2 border border-slate-300 font-sans uppercase font-bold text-slate-900">{cat.parent_name}</td>
-                                                <td className="p-2 border border-slate-300 font-sans text-slate-700">{cat.sub_name}</td>
-                                                <td className="p-2 border border-slate-300 font-sans font-bold text-slate-900">{cat.category_name}</td>
-                                                <td className="p-2 border border-slate-300 text-center font-bold text-slate-700">{cat.products_count}</td>
-                                                <td className="p-2 border border-slate-300 text-right font-black text-primary">{Number(cat.total_units).toLocaleString()}</td>
-                                                <td className="p-2 border border-slate-300 text-right pr-3 font-mono font-black text-emerald-800">
-                                                    Rs. {Number(cat.total_valuation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="p-2 border border-slate-300 text-right pr-2 font-mono font-bold text-slate-600">
-                                                    {Number(cat.contribution_pct || 0).toFixed(1)}%
+                            {/* --- 📊 RENDER CHANNEL 5: FLAT CATEGORY SUMMARY STATEMENT (TAB 7 - SUMMARY VIEW) --- */}
+                            {activeTab === 7 && (
+                                <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
+                                    <thead className="bg-slate-100 border-b border-slate-400 font-black uppercase text-slate-800 font-mono text-[10px]">
+                                        <tr>
+                                            <th className="p-2 border border-slate-300 text-center w-12">S#</th>
+                                            <th className="p-2 border border-slate-300">Parent Category</th>
+                                            <th className="p-2 border border-slate-300">Sub-Category</th>
+                                            <th className="p-2 border border-slate-300">Leaf Category Title</th>
+                                            <th className="p-2 border border-slate-300 text-center w-24 text-emerald-800">Products</th>
+                                            <th className="p-2 border border-slate-300 text-right w-28">Stock Units</th>
+                                            <th className="p-2 border border-slate-300 text-right w-36 pr-3 text-emerald-800">Asset Valuation (PKR)</th>
+                                            <th className="p-2 border border-slate-300 text-right pr-2 w-20">Share %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedCategorySummaryRows.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={8} className="text-center py-10 font-bold italic border border-slate-300 text-gray-400 bg-gray-50">
+                                                    No category records found matching selected criteria.
                                                 </td>
                                             </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                            <tfoot>
-                                {!isPrinting && pageSize !== 'all' && (
-                                    <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
-                                        <td colSpan={4} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
-                                        <td className="p-2 border border-slate-300 text-center">{paginatedCategorySummaryRows.reduce((s, r) => s + (r.products_count || 0), 0)}</td>
-                                        <td className="p-2 border border-slate-300 text-right font-black text-primary">{paginatedCategorySummaryRows.reduce((s, r) => s + (r.total_units || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-emerald-800 font-black">
-                                            Rs. {paginatedCategorySummaryRows.reduce((s, r) => s + (r.total_valuation || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </td>
-                                        <td className="p-2 border border-slate-300 text-right pr-2 font-black">
-                                            {paginatedCategorySummaryRows.reduce((s, r) => s + (r.contribution_pct || 0), 0).toFixed(1)}%
-                                        </td>
-                                    </tr>
-                                )}
-                                <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
-                                    <td colSpan={4} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">
-                                        Grand Total Summary ({categorySummaryRows.length} Categories • {reportRows.length} Products):
-                                    </td>
-                                    <td className="p-2 border border-slate-300 text-center font-black text-slate-800">{reportRows.length}</td>
-                                    <td className="p-2 border border-slate-300 text-right font-black text-primary">{categorySummaryRows.reduce((s, r) => s + (r.total_units || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300 text-right pr-3 text-emerald-800 underline decoration-double font-black text-sm">
-                                        Rs. {categorySummaryRows.reduce((s, r) => s + (r.total_valuation || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="p-2 border border-slate-300 text-right pr-2 font-black">100.0%</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
-
-                    {/* --- 📊 RENDER CHANNEL 6: LOCATION WAREHOUSE STOCK AUDIT STATEMENT (TAB 8) --- */}
-                    {activeTab === 8 && (
-                        <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
-                            <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
-                                <tr>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Warehouse Location</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Name</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
-                                    <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-24">Available Stock</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right w-28">Unit Sale Rate</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-right w-36 pr-3 text-success">Location Asset Valuation</th>
-                                    <th rowSpan={2} className="p-2 border border-slate-300 text-center w-24">Stock Availability</th>
-                                </tr>
-                                <tr>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
-                                    <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRows.map((row, idx) => {
-                                    const qty = Number(row.computed_true_stock || 0);
-                                    const sPrice = Number(row.sale_price ?? row.retail_price ?? row.price ?? row.unit_price ?? row.mrp ?? row.rp ?? 0);
-                                    const netValue = qty * sPrice;
-                                    const locName = formatLocation(row.warehouse_location || row.location);
-
-                                    let statusBadge = (
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-100 text-green-800 border border-green-300">
-                                            In Stock
-                                        </span>
-                                    );
-                                    if (qty <= 0) {
-                                        statusBadge = (
-                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-300">
-                                                Out of Stock
-                                            </span>
-                                        );
-                                    } else if (qty <= 10) {
-                                        statusBadge = (
-                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-yellow-100 text-yellow-800 border border-yellow-300">
-                                                Low Stock
-                                            </span>
-                                        );
-                                    }
-
-                                    return (
-                                        <tr key={row.id || idx} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
-                                            <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
-                                            <td className="p-2 border border-slate-300 font-sans font-bold text-purple-800 uppercase bg-purple-50/40">{locName}</td>
-                                            <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
-                                            <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
-                                            <td className="p-2 border border-slate-300 text-center text-primary font-black text-sm">{qty.toLocaleString()}</td>
-                                            <td className="p-2 border border-slate-300 text-right text-gray-600">Rs. {sPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-2 border border-slate-300 text-right text-success font-black pr-3 bg-success/5">Rs. {netValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-2 border border-slate-300 text-center">{statusBadge}</td>
+                                        ) : (
+                                            paginatedCategorySummaryRows.map((cat, idx) => {
+                                                const displayIdx = (!isPrinting && pageSize !== 'all') ? startIndex + idx + 1 : idx + 1;
+                                                return (
+                                                    <tr key={idx} className="border-b border-slate-300 hover:bg-slate-50 font-semibold font-mono text-xs">
+                                                        <td className="p-2 border border-slate-300 text-center text-gray-400">{displayIdx}</td>
+                                                        <td className="p-2 border border-slate-300 font-sans uppercase font-bold text-slate-900">{cat.parent_name}</td>
+                                                        <td className="p-2 border border-slate-300 font-sans text-slate-700">{cat.sub_name}</td>
+                                                        <td className="p-2 border border-slate-300 font-sans font-bold text-slate-900">{cat.category_name}</td>
+                                                        <td className="p-2 border border-slate-300 text-center font-bold text-slate-700">{cat.products_count}</td>
+                                                        <td className="p-2 border border-slate-300 text-right font-black text-primary">{Number(cat.total_units).toLocaleString()}</td>
+                                                        <td className="p-2 border border-slate-300 text-right pr-3 font-mono font-black text-emerald-800">
+                                                            Rs. {Number(cat.total_valuation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="p-2 border border-slate-300 text-right pr-2 font-mono font-bold text-slate-600">
+                                                            {Number(cat.contribution_pct || 0).toFixed(1)}%
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                    <tfoot>
+                                        {!isPrinting && pageSize !== 'all' && (
+                                            <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
+                                                <td colSpan={4} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
+                                                <td className="p-2 border border-slate-300 text-center">{paginatedCategorySummaryRows.reduce((s, r) => s + (r.products_count || 0), 0)}</td>
+                                                <td className="p-2 border border-slate-300 text-right font-black text-primary">{paginatedCategorySummaryRows.reduce((s, r) => s + (r.total_units || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-emerald-800 font-black">
+                                                    Rs. {paginatedCategorySummaryRows.reduce((s, r) => s + (r.total_valuation || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="p-2 border border-slate-300 text-right pr-2 font-black">
+                                                    {paginatedCategorySummaryRows.reduce((s, r) => s + (r.contribution_pct || 0), 0).toFixed(1)}%
+                                                </td>
+                                            </tr>
+                                        )}
+                                        <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
+                                            <td colSpan={4} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">
+                                                Grand Total Summary ({categorySummaryRows.length} Categories • {reportRows.length} Products):
+                                            </td>
+                                            <td className="p-2 border border-slate-300 text-center font-black text-slate-800">{reportRows.length}</td>
+                                            <td className="p-2 border border-slate-300 text-right font-black text-primary">{categorySummaryRows.reduce((s, r) => s + (r.total_units || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300 text-right pr-3 text-emerald-800 underline decoration-double font-black text-sm">
+                                                Rs. {categorySummaryRows.reduce((s, r) => s + (r.total_valuation || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-2 border border-slate-300 text-right pr-2 font-black">100.0%</td>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot>
-                                {!isPrinting && pageSize !== 'all' && (
-                                    <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
-                                        <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
-                                        <td className="p-2 border border-slate-300 text-center text-primary font-black text-sm">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                        <td className="p-2 border border-slate-300"></td>
-                                        <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm bg-success/10">
-                                            Rs. {paginatedRows.reduce((sum, r) => {
-                                                const q = Number(r.computed_true_stock || 0);
-                                                const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
-                                                return sum + (q * sp);
-                                            }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </td>
-                                        <td className="p-2 border border-slate-300"></td>
-                                    </tr>
-                                )}
-                                <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
-                                    <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Location Summary (All {reportRows.length} Records):</td>
-                                    <td className="p-2 border border-slate-300 text-center text-primary font-black text-sm">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
-                                    <td className="p-2 border border-slate-300"></td>
-                                    <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm bg-success/10">
-                                        Rs. {reportRows.reduce((sum, r) => {
-                                            const q = Number(r.computed_true_stock || 0);
-                                            const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
-                                            return sum + (q * sp);
-                                        }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="p-2 border border-slate-300"></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    )}
+                                    </tfoot>
+                                </table>
+                            )}
+
+                            {/* --- 📊 RENDER CHANNEL 6: LOCATION WAREHOUSE STOCK AUDIT STATEMENT (TAB 8) --- */}
+                            {activeTab === 8 && (
+                                <table className="w-full table-auto border border-collapse border-slate-300 text-[11px] font-sans text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-300 font-black uppercase text-black font-mono text-[10px]">
+                                        <tr>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">Index</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Warehouse Location</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300">Product Stock Asset Name</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-16">Group (UOM)</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-20">Brand</th>
+                                            <th colSpan={3} className="p-1.5 border border-slate-300 text-center bg-slate-100 font-extrabold tracking-wider">Category Classification</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-24">Available Stock</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right w-28">Unit Sale Rate</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-right w-36 pr-3 text-success">Location Asset Valuation</th>
+                                            <th rowSpan={2} className="p-2 border border-slate-300 text-center w-24">Stock Availability</th>
+                                        </tr>
+                                        <tr>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Parent</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Sub</th>
+                                            <th className="p-1 border border-slate-300 text-center font-bold bg-slate-50 text-[9px]">Leaf</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedRows.map((row, idx) => {
+                                            const qty = Number(row.computed_true_stock || 0);
+                                            const sPrice = Number(row.sale_price ?? row.retail_price ?? row.price ?? row.unit_price ?? row.mrp ?? row.rp ?? 0);
+                                            const netValue = qty * sPrice;
+                                            const locName = formatLocation(row.warehouse_location || row.location);
+
+                                            let statusBadge = (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-100 text-green-800 border border-green-300">
+                                                    In Stock
+                                                </span>
+                                            );
+                                            if (qty <= 0) {
+                                                statusBadge = (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-300">
+                                                        Out of Stock
+                                                    </span>
+                                                );
+                                            } else if (qty <= 10) {
+                                                statusBadge = (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-yellow-100 text-yellow-800 border border-yellow-300">
+                                                        Low Stock
+                                                    </span>
+                                                );
+                                            }
+
+                                            return (
+                                                <tr key={row.id || idx} className="border-b border-slate-300 hover:bg-gray-50 font-semibold font-mono text-xs">
+                                                    <td className="p-2 border border-slate-300 text-center text-gray-400">{startIndex + idx + 1}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans font-bold text-purple-800 uppercase bg-purple-50/40">{locName}</td>
+                                                    <td className="p-2 border border-slate-300 font-bold text-black font-sans uppercase">{row.product_name}</td>
+                                                    <td className="p-2 border border-slate-300 uppercase text-center">{row.uom || 'PC'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-purple-700 font-bold text-center">{row.bin || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-800">{row.sub_sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-700">{row.sub_category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 font-sans text-slate-600">{row.category || '-'}</td>
+                                                    <td className="p-2 border border-slate-300 text-center text-primary font-black text-sm">{qty.toLocaleString()}</td>
+                                                    <td className="p-2 border border-slate-300 text-right text-gray-600">Rs. {sPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                    <td className="p-2 border border-slate-300 text-right text-success font-black pr-3 bg-success/5">Rs. {netValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                    <td className="p-2 border border-slate-300 text-center">{statusBadge}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        {!isPrinting && pageSize !== 'all' && (
+                                            <tr className="bg-amber-50/80 border-t border-amber-200 font-bold font-mono text-xs text-amber-950">
+                                                <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider">Page Subtotal (This Page):</td>
+                                                <td className="p-2 border border-slate-300 text-center text-primary font-black text-sm">{paginatedRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                                <td className="p-2 border border-slate-300"></td>
+                                                <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm bg-success/10">
+                                                    Rs. {paginatedRows.reduce((sum, r) => {
+                                                        const q = Number(r.computed_true_stock || 0);
+                                                        const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
+                                                        return sum + (q * sp);
+                                                    }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="p-2 border border-slate-300"></td>
+                                            </tr>
+                                        )}
+                                        <tr className="bg-slate-100 border-t-2 border-slate-400 font-black font-mono text-xs">
+                                            <td colSpan={8} className="p-2 border border-slate-300 text-right uppercase tracking-wider text-gray-800">Grand Total Location Summary (All {reportRows.length} Records):</td>
+                                            <td className="p-2 border border-slate-300 text-center text-primary font-black text-sm">{reportRows.reduce((s, r) => s + (r.computed_true_stock || 0), 0).toLocaleString()}</td>
+                                            <td className="p-2 border border-slate-300"></td>
+                                            <td className="p-2 border border-slate-300 text-right pr-3 text-success font-black text-sm bg-success/10">
+                                                Rs. {reportRows.reduce((sum, r) => {
+                                                    const q = Number(r.computed_true_stock || 0);
+                                                    const sp = Number(r.sale_price ?? r.retail_price ?? r.price ?? r.unit_price ?? r.mrp ?? r.rp ?? 0);
+                                                    return sum + (q * sp);
+                                                }, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="p-2 border border-slate-300"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            )}
                         </>
                     )}
 
@@ -1780,7 +1786,7 @@ const StockReportPrint = () => {
                 {/* 🏢 Software & Corporate Provider Footer */}
                 <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
                     <div className="flex items-center gap-2 font-bold">
-                        <span className="text-black font-black uppercase">AL MUHAMMADI</span>
+                        <span className="text-black font-black uppercase">Zoaib Ali & Company</span>
                     </div>
                     <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
                         Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>
