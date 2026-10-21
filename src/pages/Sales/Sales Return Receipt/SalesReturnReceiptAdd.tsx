@@ -282,13 +282,13 @@ const SalesReturnReceiptAdd: React.FC = () => {
       sortedCustReturns.forEach(r => {
         const key = r.return_no || r.invoice_no || `SRTN-${r.id}`;
         const gross = Number(r.total_amount || r.total_net_amount) || 0;
-        const upfront = Number(r.payout_amount_paid || r.amount_paid) || 0;
+        const upfront = Number(r.payout_amount_paid || (Number(r.cash_amount_paid || 0) + Number(r.bank_amount || 0)) || r.amount_paid) || 0;
         const returnNetAfterUpfront = Math.max(0, gross - upfront);
 
         const isCreditReturn = r.settlement_mode === 'On Credit' || 
                                r.payment_term === 'On Credit' || 
                                r.metadata?.settlementMode === 'On Credit' ||
-                               !r.payout_amount_paid;
+                               (!r.payout_amount_paid && !r.cash_amount_paid && !r.bank_amount);
 
         let creditAdjusted = 0;
         if (isCreditReturn) {
@@ -697,7 +697,7 @@ const SalesReturnReceiptAdd: React.FC = () => {
 
               const totalReceiptsSum = (allReceiptsForReturn || []).reduce((acc: number, r: any) => acc + (Number(r.amount_paid) || 0), 0);
               const targetReturn = returnOptions.find(r => r.id === targetReturnId);
-              const upfrontPaid = Number(targetReturn?.payout_amount_paid || targetReturn?.amount_paid || 0);
+              const upfrontPaid = Number(targetReturn?.payout_amount_paid || (Number(targetReturn?.cash_amount_paid || 0) + Number(targetReturn?.bank_amount || 0)) || targetReturn?.amount_paid || 0);
               const newTotalPaid = upfrontPaid + totalReceiptsSum;
               const returnGross = Number(targetReturn?.total_amount || targetReturn?.total_net_amount || 0);
 
@@ -973,7 +973,7 @@ const SalesReturnReceiptAdd: React.FC = () => {
                           const key = rtn.return_no || rtn.invoice_no || `SRTN-${rtn.id}`;
                           const alloc = returnAllocationsMap[key];
                           const bill = alloc ? alloc.gross : (Number(rtn.total_amount || rtn.total_net_amount) || 0);
-                          const due = alloc ? alloc.due : Math.max(0, bill - (Number(rtn.payout_amount_paid || rtn.amount_paid) || 0));
+                          const due = alloc ? alloc.due : Math.max(0, bill - (Number(rtn.payout_amount_paid || (Number(rtn.cash_amount_paid || 0) + Number(rtn.bank_amount || 0)) || rtn.amount_paid) || 0));
 
                           return (
                             <div

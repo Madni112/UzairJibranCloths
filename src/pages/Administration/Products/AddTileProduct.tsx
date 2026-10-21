@@ -510,7 +510,7 @@ const AddTileProduct: React.FC = () => {
                   setCategory('');
                 }}
                 options={(() => {
-                  const parent = categories.find(c => c.name === subSubCategory && c.parent_id === null);
+                  const parent = categories.find(c => c.parent_id === null && c.name?.trim().toLowerCase() === String(subSubCategory || '').trim().toLowerCase());
                   if (!parent) return [];
                   return categories.filter(c => c.parent_id === parent.id).map(c => c.name);
                 })()}
@@ -529,9 +529,9 @@ const AddTileProduct: React.FC = () => {
                 value={category}
                 onChange={val => setCategory(val)}
                 options={(() => {
-                  const parent = categories.find(c => c.name === subSubCategory && c.parent_id === null);
+                  const parent = categories.find(c => c.parent_id === null && c.name?.trim().toLowerCase() === String(subSubCategory || '').trim().toLowerCase());
                   if (!parent) return [];
-                  const sub = categories.find(c => c.name === subCategory && c.parent_id === parent.id);
+                  const sub = categories.find(c => c.parent_id === parent.id && c.name?.trim().toLowerCase() === String(subCategory || '').trim().toLowerCase());
                   if (!sub) return [];
                   return categories.filter(c => c.parent_id === sub.id).map(c => c.name);
                 })()}

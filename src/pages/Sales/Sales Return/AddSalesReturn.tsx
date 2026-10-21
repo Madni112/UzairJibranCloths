@@ -462,11 +462,21 @@ const AddSalesReturn = () => {
             invoiceNo: editData.original_invoice_no || editData.invoice_no || editData.metadata?.linkedInvoiceNo || '',
             gatePassNo: editData.gate_pass_no || '',
             returnDate: editData.return_date || (editData.created_at ? editData.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
-            paymentTerm: editData.settlement_mode || editData.payment_term || (editData.metadata?.cashPayoutPaid && editData.metadata?.bankPayoutPaid ? 'Split' : (Number(editData.payout_amount_paid || editData.amount_paid || 0) > 0 ? 'By Cash' : 'On Credit')),
+            paymentTerm: (() => {
+              if (editData.settlement_mode === 'Exchange & Cash Refund' || editData.payment_term === 'Exchange & Cash Refund') return 'Exchange & Cash Refund';
+              if (editData.settlement_mode === 'Exchange On Invoice' || editData.payment_term === 'Exchange On Invoice') return 'Exchange On Invoice';
+              const isEx = String(editData.remarks || '').toLowerCase().includes('exchange');
+              const cashPaid = Number(editData.payout_amount_paid || editData.cash_amount_paid || 0);
+              if (isEx && cashPaid > 0) return 'Exchange & Cash Refund';
+              if (isEx) return 'Exchange On Invoice';
+              if (editData.metadata?.cashPayoutPaid && editData.metadata?.bankPayoutPaid) return 'Split';
+              if (cashPaid > 0) return 'By Cash';
+              return editData.settlement_mode || editData.payment_term || 'On Credit';
+            })(),
             selectedBankId: editData.metadata?.selectedBankId || editData.bank_name || '',
-            amountPaid: editData.payout_amount_paid || editData.amount_paid || 0,
-            cashAmountPaid: editData.metadata?.cashPayoutPaid || '',
-            bankAmountPaid: editData.metadata?.bankPayoutPaid || '',
+            amountPaid: editData.payout_amount_paid || editData.cash_amount_paid || editData.amount_paid || 0,
+            cashAmountPaid: editData.cash_amount_paid || editData.metadata?.cashPayoutPaid || (Number(editData.payout_amount_paid) > 0 ? editData.payout_amount_paid : ''),
+            bankAmountPaid: editData.bank_amount || editData.metadata?.bankPayoutPaid || '',
             remarks: editData.remarks || editData.notes || '',
             items: ((Array.isArray(editData.items) ? editData.items : (typeof editData.items === 'string' ? JSON.parse(editData.items) : []))).length > 0 ? (Array.isArray(editData.items) ? editData.items : JSON.parse(editData.items)).map((i: any) => ({
               skuCode: i.sku || i.skuCode || '',
@@ -555,6 +565,14 @@ const AddSalesReturn = () => {
             if (values.paymentTerm === 'By Cash') {
               cashRefund = Number(values.amountPaid) || 0;
               totalRefundDisbursed = cashRefund;
+            } else if (values.paymentTerm === 'Exchange & Cash Refund') {
+              cashRefund = Number(values.cashAmountPaid || values.amountPaid || editData?.cash_amount_paid || 0);
+              bankRefund = Number(values.bankAmountPaid || editData?.bank_amount || 0);
+              totalRefundDisbursed = cashRefund + bankRefund;
+            } else if (values.paymentTerm === 'Exchange On Invoice' || values.paymentTerm === 'On Credit') {
+              cashRefund = 0;
+              bankRefund = 0;
+              totalRefundDisbursed = 0;
             } else if (values.paymentTerm === 'By Bank') {
               bankRefund = Number(values.amountPaid) || 0;
               totalRefundDisbursed = bankRefund;
@@ -659,13 +677,14 @@ const AddSalesReturn = () => {
                 warehouse_name: values.sourceWarehouse,
                 source_warehouse: values.sourceWarehouse,
                 invoice_no: explicitLinkedInv,
-                original_invoice_no: explicitLinkedInv,
-                settlement_mode: values.paymentTerm === 'By Cash' ? 'Cash' : (values.paymentTerm === 'By Bank' ? 'Bank' : (values.paymentTerm === 'Split' ? 'Split' : 'On Credit')),
+                settlement_mode: values.paymentTerm === 'By Cash' ? 'Cash' : (values.paymentTerm === 'By Bank' ? 'Bank' : (values.paymentTerm === 'Split' ? 'Split' : (values.paymentTerm === 'Exchange & Cash Refund' ? 'Exchange & Cash Refund' : (values.paymentTerm === 'Exchange On Invoice' ? 'Exchange On Invoice' : 'On Credit')))),
                 payment_term: values.paymentTerm,
                 bank_name: values.selectedBankId || null,
                 total_amount: grossReturnSum,
                 payout_amount_paid: totalRefundDisbursed,
-                status: totalRefundDisbursed >= grossReturnSum - 1 ? 'Refunded' : (values.paymentTerm === 'On Credit' ? 'Credit Applied' : 'Partial Refund'),
+                cash_amount_paid: cashRefund > 0 ? cashRefund : null,
+                bank_amount: bankRefund > 0 ? String(bankRefund) : null,
+                status: totalRefundDisbursed >= grossReturnSum - 1 ? 'Refunded' : (values.paymentTerm === 'Exchange & Cash Refund' ? 'Refunded' : (values.paymentTerm === 'On Credit' ? 'Credit Applied' : 'Partial Refund')),
                 remarks: values.remarks || null,
                 items: values.items.map((i: any) => ({
                   sku: i.skuCode,
@@ -740,6 +759,16 @@ const AddSalesReturn = () => {
               }
             });
             const netReturnTotal = Math.max(0, calculatedGrossTotal - totalDiscountDeducted);
+
+            const isExchangeReturn = Boolean(
+              selectedInvObj && (
+                String(values.remarks || editData?.remarks || '').toLowerCase().includes('exchange') ||
+                String(values.paymentTerm || editData?.settlement_mode || '').toLowerCase().includes('exchange') ||
+                editData?.metadata?.isExchangeReturn
+              )
+            );
+            const exchangeInvoiceTotal = Number(selectedInvObj?.total_amount) || 0;
+            const netCashRefundDisbursed = Math.max(0, calculatedGrossTotal - exchangeInvoiceTotal);
 
             return (
               <Form className="space-y-6">
@@ -1107,6 +1136,90 @@ const AddSalesReturn = () => {
                         })}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── EXCHANGED ITEMS GIVEN ON INVOICE (SHOWN FOR EXCHANGE RETURNS) ── */}
+                {isExchangeReturn && selectedInvObj && (
+                  <div className="rounded-2xl border border-teal-200 dark:border-teal-800/80 bg-gradient-to-br from-teal-50/80 via-emerald-50/40 to-slate-50/50 dark:from-teal-950/40 dark:via-emerald-950/20 dark:to-slate-900/40 p-4.5 shadow-xs space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-200/70 dark:border-teal-800/60 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🔄</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-teal-900 dark:text-teal-200">
+                              Exchanged Items Taken on Invoice #{selectedInvNo || selectedInvObj.invoice_no}
+                            </h4>
+                            <span className="bg-teal-500/20 text-teal-800 dark:text-teal-300 border border-teal-400/40 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              New Items Taken in Exchange
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Customer received these new goods in exchange against the returned goods below
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Invoice Item Value</span>
+                        <span className="font-mono font-black text-sm text-teal-700 dark:text-teal-300">
+                          Rs. {formatMoney(exchangeInvoiceTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Exchanged items table */}
+                    <div className="overflow-x-auto rounded-xl border border-teal-200/60 dark:border-teal-800/60 bg-white dark:bg-slate-900 shadow-xs">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-teal-50/60 dark:bg-teal-950/60 text-[10px] font-black uppercase tracking-wider text-teal-900 dark:text-teal-300 border-b border-teal-100 dark:border-teal-800">
+                            <th className="p-2.5 w-10 text-center">S#</th>
+                            <th className="p-2.5 w-32">SKU Code</th>
+                            <th className="p-2.5">Item Description</th>
+                            <th className="p-2.5 w-32 text-center">Qty Exchanged</th>
+                            <th className="p-2.5 w-28 text-right">Sale Price (PKR)</th>
+                            <th className="p-2.5 w-32 text-right">Amount (PKR)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-teal-100/70 dark:divide-teal-800/50 font-mono text-[11px]">
+                          {(Array.isArray(selectedInvObj.items) ? selectedInvObj.items : []).map((it: any, iIdx: number) => {
+                            const rowAmt = Number(it.netTotal || it.amount || it.totalAmount || 0);
+                            const rowRate = Number(it.rp || it.rate || it.pricePerBox || (it.qty ? rowAmt / it.qty : 0));
+                            return (
+                              <tr key={iIdx} className="hover:bg-teal-50/30 dark:hover:bg-teal-950/20">
+                                <td className="p-2.5 text-center text-slate-400">{iIdx + 1}</td>
+                                <td className="p-2.5 font-bold text-slate-800 dark:text-slate-200">{it.skuCode || it.sku || '-'}</td>
+                                <td className="p-2.5 font-sans font-bold text-slate-900 dark:text-white">{it.itemName || it.product_name}</td>
+                                <td className="p-2.5 text-center font-bold text-teal-700 dark:text-teal-400">
+                                  {it.boxQty !== undefined ? `${it.boxQty} Box` : it.qty} {it.loosePcs ? `+ ${it.loosePcs} Pcs` : ''} {it.uom ? `(${it.uom})` : ''}
+                                </td>
+                                <td className="p-2.5 text-right text-slate-600 dark:text-slate-400">Rs. {formatMoney(rowRate)}</td>
+                                <td className="p-2.5 text-right font-black text-slate-900 dark:text-white">Rs. {formatMoney(rowAmt)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Interactive Exchange Math Summary */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-teal-200/80 dark:border-teal-800/80 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold">1. Returned Items:</span>
+                        <strong className="font-mono font-bold text-slate-900 dark:text-white">Rs. {formatMoney(calculatedGrossTotal)}</strong>
+                      </div>
+                      <span className="text-slate-400 font-bold">−</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold">2. Exchange Taken:</span>
+                        <strong className="font-mono font-bold text-purple-700 dark:text-purple-400">Rs. {formatMoney(exchangeInvoiceTotal)}</strong>
+                      </div>
+                      <span className="text-slate-400 font-bold">=</span>
+                      <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <span className="text-emerald-800 dark:text-emerald-300 font-bold">Net Cash Refund to Customer:</span>
+                        <strong className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+                          Rs. {formatMoney(netCashRefundDisbursed)} (Cash Paid)
+                        </strong>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1680,15 +1793,21 @@ const AddSalesReturn = () => {
                           onChange={(e) => {
                             const val = e.target.value;
                             setFieldValue('paymentTerm', val);
-                            if (val === 'On Credit') {
+                            if (val === 'On Credit' || val === 'Exchange On Invoice') {
                               setFieldValue('amountPaid', 0);
                               setFieldValue('cashAmountPaid', '');
+                              setFieldValue('bankAmountPaid', '');
+                            } else if (val === 'Exchange & Cash Refund') {
+                              setFieldValue('amountPaid', netCashRefundDisbursed);
+                              setFieldValue('cashAmountPaid', String(netCashRefundDisbursed));
                               setFieldValue('bankAmountPaid', '');
                             }
                           }}
                           value={values.paymentTerm}
                           className="w-full border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold outline-none text-xs focus:border-emerald-600 cursor-pointer"
                         >
+                          <option value="Exchange & Cash Refund">🔄 Exchange with Cash Refund (Exchange Items + Cash Paid)</option>
+                          <option value="Exchange On Invoice">🔄 Exchange on Invoice (Full Amount Adjusted on Invoice Items)</option>
                           <option value="On Credit">📄 On Credit (Adjusted Against Invoices / Customer Balance)</option>
                           <option value="By Cash">💵 By Cash (Immediate Cash Drawer Payout)</option>
                           <option value="By Bank">🏦 By Bank (Immediate Bank Wire Transfer)</option>
@@ -1719,7 +1838,21 @@ const AddSalesReturn = () => {
                     </div>
 
                     {/* Immediate Refund Payout Input */}
-                    {values.paymentTerm !== 'On Credit' && (
+                    {values.paymentTerm === 'Exchange & Cash Refund' ? (
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/50 dark:to-emerald-950/40 border border-teal-200 dark:border-teal-800 space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-teal-800 dark:text-teal-300">
+                            💵 Cash Refund Disbursed to Customer:
+                          </span>
+                          <strong className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+                            Rs. {formatMoney(Number(values.cashAmountPaid || values.amountPaid || netCashRefundDisbursed))} (Cash Drawer)
+                          </strong>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Rs. {formatMoney(exchangeInvoiceTotal)} was adjusted against Invoice #{selectedInvNo || selectedInvObj?.invoice_no}, and Rs. {formatMoney(Number(values.cashAmountPaid || values.amountPaid || netCashRefundDisbursed))} was refunded in cash at the counter.
+                        </p>
+                      </div>
+                    ) : (values.paymentTerm !== 'On Credit' && values.paymentTerm !== 'Exchange On Invoice') && (
                       <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2">
                         {values.paymentTerm === 'Split' ? (
                           <div className="grid grid-cols-2 gap-4">
@@ -1852,21 +1985,40 @@ const AddSalesReturn = () => {
                         </strong>
                       </div>
 
-                      {values.paymentTerm !== 'On Credit' && (
-                        <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-400">
-                          <span className="font-sans">Upfront Refund Disbursed:</span>
-                          <span>- Rs. {formatMoney(values.paymentTerm === 'Split' ? (Number(values.cashAmountPaid || 0) + Number(values.bankAmountPaid || 0)) : (Number(values.amountPaid) || 0))}</span>
-                        </div>
-                      )}
+                      {isExchangeReturn && selectedInvObj ? (
+                        <>
+                          <div className="flex justify-between items-center text-purple-700 dark:text-purple-400 font-semibold">
+                            <span className="font-sans">Exchanged Items on Invoice:</span>
+                            <span>- Rs. {formatMoney(exchangeInvoiceTotal)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-400 font-bold">
+                            <span className="font-sans">Cash Refund Paid to Customer:</span>
+                            <span>- Rs. {formatMoney(Number(values.cashAmountPaid || values.amountPaid || netCashRefundDisbursed))}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-700 text-emerald-800 dark:text-emerald-300 font-black">
+                            <span className="font-sans">Remaining Customer Balance:</span>
+                            <strong className="text-base">Rs. 0.00</strong>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {values.paymentTerm !== 'On Credit' && (
+                            <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-400">
+                              <span className="font-sans">Upfront Refund Disbursed:</span>
+                              <span>- Rs. {formatMoney(values.paymentTerm === 'Split' ? (Number(values.cashAmountPaid || 0) + Number(values.bankAmountPaid || 0)) : (Number(values.amountPaid) || 0))}</span>
+                            </div>
+                          )}
 
-                      <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-700 text-emerald-800 dark:text-emerald-300 font-black">
-                        <span className="font-sans">
-                          {values.paymentTerm === 'On Credit' ? 'Credit Balance to Invoices:' : 'Remaining Customer Balance:'}
-                        </span>
-                        <strong className="text-base">
-                          Rs. {formatMoney(values.paymentTerm === 'On Credit' ? netReturnTotal : Math.max(0, netReturnTotal - (values.paymentTerm === 'Split' ? (Number(values.cashAmountPaid || 0) + Number(values.bankAmountPaid || 0)) : (Number(values.amountPaid) || 0))))}
-                        </strong>
-                      </div>
+                          <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-700 text-emerald-800 dark:text-emerald-300 font-black">
+                            <span className="font-sans">
+                              {values.paymentTerm === 'On Credit' ? 'Credit Balance to Invoices:' : 'Remaining Customer Balance:'}
+                            </span>
+                            <strong className="text-base">
+                              Rs. {formatMoney(values.paymentTerm === 'On Credit' ? netReturnTotal : Math.max(0, netReturnTotal - (values.paymentTerm === 'Split' ? (Number(values.cashAmountPaid || 0) + Number(values.bankAmountPaid || 0)) : (Number(values.amountPaid) || 0))))}
+                            </strong>
+                          </div>
+                        </>
+                      )}
 
                       <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] font-sans text-emerald-900 dark:text-emerald-300">
                         <strong>FIFO Auto-Deduction Active:</strong> Returned quantities will deduct chronologically starting from the oldest invoice issued to <strong>{values.customerName || 'the customer'}</strong>.

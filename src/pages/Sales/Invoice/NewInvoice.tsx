@@ -1787,6 +1787,10 @@ const NewInvoice = () => {
           const excessRefundVal = isExcessRefund ? Number(values.excessRefundAmount || 0) : 0;
           const refundMethod = values.excessRefundMethod || 'Cash';
 
+          const settlementTerm = isExcessRefund 
+            ? (totalAllReturnsCredit > excessRefundVal ? 'Exchange & Cash Refund' : (refundMethod === 'Bank' ? 'By Bank' : 'By Cash'))
+            : 'Exchange On Invoice';
+
           const returnPayload: any = {
             return_no: values.invoiceNo,
             customer_name: customerFinalName,
@@ -1795,14 +1799,14 @@ const NewInvoice = () => {
             source_warehouse: returnWh,
             invoice_no: values.invoiceNo,
             original_invoice_no: values.invoiceNo,
-            settlement_mode: isExcessRefund ? refundMethod : 'On Credit',
-            payment_term: isExcessRefund ? refundMethod : 'On Credit',
+            settlement_mode: settlementTerm,
+            payment_term: settlementTerm,
             total_amount: totalAllReturnsCredit,
             payout_amount_paid: excessRefundVal,
             cash_amount_paid: isExcessRefund && refundMethod === 'Cash' ? excessRefundVal : null,
             bank_amount: isExcessRefund && refundMethod === 'Bank' ? String(excessRefundVal) : null,
             selected_bank: isExcessRefund && refundMethod === 'Bank' ? values.excessRefundBank : null,
-            status: isExcessRefund ? 'Refund Disbursed' : 'Credit Applied',
+            status: isExcessRefund ? 'Refunded' : 'Credit Applied',
             inward_status: 'Pending Inward',
             remarks: `In-invoice return/exchange against Invoice #${values.invoiceNo}${isExcessRefund ? ` (Refund Paid: Rs. ${excessRefundVal} via ${refundMethod})` : ''}`,
             items: allCombinedReturnItems

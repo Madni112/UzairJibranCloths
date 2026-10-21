@@ -72,7 +72,7 @@ const AddProduct = () => {
 
   const fetchTilePrintsFromDb = async (parentCatName?: string) => {
     try {
-      const parent = categories.find((c: any) => c.name === parentCatName && c.parent_id === null);
+      const parent = categories.find((c: any) => c.parent_id === null && c.name?.trim().toLowerCase() === String(parentCatName || '').trim().toLowerCase());
       let query = supabase.from('inventory_prints').select('*').order('name', { ascending: true });
       if (parent?.id) {
         query = query.or(`category_id.eq.${parent.id},category_id.is.null`);
@@ -109,7 +109,7 @@ const AddProduct = () => {
       return;
     }
 
-    const parent = categories.find((c: any) => c.name === parentCatName && c.parent_id === null);
+    const parent = categories.find((c: any) => c.parent_id === null && c.name?.trim().toLowerCase() === String(parentCatName || '').trim().toLowerCase());
     let insertedItem: { id?: number | string; name: string; category_id?: number | null } = { name: clean };
 
     try {
@@ -647,7 +647,7 @@ const AddProduct = () => {
                           setFieldValue('category', '');
                         }}
                         options={(() => {
-                          const parent = categories.find(c => c.name === values.subSubCategory && c.parent_id === null);
+                          const parent = categories.find(c => c.parent_id === null && c.name?.trim().toLowerCase() === String(values.subSubCategory || '').trim().toLowerCase());
                           if (!parent) return [];
                           return categories.filter(c => c.parent_id === parent.id).map(cat => cat.name);
                         })()}
@@ -666,9 +666,9 @@ const AddProduct = () => {
                         value={values.category}
                         onChange={(val) => setFieldValue('category', val)}
                         options={(() => {
-                          const parent = categories.find(c => c.name === values.subSubCategory && c.parent_id === null);
+                          const parent = categories.find(c => c.parent_id === null && c.name?.trim().toLowerCase() === String(values.subSubCategory || '').trim().toLowerCase());
                           if (!parent) return [];
-                          const sub = categories.find(c => c.name === values.subCategory && c.parent_id === parent.id);
+                          const sub = categories.find(c => c.parent_id === parent.id && c.name?.trim().toLowerCase() === String(values.subCategory || '').trim().toLowerCase());
                           if (!sub) return [];
                           return categories.filter(c => c.parent_id === sub.id).map(cat => cat.name);
                         })()}

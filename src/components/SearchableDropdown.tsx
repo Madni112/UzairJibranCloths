@@ -105,6 +105,11 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     }
   }, [highlightedIndex, isOpen]);
 
+  const canonicalSelected = useMemo(() => {
+    if (!value || value === 'All') return value;
+    return options.find(o => String(o || '').trim().toLowerCase() === String(value).trim().toLowerCase()) || value;
+  }, [value, options]);
+
   return (
     <div className={`relative ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} ref={containerRef} onKeyDown={handleKeyDown}>
       {label && <label className="block font-bold text-gray-500 dark:text-slate-400 text-[11px] mb-1">{label}</label>}
@@ -114,7 +119,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         className={`w-full rounded-lg border border-stroke dark:border-strokedark bg-transparent p-2 font-semibold text-xs text-black dark:text-white flex justify-between items-center transition select-none min-h-[34px] outline-none ${disabled ? 'bg-slate-50 dark:bg-slate-800' : 'cursor-pointer hover:border-primary focus:border-primary'}`}
       >
         <span className={`truncate flex-1 ${!value ? 'text-gray-400 font-normal' : ''}`}>
-          {value === 'All' && allowAll ? `${defaultAllText} (${options.length})` : value || `-- Select ${placeholder} --`}
+          {value === 'All' && allowAll ? `${defaultAllText} (${options.length})` : canonicalSelected || `-- Select ${placeholder} --`}
         </span>
         <div className="flex items-center gap-1 shrink-0 ml-1.5">
           {value && !disabled && allowClear && (
@@ -182,7 +187,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
               filtered.map((opt, idx) => {
                 const offset = extraTopItemsCount;
                 const isHighlighted = highlightedIndex === idx + offset;
-                const isSelected = value === opt;
+                const isSelected = String(value || '').trim().toLowerCase() === String(opt || '').trim().toLowerCase();
                 return (
                   <div
                     key={opt}
