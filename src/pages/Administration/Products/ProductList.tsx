@@ -489,7 +489,7 @@ const ProductList = () => {
     }
     setSelectedStockBreakdown({ ...product, _loading: true });
     try {
-      const detail = await getDetailedBreakdown(product.product_name);
+      const detail = await getDetailedBreakdown(product.product_name, product.item_sr_no);
       setSelectedStockBreakdown({
         ...product,
         breakdown: detail.breakdown,

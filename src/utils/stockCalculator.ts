@@ -94,7 +94,7 @@ async function fetchAllStockData() {
     { data: stockTransfers },
     { data: deliveryChallans },
   ] = await Promise.all([
-    supabase.from('opening_stocks').select('product_name, itemname, quantity, qty, location, item_code, skucode'),
+    supabase.from('opening_stocks').select('product_name, "itemName", quantity, qty, location, item_code, "skuCode"'),
     supabase.from('supplier_purchases').select('id, purchase_no, items, payment_term, metadata, target_warehouse'),
     supabase.from('grn_receipts').select('*'),
     supabase.from('grn_items').select('*'),
