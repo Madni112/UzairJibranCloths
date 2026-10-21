@@ -166,12 +166,6 @@ export const adminRoutes = [
         component: <BulkProductUpload />,
       },
       {
-        path: '/Administration/Locations/List',
-        component: <LocationList />,
-        label: 'Locations',
-        icon: MdLocationOn
-      },
-      {
         path: '/Administration/Transportation/List',
         component: <TransportationList />,
         label: 'Transportation',
@@ -268,18 +262,6 @@ export const adminRoutes = [
         path: '/Sales/Salesman/List',
         component: <SalesmanHistory />,
         icon: MdPeople,
-      },
-      {
-        label: 'Delivery Challan',
-        path: '/Sales/Delivery-Challan/List',
-        component: <DeliveryChallanHistory />,
-        icon: MdEmojiTransportation,
-      },
-      {
-        label: 'Shop Dispatch Queue (SDQ)',
-        path: '/Sales/Shop-Dispatch/List',
-        component: <ShopDispatchQueue />,
-        icon: MdEmojiTransportation,
       }
     ],
   },
@@ -293,26 +275,12 @@ export const adminRoutes = [
         component: <PurchaseList />,
         icon: MdLaptopChromebook
       },
-        {
-          label: 'Goods Receipt (GRN)',
-          path: '/Purchase/GRN/List',
-          component: <GRNList />,
-          icon: MdInventory
-        },
-
       {
-        label: 'Inward Challan (Warehouse)',
-        path: '/Purchase/Inward-Challan/List',
-        component: <InwardChallanList locationFilter="WAREHOUSE" />,
-        icon: MdInbox
+        label: 'Goods Receipt (GRN)',
+        path: '/Purchase/GRN/List',
+        component: <GRNList />,
+        icon: MdInventory
       },
-      {
-        label: 'Shop Receiving Queue',
-        path: '/Purchase/Shop-Receiving',
-        component: <InwardChallanList locationFilter="SHOP" />,
-        icon: MdInbox
-      },
-
       {
         label: 'Purchase Receipt',
         path: '/Purchase/Purchase-Receipt/List',
@@ -337,7 +305,42 @@ export const adminRoutes = [
         component: <VendorList />,
         icon: MdPeople
       }
-
+    ]
+  },
+  {
+    label: 'Locations',
+    icon: MdLocationOn,
+    children: [
+      {
+        path: '/Administration/Locations/List',
+        component: <LocationList />,
+        label: 'Assigned Locations',
+        icon: MdLocationOn
+      },
+      {
+        label: 'Delivery Challan',
+        path: '/Sales/Delivery-Challan/List',
+        component: <DeliveryChallanHistory />,
+        icon: MdEmojiTransportation,
+      },
+      {
+        label: 'Shop Dispatch Queue (SDQ)',
+        path: '/Sales/Shop-Dispatch/List',
+        component: <ShopDispatchQueue />,
+        icon: MdEmojiTransportation,
+      },
+      {
+        label: 'Inward Challan',
+        path: '/Purchase/Inward-Challan/List',
+        component: <InwardChallanList locationFilter="WAREHOUSE" />,
+        icon: MdInbox
+      },
+      {
+        label: 'Shop Receiving Queue',
+        path: '/Purchase/Shop-Receiving',
+        component: <InwardChallanList locationFilter="SHOP" />,
+        icon: MdInbox
+      }
     ]
   },
   {
