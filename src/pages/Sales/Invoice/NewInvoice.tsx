@@ -1373,8 +1373,7 @@ const NewInvoice = () => {
         shipping_address: values.shippingAddress,
         gate_pass_no: Object.entries(values.gatePasses || {}).map(([k, v]) => `${k}: ${v}`).join(' | '),
         items: itemsToSave,
-        scenario_type: values.applyFbrTax ? values.taxScenario : 'Standard Retail Sale (No Tax)',
-        excess_credit_action: values.excessCreditAction || 'credit'
+        scenario_type: values.applyFbrTax ? values.taxScenario : 'Standard Retail Sale (No Tax)'
       };
 
       let finalInvoiceId = editData?.id;
