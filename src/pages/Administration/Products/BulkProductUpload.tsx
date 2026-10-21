@@ -185,19 +185,20 @@ const BulkProductUpload = () => {
     }
   };
 
-  // Filter batches for the currently active tab
+  // Filter batches: 'ALL' | 'OTHER' | 'TILES'
+  const [historyTab, setHistoryTab] = useState<'ALL' | 'OTHER' | 'TILES'>('ALL');
+
   const currentTabBatches = useMemo(() => {
     return uploadBatches.filter((b: any) => {
       const bType = String(b.details?.batch_type || 'OTHER').toUpperCase();
-      const matchesTab = bType === activeTab;
-      if (!matchesTab) return false;
+      if (historyTab !== 'ALL' && bType !== historyTab) return false;
       if (!batchSearchTerm) return true;
       const s = batchSearchTerm.toLowerCase();
       const fName = String(b.details?.file_name || '').toLowerCase();
       const by = String(b.performed_by || '').toLowerCase();
       return fName.includes(s) || by.includes(s);
     });
-  }, [uploadBatches, activeTab, batchSearchTerm]);
+  }, [uploadBatches, historyTab, batchSearchTerm]);
 
   // Determine which dataset is currently active
   const processedRows = useMemo(() => {
@@ -2439,34 +2440,83 @@ const BulkProductUpload = () => {
       {/* SECTION: PREVIOUS UPLOAD BATCHES FOR THIS TAB              */}
       {/* ========================================================== */}
       <div className="bg-white dark:bg-boxdark rounded-3xl shadow-sm border border-slate-200 dark:border-strokedark p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stroke dark:border-strokedark">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-stroke dark:border-strokedark">
           <div>
             <h3 className="text-base font-black text-black dark:text-white flex items-center gap-2">
               <MdHistory className="text-emerald-600 text-xl" />
-              <span>Recent Upload History ({activeTab === 'TILES' ? 'Tile Products' : 'Other Products'})</span>
+              <span>Recent Upload History</span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              List of past uploads for this tab. Click any entry to view the exact items uploaded.
+              Click any upload batch to view the exact items and prices uploaded.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                type="text"
-                value={batchSearchTerm}
-                onChange={(e) => setBatchSearchTerm(e.target.value)}
-                placeholder="Search file or user..."
-                className="w-full sm:w-64 rounded-xl border border-stroke py-1.5 px-3 pl-8 bg-white dark:bg-boxdark text-xs font-semibold outline-none focus:border-emerald-500"
-              />
-              <MdSearch className="absolute left-2.5 top-2 text-slate-400 text-sm" />
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Catalog Filter Tabs */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-meta-4/60 rounded-xl border border-stroke dark:border-strokedark">
+              <button
+                type="button"
+                onClick={() => setHistoryTab('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  historyTab === 'ALL'
+                    ? 'bg-white dark:bg-boxdark text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                }`}
+              >
+                <span>All Uploads</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold">
+                  {uploadBatches.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryTab('OTHER')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  historyTab === 'OTHER'
+                    ? 'bg-white dark:bg-boxdark text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                }`}
+              >
+                <span>Other Products</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold">
+                  {uploadBatches.filter(b => (b.details?.batch_type || 'OTHER').toUpperCase() === 'OTHER').length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryTab('TILES')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  historyTab === 'TILES'
+                    ? 'bg-white dark:bg-boxdark text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                }`}
+              >
+                <span>Tile Products</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 font-bold">
+                  {uploadBatches.filter(b => (b.details?.batch_type || '').toUpperCase() === 'TILES').length}
+                </span>
+              </button>
             </div>
-            <button
-              onClick={fetchUploadBatches}
-              title="Refresh History"
-              className="p-1.5 rounded-xl border border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-meta-4 text-slate-600 dark:text-slate-300 cursor-pointer"
-            >
-              <MdRefresh size={16} />
-            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={batchSearchTerm}
+                  onChange={(e) => setBatchSearchTerm(e.target.value)}
+                  placeholder="Search file or user..."
+                  className="w-full sm:w-56 rounded-xl border border-stroke py-1.5 px-3 pl-8 bg-white dark:bg-boxdark text-xs font-semibold outline-none focus:border-emerald-500"
+                />
+                <MdSearch className="absolute left-2.5 top-2 text-slate-400 text-sm" />
+              </div>
+              <button
+                onClick={fetchUploadBatches}
+                title="Refresh History"
+                className="p-1.5 rounded-xl border border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-meta-4 text-slate-600 dark:text-slate-300 cursor-pointer"
+              >
+                <MdRefresh size={16} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2476,6 +2526,7 @@ const BulkProductUpload = () => {
             <thead>
               <tr className="bg-slate-100 dark:bg-meta-4 text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-white border-b border-stroke dark:border-strokedark">
                 <th className="py-3 px-4">Upload Date & Time</th>
+                <th className="py-3 px-4 text-center">Catalog</th>
                 <th className="py-3 px-4">File Name</th>
                 <th className="py-3 px-4">Uploaded By</th>
                 <th className="py-3 px-4 text-center">Items Count</th>
@@ -2487,13 +2538,12 @@ const BulkProductUpload = () => {
             <tbody>
               {batchesLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center"><Spinner /></td>
+                  <td colSpan={8} className="py-8 text-center"><Spinner /></td>
                 </tr>
               ) : currentTabBatches.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 italic font-semibold text-xs">
-                    No past uploads recorded for {activeTab === 'TILES' ? 'Tile Products' : 'Other Products'} yet.
-                    Upload a sheet above to see your session history here.
+                  <td colSpan={8} className="py-8 text-center text-slate-400 italic font-semibold text-xs">
+                    No upload batches recorded under {historyTab === 'ALL' ? 'any catalog' : historyTab === 'TILES' ? 'Tile Products' : 'Other Products'}.
                   </td>
                 </tr>
               ) : (
@@ -2503,6 +2553,7 @@ const BulkProductUpload = () => {
                   const total = details.total_rows || items.length || 0;
                   const newCount = details.inserted_count ?? 0;
                   const upCount = details.updated_count ?? 0;
+                  const isTile = String(details.batch_type || 'OTHER').toUpperCase() === 'TILES';
 
                   return (
                     <tr
@@ -2512,6 +2563,15 @@ const BulkProductUpload = () => {
                     >
                       <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300">
                         {formatUploadDate(batch.created_at || details.uploaded_at)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          isTile
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                            : 'bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+                        }`}>
+                          {isTile ? 'Tiles' : 'Other'}
+                        </span>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <MdFileDownload className="text-emerald-600 text-sm shrink-0" />
