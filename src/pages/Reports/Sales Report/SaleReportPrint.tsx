@@ -136,10 +136,11 @@ const SaleReportPrint = () => {
 
         // ── 📂 REPORT TYPE: CATEGORY-WISE SALES & VOLUME REPORT ──
         if (rType === 'category-sales') {
-          const [invRes, retRes, catRes] = await Promise.all([
+          const [invRes, retRes, catRes, locRes] = await Promise.all([
             supabase.from('sales_invoices').select('*').order('id', { ascending: true }),
             supabase.from('sales_returns').select('*').order('id', { ascending: true }),
-            supabase.from('inventory_categories').select('id, name, parent_id')
+            supabase.from('inventory_categories').select('id, name, parent_id'),
+            supabase.from('inventory_locations').select('id, name, location_type').order('id', { ascending: true })
           ]);
 
           if (invRes.error) throw invRes.error;
@@ -149,6 +150,24 @@ const SaleReportPrint = () => {
           const allReturns = retRes.data || [];
           const allProducts = prodData || [];
           const allCategories = catRes.data || [];
+          const registeredLocations = (locRes.data || []).map((l: any) => String(l.name || '').trim()).filter(Boolean);
+          const defaultLocName = registeredLocations.find(l => l.toUpperCase() === 'SHOP') || registeredLocations[0] || 'SHOP';
+
+          const normalizeWarehouse = (raw: string): string => {
+            if (!raw) return defaultLocName;
+            const clean = raw.replace(/[`'"]/g, '').trim();
+            const found = registeredLocations.find(l => l.toLowerCase() === clean.toLowerCase());
+            if (found) return found;
+            if (clean.toLowerCase().includes('main') || clean.toLowerCase().includes('39') || clean.toLowerCase().includes('storage')) {
+              const a39 = registeredLocations.find(l => l.toUpperCase().includes('A-39') || l.toLowerCase().includes('storage'));
+              if (a39) return a39;
+            }
+            if (clean.toLowerCase().includes('shop') || clean.toLowerCase().includes('sale')) {
+              const shop = registeredLocations.find(l => l.toUpperCase() === 'SHOP');
+              if (shop) return shop;
+            }
+            return clean;
+          };
 
           const catById = new Map<number, any>();
           const catByName = new Map<string, any>();
@@ -384,7 +403,8 @@ const SaleReportPrint = () => {
               const pName = (it.itemName || it.product_name || it.name || '').trim();
               if (!pName) return;
 
-              const itemWh = (it.warehouse || it.location || inv.dispatch_warehouse || inv.location || 'SHOP').trim();
+              const rawItemWh = (it.warehouse || it.location || inv.dispatch_warehouse || inv.location || 'SHOP').trim();
+              const itemWh = normalizeWarehouse(rawItemWh);
               if (itemWh) discoveredWhs.add(itemWh);
               if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
                 if (!filters.location.some((fl: string) => fl.toLowerCase() === itemWh.toLowerCase())) return;
@@ -508,7 +528,8 @@ const SaleReportPrint = () => {
               const pName = (it.itemName || it.product_name || it.name || '').trim();
               if (!pName) return;
 
-              const retWh = (it.warehouse || it.location || ret.warehouse_name || ret.dispatch_warehouse || ret.source_warehouse || ret.location || 'SHOP').trim();
+              const rawRetWh = (it.warehouse || it.location || ret.warehouse_name || ret.dispatch_warehouse || ret.source_warehouse || ret.location || 'SHOP').trim();
+              const retWh = normalizeWarehouse(rawRetWh);
               if (retWh) discoveredWhs.add(retWh);
               if (filters.location && filters.location.length > 0 && !filters.location.includes('All')) {
                 if (!filters.location.some((fl: string) => fl.toLowerCase() === retWh.toLowerCase())) return;
@@ -689,7 +710,8 @@ const SaleReportPrint = () => {
           }
 
           finalCategories.sort((a, b) => b.net_revenue - a.net_revenue);
-          setReportWarehouses(Array.from(discoveredWhs).filter(Boolean).sort());
+          const finalReportWhs = registeredLocations.length > 0 ? registeredLocations : Array.from(discoveredWhs).filter(Boolean).sort();
+          setReportWarehouses(finalReportWhs);
           setReportRows(finalCategories);
 
           // ── Compile Hierarchical Tree for Detailed View (Parent -> Sub -> Category -> Invoices) ──
@@ -2745,21 +2767,19 @@ const SaleReportPrint = () => {
 
     return (
       <div className="flex flex-col items-end gap-0.5 mt-1 pt-1 border-t border-dashed border-gray-300 print:mt-0.5 print:pt-0.5">
-        <div className="flex flex-wrap items-center justify-end gap-1">
-          {targetWarehouses.map((wh) => {
-            const qty = Number(whMap[wh] || 0);
-            return (
-              <span
-                key={wh}
-                className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8.5px] font-mono font-bold border ${colorStyles} leading-tight whitespace-nowrap`}
-                title={`${wh}: ${qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-              >
-                <span className="font-sans uppercase opacity-75 text-[8px]">{wh}:</span>
-                <span>{qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-              </span>
-            );
-          })}
-        </div>
+        {targetWarehouses.map((wh) => {
+          const qty = Number(whMap[wh] || 0);
+          return (
+            <span
+              key={wh}
+              className={`inline-flex items-center justify-end gap-1 px-1 py-0.2 rounded text-[8px] font-mono font-bold border ${colorStyles} leading-tight whitespace-nowrap`}
+              title={`${wh}: ${qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+            >
+              <span className="font-sans uppercase opacity-75 text-[7.5px]">{wh}:</span>
+              <span>{qty.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </span>
+          );
+        })}
       </div>
     );
   };
