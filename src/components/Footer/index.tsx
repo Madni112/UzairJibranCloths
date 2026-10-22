@@ -72,7 +72,7 @@ const Footer: React.FC = () => {
 
       {/* Bottom Sub-line */}
       <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
-        <span>© {currentYear} UZAIR JIBRAN CLOTH. All rights reserved.</span>
+        <span>© {currentYear} NHT ENTERPRISES by Abdul Sattar. All rights reserved.</span>
         <span className="font-mono">v1.3.8 • Secure Business Management Infrastructure</span>
       </div>
     </footer>
