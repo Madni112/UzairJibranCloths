@@ -895,6 +895,15 @@ UPDATE public.chart_of_accounts SET ac_code = account_code, ac_title = account_t
 ALTER TABLE public.delivery_challans ADD COLUMN IF NOT EXISTS freight_payment_status VARCHAR(64) DEFAULT 'Pending';
 ALTER TABLE public.delivery_challans ADD COLUMN IF NOT EXISTS freight_charges NUMERIC(15, 2) DEFAULT 0.00;
 
+-- Minimal Default Chart of Accounts for Cloth Retail & Wholesale Business
+INSERT INTO public.chart_of_accounts (account_code, ac_code, account_title, ac_title, category_code, sub_category_code, control_code, balance_nature, opening_balance, notes)
+VALUES
+  ('1010-001', '1010-001', 'Cash in Hand', 'Cash in Hand', '1. ASSETS', 'Current Assets', 'Cash', 'Debit', 0.00, 'Main shop counter cash drawer'),
+  ('3010-001', '3010-001', 'Owner Capital', 'Owner Capital', '3. EQUITY', 'Capital & Equity', 'Capital', 'Credit', 0.00, 'Initial capital & business investment by owner'),
+  ('3010-002', '3010-002', 'Owner Drawings', 'Owner Drawings', '3. EQUITY', 'Capital & Equity', 'Capital', 'Debit', 0.00, 'Personal cash withdrawals by owner'),
+  ('5020-001', '5020-001', 'Shop Expenses', 'Shop Expenses', '5. EXPENSES', 'Indirect Expenses', 'General Expenses', 'Debit', 0.00, 'Daily shop expenses (rent, electricity, tea, staff, cleaning)')
+ON CONFLICT (account_code) DO NOTHING;
+
 DELETE FROM public.inventory_categories WHERE name IN ('Wall Tiles', 'Floor Tiles', 'Porcelain Tiles', 'Sanitary Ware', 'Bath Fittings');
 DELETE FROM public.products WHERE category IN ('Wall Tiles', 'Floor Tiles', 'Porcelain Tiles', 'Sanitary Ware', 'Bath Fittings');
 NOTIFY pgrst, 'reload schema';
