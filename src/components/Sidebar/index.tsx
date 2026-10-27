@@ -461,39 +461,50 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       }`}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-slate-800/80 dark:border-slate-200/80 shrink-0">
-        <NavLink
-          to={cleanPrefix || '/'}
-          className={`flex items-center gap-3 transition-opacity duration-200 hover:opacity-90 ${
-            !sidebarOpen ? 'mx-auto' : ''
-          }`}
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 shrink-0 border border-primary/30 relative overflow-hidden select-none">
+      <div className={`flex items-center shrink-0 border-b border-slate-800/80 dark:border-slate-200/80 ${
+        sidebarOpen ? 'justify-between gap-2 px-5 py-4' : 'justify-center p-3'
+      }`}>
+        {sidebarOpen ? (
+          <>
+            <NavLink
+              to={cleanPrefix || '/'}
+              className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-90"
+            >
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 shrink-0 border border-primary/30 relative overflow-hidden select-none">
+                <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
+                <span className="relative z-10 font-cinzel font-black tracking-widest text-[13px] text-white leading-none pl-0.5">
+                  UJC
+                </span>
+              </div>
+
+              <div className="flex flex-col min-w-0">
+                <span className="font-cinzel font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate">
+                  {brand.fullName || 'UZAIR JIBRAN CLOTH'}
+                </span>
+                <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
+                  CLOTH ERP
+                </span>
+              </div>
+            </NavLink>
+
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 hover:bg-slate-800/80 dark:hover:bg-slate-100 rounded-lg text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black transition-colors"
+              title="Collapse Sidebar"
+            >
+              <AiOutlineArrowLeft size={16} />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-200 border border-primary/30 relative overflow-hidden select-none cursor-pointer group"
+            title="Click to Open / Expand Sidebar"
+          >
             <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-            <span className="relative z-10 font-cinzel font-black tracking-widest text-[13px] text-white leading-none pl-0.5">
+            <span className="relative z-10 font-cinzel font-black tracking-widest text-[13px] text-white leading-none pl-0.5 group-hover:scale-110 transition-transform">
               UJC
             </span>
-          </div>
-
-          {sidebarOpen && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-cinzel font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate">
-                {brand.fullName || 'UZAIR JIBRAN CLOTH'}
-              </span>
-              <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
-                CLOTH ERP
-              </span>
-            </div>
-          )}
-        </NavLink>
-
-        {sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1.5 hover:bg-slate-800/80 dark:hover:bg-slate-100 rounded-lg text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black transition-colors"
-            title="Collapse Sidebar"
-          >
-            <AiOutlineArrowLeft size={16} />
           </button>
         )}
       </div>
