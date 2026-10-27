@@ -565,8 +565,8 @@ const AddCustomer: React.FC = () => {
       return false;
     }
     if (!values.subArea || !values.subArea.trim()) {
-      toast.error('City is required (Step 1: Identity)');
-      setActiveTab(1);
+      toast.error('City is required (Step 2: Contact & Address)');
+      setActiveTab(2);
       return false;
     }
     if (!values.primaryPhone || !values.primaryPhone.trim()) {
@@ -791,28 +791,6 @@ const AddCustomer: React.FC = () => {
                     )}
                   </div>
 
-                  {/* City | Area Dual Dropdown in Single Unified Input */}
-                  <div className="md:col-span-2">
-                    <SubAreaAreaInput
-                      label="City | Area"
-                      subAreaValue={values.subArea || values.city || ''}
-                      areaValue={values.area || ''}
-                      onSubAreaChange={(val) => {
-                        setFieldValue('subArea', val);
-                        setFieldValue('city', val);
-                      }}
-                      onAreaChange={(val) => setFieldValue('area', val)}
-                      onSubAreaAdd={handleAddCustomSubArea}
-                      onAreaAdd={handleAddCustomArea}
-                      subAreaOptions={subAreaOptions}
-                      areaOptions={
-                        (values.subArea || values.city) && subAreaToAreasMap[values.subArea || values.city]
-                          ? subAreaToAreasMap[values.subArea || values.city]
-                          : DEFAULT_AREAS
-                      }
-                      helperText="City is required. Area is optional."
-                    />
-                  </div>
 
                   {/* Customer Code / Account Code */}
                   <div>
@@ -938,7 +916,7 @@ const AddCustomer: React.FC = () => {
                   </div>
 
                   {/* Email Address */}
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                       Email Address (Optional)
                     </label>
@@ -952,25 +930,27 @@ const AddCustomer: React.FC = () => {
                     />
                   </div>
 
-                  {/* Province / Region */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Province / Region
-                    </label>
-                    <select
-                      name="province"
-                      onChange={handleChange}
-                      value={values.province || 'Sindh'}
-                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-medium outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="Sindh">Sindh</option>
-                      <option value="Punjab">Punjab</option>
-                      <option value="Khyber Pakhtunkhwa">Khyber Pakhtunkhwa</option>
-                      <option value="Balochistan">Balochistan</option>
-                      <option value="Islamabad">Islamabad (ICT)</option>
-                      <option value="Azad Jammu and Kashmir">Azad Jammu and Kashmir (AJK)</option>
-                      <option value="Gilgit-Baltistan">Gilgit-Baltistan (GB)</option>
-                    </select>
+                  {/* City | Area Dual Dropdown in Single Unified Input */}
+                  <div className="md:col-span-2">
+                    <SubAreaAreaInput
+                      label="City | Area"
+                      subAreaValue={values.subArea || values.city || ''}
+                      areaValue={values.area || ''}
+                      onSubAreaChange={(val) => {
+                        setFieldValue('subArea', val);
+                        setFieldValue('city', val);
+                      }}
+                      onAreaChange={(val) => setFieldValue('area', val)}
+                      onSubAreaAdd={handleAddCustomSubArea}
+                      onAreaAdd={handleAddCustomArea}
+                      subAreaOptions={subAreaOptions}
+                      areaOptions={
+                        (values.subArea || values.city) && subAreaToAreasMap[values.subArea || values.city]
+                          ? subAreaToAreasMap[values.subArea || values.city]
+                          : DEFAULT_AREAS
+                      }
+                      helperText="City is required. Area is optional."
+                    />
                   </div>
 
                   {/* Delivery / Site Address */}
