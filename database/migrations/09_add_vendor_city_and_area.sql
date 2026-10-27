@@ -11,3 +11,4 @@ ALTER TABLE IF EXISTS vendors ADD COLUMN IF NOT EXISTS "subArea" text;
 
 -- Notify PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';
+
