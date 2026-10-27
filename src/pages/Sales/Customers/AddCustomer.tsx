@@ -38,41 +38,32 @@ const TIER_OPTIONS = [
 ];
 
 const DEFAULT_SUB_AREAS = [
-  // Cities as primary Sub Area / City
   'Hyderabad',
   'Karachi',
   'Sukkur',
   'Lahore',
   'Faisalabad',
   'Rawalpindi',
+  'Islamabad',
   'Multan',
   'Peshawar',
   'Quetta',
   'Nawabshah',
   'Mirpurkhas',
   'Larkana',
-  // Specific Hubs & Bazaars
-  'Resham Gali',
-  'Main Sarafa Bazaar',
-  'Cloth Market',
-  'Shahi Bazaar',
-  'Station Road',
-  'Boulton Market',
-  'Jama Cloth Market',
-  'Tariq Road',
-  'Hyderi Market',
-  'Shershah Market',
-  'Liaquat Market',
-  'Cliff Shopping Mall',
-  'Ashiana Center',
-  'Anarkali Bazaar',
-  'Azam Cloth Market',
-  'Liberty Market',
-  'Ichhra Bazaar',
-  'Rail Bazaar',
-  'Clock Tower',
-  'Karkhano Market',
-  'Rabi Center',
+  'Gujranwala',
+  'Sialkot',
+  'Bahawalpur',
+  'Sargodha',
+  'Rahim Yar Khan',
+  'Jacobabad',
+  'Shikarpur',
+  'Dadu',
+  'Thatta',
+  'Badin',
+  'Tando Adam',
+  'Tando Allahyar',
+  'Kotri',
 ];
 
 const DEFAULT_AREAS = [
@@ -177,7 +168,7 @@ const AddCustomer: React.FC = () => {
       }
       return updated;
     });
-    toast.success(`Added "${clean}" to Sub Areas`);
+    toast.success(`Added "${clean}" to Cities`);
   };
 
   // Saves new area specifically UNDER the active Sub Area
@@ -200,7 +191,7 @@ const AddCustomer: React.FC = () => {
       return nextMap;
     });
 
-    toast.success(`Saved "${cleanArea}" under "${cleanSub}"`);
+    toast.success(`Saved Area "${cleanArea}" under "${cleanSub}"`);
   };
   const { tenantId } = useAuth();
   const location = useLocation();
@@ -297,7 +288,7 @@ const AddCustomer: React.FC = () => {
 
   const validationSchema = Yup.object().shape({
     customerName: Yup.string().trim().required('Customer / Business Name is required'),
-    subArea: Yup.string().trim().required('Sub Area is required'),
+    subArea: Yup.string().trim().required('City is required'),
     primaryPhone: Yup.string().trim().required('Primary Contact Phone is required'),
   });
 
@@ -525,7 +516,7 @@ const AddCustomer: React.FC = () => {
       return false;
     }
     if (!values.subArea || !values.subArea.trim()) {
-      toast.error('Sub Area is required (Step 1: Identity)');
+      toast.error('City is required (Step 1: Identity)');
       setActiveTab(1);
       return false;
     }
@@ -751,23 +742,26 @@ const AddCustomer: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Sub Area | Area Dual Dropdown in Single Unified Input */}
+                  {/* City | Area Dual Dropdown in Single Unified Input */}
                   <div className="md:col-span-2">
                     <SubAreaAreaInput
-                      label="Sub Area | Area"
-                      subAreaValue={values.subArea || ''}
+                      label="City | Area"
+                      subAreaValue={values.subArea || values.city || ''}
                       areaValue={values.area || ''}
-                      onSubAreaChange={(val) => setFieldValue('subArea', val)}
+                      onSubAreaChange={(val) => {
+                        setFieldValue('subArea', val);
+                        setFieldValue('city', val);
+                      }}
                       onAreaChange={(val) => setFieldValue('area', val)}
                       onSubAreaAdd={handleAddCustomSubArea}
                       onAreaAdd={handleAddCustomArea}
                       subAreaOptions={subAreaOptions}
                       areaOptions={
-                        values.subArea && subAreaToAreasMap[values.subArea]
-                          ? subAreaToAreasMap[values.subArea]
+                        (values.subArea || values.city) && subAreaToAreasMap[values.subArea || values.city]
+                          ? subAreaToAreasMap[values.subArea || values.city]
                           : DEFAULT_AREAS
                       }
-                      helperText="Sub Area can be a City or Market (Required). Area is optional."
+                      helperText="City is required. Area is optional."
                     />
                   </div>
 

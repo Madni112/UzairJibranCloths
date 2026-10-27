@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MdSearch, MdClose, MdKeyboardArrowDown, MdAdd, MdLocationOn, MdLockOutline } from 'react-icons/md';
+import { MdClose, MdKeyboardArrowDown, MdAdd, MdLocationOn, MdLockOutline } from 'react-icons/md';
 
 interface SubAreaAreaInputProps {
   label?: string;
-  subAreaValue: string;
-  areaValue: string;
+  subAreaValue: string; // Used for City
+  areaValue: string;    // Used for Area
   onSubAreaChange: (val: string) => void;
   onAreaChange: (val: string) => void;
   onSubAreaAdd?: (val: string) => void;
-  onAreaAdd?: (val: string, currentSubArea: string) => void;
-  subAreaOptions: string[];
-  areaOptions: string[];
+  onAreaAdd?: (val: string, currentCity: string) => void;
+  subAreaOptions: string[]; // List of Cities
+  areaOptions: string[];    // List of Areas for selected City
   helperText?: string;
   disabled?: boolean;
   required?: boolean;
 }
 
 export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
-  label = 'Sub Area | Area',
+  label = 'City | Area',
   subAreaValue,
   areaValue,
   onSubAreaChange,
@@ -26,17 +26,17 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   onAreaAdd,
   subAreaOptions,
   areaOptions,
-  helperText = 'Sub Area can be a City or Market. Area is optional.',
+  helperText = 'City is required. Area is optional.',
   disabled = false,
   required = true,
 }) => {
-  // Area is locked until a Sub Area / City is selected
+  // Area is locked until City has a value
   const isAreaLocked = disabled || !subAreaValue.trim();
 
-  // Sub Area Section State
-  const [isSubOpen, setIsSubOpen] = useState(false);
-  const [subQuery, setSubQuery] = useState('');
-  const [subHighlightIdx, setSubHighlightIdx] = useState(0);
+  // City Section State
+  const [isCityOpen, setIsCityOpen] = useState(false);
+  const [cityQuery, setCityQuery] = useState('');
+  const [cityHighlightIdx, setCityHighlightIdx] = useState(0);
 
   // Area Section State
   const [isAreaOpen, setIsAreaOpen] = useState(false);
@@ -44,16 +44,16 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   const [areaHighlightIdx, setAreaHighlightIdx] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const subInputRef = useRef<HTMLInputElement>(null);
+  const cityInputRef = useRef<HTMLInputElement>(null);
   const areaInputRef = useRef<HTMLInputElement>(null);
-  const subListRef = useRef<HTMLUListElement>(null);
+  const cityListRef = useRef<HTMLUListElement>(null);
   const areaListRef = useRef<HTMLUListElement>(null);
 
   // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsSubOpen(false);
+        setIsCityOpen(false);
         setIsAreaOpen(false);
       }
     };
@@ -61,22 +61,22 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtered Sub Areas / Cities
-  const filteredSubAreas = useMemo(() => {
-    const q = subQuery.trim().toLowerCase();
+  // Filtered Cities
+  const filteredCities = useMemo(() => {
+    const q = cityQuery.trim().toLowerCase();
     if (!q) return subAreaOptions;
-    return subAreaOptions.filter((s) => s.toLowerCase().includes(q));
-  }, [subAreaOptions, subQuery]);
+    return subAreaOptions.filter((c) => c.toLowerCase().includes(q));
+  }, [subAreaOptions, cityQuery]);
 
-  const trimmedSubQuery = subQuery.trim();
-  const subExactMatch = useMemo(() => {
-    if (!trimmedSubQuery) return true;
-    return subAreaOptions.some((s) => s.toLowerCase() === trimmedSubQuery.toLowerCase());
-  }, [subAreaOptions, trimmedSubQuery]);
-  const canAddSub = Boolean(trimmedSubQuery && !subExactMatch);
-  const totalSubCount = filteredSubAreas.length + (canAddSub ? 1 : 0);
+  const trimmedCityQuery = cityQuery.trim();
+  const cityExactMatch = useMemo(() => {
+    if (!trimmedCityQuery) return true;
+    return subAreaOptions.some((c) => c.toLowerCase() === trimmedCityQuery.toLowerCase());
+  }, [subAreaOptions, trimmedCityQuery]);
+  const canAddCity = Boolean(trimmedCityQuery && !cityExactMatch);
+  const totalCityCount = filteredCities.length + (canAddCity ? 1 : 0);
 
-  // Filtered Areas under selected Sub Area / City
+  // Filtered Areas under selected City
   const filteredAreas = useMemo(() => {
     const q = areaQuery.trim().toLowerCase();
     if (!q) return areaOptions;
@@ -93,11 +93,11 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
   // Auto-scroll highlighted items into view
   useEffect(() => {
-    if (isSubOpen && subListRef.current) {
-      const activeEl = subListRef.current.children[subHighlightIdx] as HTMLElement;
+    if (isCityOpen && cityListRef.current) {
+      const activeEl = cityListRef.current.children[cityHighlightIdx] as HTMLElement;
       if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
     }
-  }, [subHighlightIdx, isSubOpen]);
+  }, [cityHighlightIdx, isCityOpen]);
 
   useEffect(() => {
     if (isAreaOpen && areaListRef.current) {
@@ -106,20 +106,20 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     }
   }, [areaHighlightIdx, isAreaOpen]);
 
-  // Handle Sub Area Select / Add -> unlocks Area cleanly without blocking popup
-  const handleSelectSub = (val: string) => {
+  // Handle City Select / Add -> unlocks Area cleanly
+  const handleSelectCity = (val: string) => {
     onSubAreaChange(val);
-    setSubQuery('');
-    setIsSubOpen(false);
+    setCityQuery('');
+    setIsCityOpen(false);
   };
 
-  const handleAddNewSub = (val: string) => {
+  const handleAddNewCity = (val: string) => {
     const clean = val.trim();
     if (!clean) return;
     if (onSubAreaAdd) onSubAreaAdd(clean);
     onSubAreaChange(clean);
-    setSubQuery('');
-    setIsSubOpen(false);
+    setCityQuery('');
+    setIsCityOpen(false);
   };
 
   // Handle Area Select / Add
@@ -138,36 +138,36 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     setIsAreaOpen(false);
   };
 
-  // Keyboard Navigation: Sub Area
-  const handleSubKeyDown = (e: React.KeyboardEvent) => {
+  // Keyboard Navigation: City
+  const handleCityKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
 
-    if (!isSubOpen) {
+    if (!isCityOpen) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
         e.preventDefault();
-        setIsSubOpen(true);
+        setIsCityOpen(true);
       }
       return;
     }
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSubHighlightIdx((prev) => (totalSubCount > 0 ? (prev + 1) % totalSubCount : 0));
+      setCityHighlightIdx((prev) => (totalCityCount > 0 ? (prev + 1) % totalCityCount : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSubHighlightIdx((prev) => (totalSubCount > 0 ? (prev - 1 + totalSubCount) % totalSubCount : 0));
+      setCityHighlightIdx((prev) => (totalCityCount > 0 ? (prev - 1 + totalCityCount) % totalCityCount : 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (canAddSub && subHighlightIdx === filteredSubAreas.length) {
-        handleAddNewSub(trimmedSubQuery);
-      } else if (filteredSubAreas[subHighlightIdx]) {
-        handleSelectSub(filteredSubAreas[subHighlightIdx]);
-      } else if (canAddSub) {
-        handleAddNewSub(trimmedSubQuery);
+      if (canAddCity && cityHighlightIdx === filteredCities.length) {
+        handleAddNewCity(trimmedCityQuery);
+      } else if (filteredCities[cityHighlightIdx]) {
+        handleSelectCity(filteredCities[cityHighlightIdx]);
+      } else if (canAddCity) {
+        handleAddNewCity(trimmedCityQuery);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      setIsSubOpen(false);
+      setIsCityOpen(false);
     }
   };
 
@@ -206,12 +206,12 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      {/* Header Label: Clear emphasis that Sub Area / City is Required and Area is Optional */}
+      {/* Header Label: City (Required) | Area (Optional) */}
       <div className="mb-1.5 flex items-center justify-between">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
           <MdLocationOn className="text-primary text-sm" />
           <span>
-            Sub Area / City <span className="text-red-500">*</span>
+            City <span className="text-red-500">*</span>
           </span>
           <span className="text-slate-300 dark:text-slate-600 font-normal">|</span>
           <span className="text-slate-500 dark:text-slate-400 font-semibold">
@@ -225,14 +225,14 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
             onClick={() => {
               onSubAreaChange('');
               onAreaChange('');
-              setSubQuery('');
+              setCityQuery('');
               setAreaQuery('');
-              setIsSubOpen(false);
+              setIsCityOpen(false);
               setIsAreaOpen(false);
             }}
             className="text-[10px] text-slate-400 hover:text-red-500 transition cursor-pointer font-medium"
           >
-            Clear
+            Clear Both
           </button>
         )}
       </div>
@@ -243,41 +243,41 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           disabled ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''
         }`}
       >
-        {/* LEFT PART: SUB AREA / CITY (Important / Required) */}
+        {/* LEFT PART: CITY (Required) */}
         <div className="relative flex items-center px-3 py-2.5">
           <input
-            ref={subInputRef}
+            ref={cityInputRef}
             type="text"
             disabled={disabled}
-            placeholder="Sub Area / City *"
-            value={isSubOpen ? subQuery : subAreaValue}
+            placeholder="City *"
+            value={isCityOpen ? cityQuery : subAreaValue}
             onChange={(e) => {
-              setSubQuery(e.target.value);
-              if (!isSubOpen) setIsSubOpen(true);
+              setCityQuery(e.target.value);
+              if (!isCityOpen) setIsCityOpen(true);
             }}
             onFocus={() => {
-              setIsSubOpen(true);
+              setIsCityOpen(true);
               setIsAreaOpen(false);
-              setSubQuery(subAreaValue || '');
+              setCityQuery(subAreaValue || '');
             }}
-            onKeyDown={handleSubKeyDown}
+            onKeyDown={handleCityKeyDown}
             className="w-full bg-transparent text-slate-900 dark:text-white text-xs font-semibold outline-none placeholder:text-slate-400 placeholder:font-normal truncate pr-6"
           />
 
           <div className="absolute right-2.5 flex items-center gap-1">
-            {subAreaValue && !isSubOpen && (
+            {subAreaValue && !isCityOpen && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onSubAreaChange('');
                   onAreaChange('');
-                  setSubQuery('');
+                  setCityQuery('');
                   setAreaQuery('');
                   setIsAreaOpen(false);
                 }}
                 className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition"
-                title="Clear"
+                title="Clear City"
               >
                 <MdClose size={12} />
               </button>
@@ -285,38 +285,38 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
             <button
               type="button"
               onClick={() => {
-                setIsSubOpen(!isSubOpen);
+                setIsCityOpen(!isCityOpen);
                 setIsAreaOpen(false);
-                if (!isSubOpen) setTimeout(() => subInputRef.current?.focus(), 50);
+                if (!isCityOpen) setTimeout(() => cityInputRef.current?.focus(), 50);
               }}
               className="text-slate-400 hover:text-primary transition"
             >
               <MdKeyboardArrowDown
                 size={16}
-                className={`transition-transform duration-200 ${isSubOpen ? 'rotate-180 text-primary' : ''}`}
+                className={`transition-transform duration-200 ${isCityOpen ? 'rotate-180 text-primary' : ''}`}
               />
             </button>
           </div>
 
-          {/* Sub Area Dropdown List */}
-          {isSubOpen && (
+          {/* City Dropdown List */}
+          {isCityOpen && (
             <div className="absolute top-full left-0 z-99999 mt-1.5 w-[260px] sm:w-[320px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
-              <ul ref={subListRef} className="max-h-56 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
-                {filteredSubAreas.length === 0 && !canAddSub && (
+              <ul ref={cityListRef} className="max-h-56 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
+                {filteredCities.length === 0 && !canAddCity && (
                   <li className="px-3 py-3 text-center text-xs text-slate-400">
-                    No matching sub areas / cities found
+                    No matching cities found
                   </li>
                 )}
 
-                {filteredSubAreas.map((item, idx) => {
+                {filteredCities.map((item, idx) => {
                   const isSelected = subAreaValue.toLowerCase() === item.toLowerCase();
-                  const isHighlighted = idx === subHighlightIdx;
+                  const isHighlighted = idx === cityHighlightIdx;
 
                   return (
                     <li
                       key={idx}
-                      onClick={() => handleSelectSub(item)}
-                      onMouseEnter={() => setSubHighlightIdx(idx)}
+                      onClick={() => handleSelectCity(item)}
+                      onMouseEnter={() => setCityHighlightIdx(idx)}
                       className={`px-2.5 py-1.5 text-xs rounded-lg cursor-pointer transition flex items-center justify-between ${
                         isHighlighted
                           ? 'bg-primary/10 text-primary font-bold'
@@ -335,20 +335,20 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                   );
                 })}
 
-                {/* Add New Sub Area Option */}
-                {canAddSub && (
+                {/* Add New City Option */}
+                {canAddCity && (
                   <li
-                    onClick={() => handleAddNewSub(trimmedSubQuery)}
-                    onMouseEnter={() => setSubHighlightIdx(filteredSubAreas.length)}
+                    onClick={() => handleAddNewCity(trimmedCityQuery)}
+                    onMouseEnter={() => setCityHighlightIdx(filteredCities.length)}
                     className={`px-2.5 py-2 text-xs rounded-lg cursor-pointer transition flex items-center justify-between border-t border-dashed border-primary/40 mt-1 ${
-                      subHighlightIdx === filteredSubAreas.length
+                      cityHighlightIdx === filteredCities.length
                         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold'
                         : 'bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-semibold'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <MdAdd className="shrink-0" size={14} />
-                      <span className="truncate">Add <b>"{trimmedSubQuery}"</b></span>
+                      <span className="truncate">Add City <b>"{trimmedCityQuery}"</b></span>
                     </div>
                     <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shrink-0">
                       Enter ↵
@@ -360,12 +360,12 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           )}
         </div>
 
-        {/* RIGHT PART: AREA (Optional - Unlocks when Sub Area chosen) */}
+        {/* RIGHT PART: AREA (Optional - Unlocks when City chosen) */}
         <div
           onClick={() => {
             if (isAreaLocked) {
-              setIsSubOpen(true);
-              setTimeout(() => subInputRef.current?.focus(), 50);
+              setIsCityOpen(true);
+              setTimeout(() => cityInputRef.current?.focus(), 50);
             }
           }}
           className={`relative flex items-center px-3 py-2.5 transition ${
@@ -378,7 +378,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
             ref={areaInputRef}
             type="text"
             disabled={isAreaLocked}
-            placeholder={isAreaLocked ? 'Select Sub Area / City first...' : 'Area (Optional)'}
+            placeholder={isAreaLocked ? 'Select City first...' : 'Area (Optional)'}
             value={isAreaOpen ? areaQuery : areaValue}
             onChange={(e) => {
               if (isAreaLocked) return;
@@ -388,7 +388,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
             onFocus={() => {
               if (isAreaLocked) return;
               setIsAreaOpen(true);
-              setIsSubOpen(false);
+              setIsCityOpen(false);
               setAreaQuery(areaValue || '');
             }}
             onKeyDown={handleAreaKeyDown}
@@ -401,7 +401,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
           <div className="absolute right-2.5 flex items-center gap-1">
             {isAreaLocked ? (
-              <span title="Please select Sub Area / City first" className="text-slate-400">
+              <span title="Please select City first" className="text-slate-400">
                 <MdLockOutline size={14} />
               </span>
             ) : (
@@ -424,7 +424,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                   type="button"
                   onClick={() => {
                     setIsAreaOpen(!isAreaOpen);
-                    setIsSubOpen(false);
+                    setIsCityOpen(false);
                     if (!isAreaOpen) setTimeout(() => areaInputRef.current?.focus(), 50);
                   }}
                   className="text-slate-400 hover:text-primary transition"
@@ -488,7 +488,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <MdAdd className="shrink-0" size={14} />
-                      <span className="truncate">Add <b>"{trimmedAreaQuery}"</b></span>
+                      <span className="truncate">Add Area <b>"{trimmedAreaQuery}"</b></span>
                     </div>
                     <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shrink-0">
                       Enter ↵
