@@ -29,12 +29,17 @@ import {
 } from 'react-icons/md';
 import { SearchableDropdown } from '../../../components/SearchableDropdown';
 import SubAreaAreaInput from '../../../components/SubAreaAreaInput';
+import SearchableAddableDropdown from '../../../components/SearchableAddableDropdown';
 
 const TIER_OPTIONS = [
   'Retail / General',
-  'Contractor / Builder',
   'Wholesaler / Dealer',
-  'Registered Corporate'
+  'Semi-Wholesaler',
+  'Distributor',
+  'Boutique / Tailor',
+  'Fabric Manufacturer',
+  'Contractor / Builder',
+  'Registered Corporate',
 ];
 
 const DEFAULT_SUB_AREAS = [
@@ -131,6 +136,35 @@ const AddCustomer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [companies, setCompanies] = useState<any[]>([]);
   const [suggestedCode, setSuggestedCode] = useState<string>('');
+
+  const [tierOptions, setTierOptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('uj_custom_tiers');
+      const customList: string[] = saved ? JSON.parse(saved) : [];
+      return Array.from(new Set([...TIER_OPTIONS, ...customList]));
+    } catch {
+      return TIER_OPTIONS;
+    }
+  });
+
+  const handleAddCustomTier = (newTier: string) => {
+    const clean = newTier.trim();
+    if (!clean) return;
+    setTierOptions((prev) => {
+      const updated = Array.from(new Set([clean, ...prev]));
+      try {
+        const saved = localStorage.getItem('uj_custom_tiers');
+        const customList: string[] = saved ? JSON.parse(saved) : [];
+        if (!customList.includes(clean)) {
+          localStorage.setItem('uj_custom_tiers', JSON.stringify([...customList, clean]));
+        }
+      } catch (e) {
+        console.error('Failed to save custom tier:', e);
+      }
+      return updated;
+    });
+    toast.success(`Added "${clean}" to Customer Tiers`);
+  };
   const [subAreaOptions, setSubAreaOptions] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('uj_custom_sub_areas');
@@ -220,6 +254,21 @@ const AddCustomer: React.FC = () => {
         ]);
 
         if (compRes.data) setCompanies(compRes.data);
+
+        // Merge any existing customer tiers from DB
+        try {
+          const { data: dbCustTiers } = await supabase.from('customers').select('registrationType, registrationtype').limit(100);
+          if (dbCustTiers && dbCustTiers.length > 0) {
+            const tiersFromDb = dbCustTiers
+              .map((c: any) => c.registrationType || c.registrationtype)
+              .filter((t: any) => typeof t === 'string' && t.trim().length > 1);
+            if (tiersFromDb.length > 0) {
+              setTierOptions((prev) => Array.from(new Set([...prev, ...tiersFromDb])));
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load tiers from customers:', e);
+        }
 
         // Also merge any existing areas and sub areas from customers table
         try {
@@ -813,39 +862,19 @@ const AddCustomer: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Customer Category / Type */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Customer Tier / Category
-                    </label>
-                    <SearchableDropdown
+                  {/* Customer Category / Tier (Searchable + Addable) */}
+                  <div className="md:col-span-2">
+                    <SearchableAddableDropdown
+                      label="Customer Tier / Category"
+                      placeholder="Customer Tier / Category"
                       value={values.registrationType || 'Retail / General'}
                       onChange={(val) => setFieldValue('registrationType', val || 'Retail / General')}
-                      options={TIER_OPTIONS}
-                      placeholder="Customer Tier / Category"
-                      allowAll={false}
-                      allowClear={false}
-                    />
-                  </div>
-
-                  {/* Client Business Entity / Branch */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Associated Branch / Business Entity
-                    </label>
-                    <SearchableDropdown
-                      value={values.company || '-- General / NHT ENTERPRISE --'}
-                      onChange={(val) => {
-                        if (!val || val === '-- General / NHT ENTERPRISE --') {
-                          setFieldValue('company', '');
-                        } else {
-                          setFieldValue('company', val);
-                        }
+                      onAddNew={(newTier) => {
+                        handleAddCustomTier(newTier);
+                        setFieldValue('registrationType', newTier);
                       }}
-                      options={['-- General / NHT ENTERPRISE --', ...companies.map((c: any) => c.name)]}
-                      placeholder="Associated Branch / Business Entity"
-                      allowAll={false}
-                      allowClear={true}
+                      options={tierOptions}
+                      helperText="Select or type a new Customer Tier / Category (navigate with ↑ ↓ and Enter ↵)"
                     />
                   </div>
                 </div>
