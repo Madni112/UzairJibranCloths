@@ -7,6 +7,7 @@ import { MdPrint, MdArrowBack, MdFileDownload, MdChevronRight, MdExpandMore, MdU
 import { FaWhatsapp } from 'react-icons/fa';
 import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
+import { getBrandConfig } from '../../../utils/brand';
 import ReportPagination from '../../../components/ReportPagination';
 
 const AccountReportPrint = () => {
@@ -111,11 +112,12 @@ const AccountReportPrint = () => {
 
     useEffect(() => {
         const originalTitle = document.title;
+        const bName = businessName || getBrandConfig().fullName;
         document.title = activeTab === 13 
-            ? 'Customer Balance Detail Report - UZAIR JIBRAN CLOTH'
+            ? `Customer Balance Detail Report - ${bName}`
             : activeTab === 3
-            ? 'Vendor Balance Detail Report - UZAIR JIBRAN CLOTH'
-            : 'Corporate Account Ledger - UZAIR JIBRAN CLOTH';
+            ? `Vendor Balance Detail Report - ${bName}`
+            : `Corporate Account Ledger - ${bName}`;
 
         return () => {
             document.title = originalTitle;
@@ -1750,7 +1752,7 @@ const AccountReportPrint = () => {
             await exportToExcel({
                 filename,
                 sheetName: reportHeading.slice(0, 31),
-                title: businessName || 'UZAIR JIBRAN CLOTH',
+                title: businessName || getBrandConfig().fullName,
                 subtitle: reportHeading,
                 columns,
                 data: exportData
@@ -1767,7 +1769,7 @@ const AccountReportPrint = () => {
     const handleShareWhatsApp = () => {
         const periodText = filters.dateFrom && filters.dateTo ? `${filters.dateFrom} to ${filters.dateTo}` : 'Current Period';
         const lines = [
-            `📊 *${businessName || 'UZAIR JIBRAN CLOTH'}*`,
+            `📊 *${businessName || getBrandConfig().name}*`,
             `💼 *Financial Account Ledger Audit Summary*`,
             `━━━━━━━━━━━━━━━━━━━━━`,
             `📅 *Period:* ${periodText}`,
@@ -1940,13 +1942,13 @@ const AccountReportPrint = () => {
                                     printColorAdjust: 'exact'
                                 }}
                             >
-                                ZAC
+                                {getBrandConfig().code}
                             </span>
                         </div>
                     </div>
 
                     <h1 className="text-3xl font-black uppercase tracking-widest font-serif text-slate-950">
-                        {businessName || 'UZAIR JIBRAN CLOTH'}
+                        {businessName || getBrandConfig().fullName}
                     </h1>
                     <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">Master Corporate Ledger Book & Financial Audit Statement Summary</p>
 
@@ -3351,7 +3353,7 @@ const AccountReportPrint = () => {
                 {/* 🏢 Software & Corporate Provider Footer */}
                 <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
                     <div className="flex items-center gap-2 font-bold">
-                        <span className="text-black font-black uppercase">UZAIR JIBRAN CLOTH</span>
+                        <span className="text-black font-black uppercase">{businessName || getBrandConfig().fullName}</span>
                     </div>
                     <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
                         Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

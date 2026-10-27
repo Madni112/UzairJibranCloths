@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../../Context/supabaseClient';
 import { useAuth } from '../../../Context/Auth';
+import { getBrandConfig } from '../../../utils/brand';
 import Spinner from '../../../ui/Spinner';
 import { FiPrinter, FiArrowLeft } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -66,6 +67,7 @@ const PrintQuotation: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { tenantId, businessName } = useAuth();
+  const brand = getBrandConfig();
   const [quotation, setQuotation] = useState<QuotationData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -153,7 +155,7 @@ const PrintQuotation: React.FC = () => {
 
   const handleSendWhatsApp = () => {
     const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
-    const greeting = `Hello *${customerName}*,\n\nHere is your official Price Quotation from *${businessName || 'UZAIR JIBRAN CLOTH'}*:\n\n` +
+    const greeting = `Hello *${customerName}*,\n\nHere is your official Price Quotation from *${businessName || brand.name}*:\n\n` +
       `📄 *Quotation No:* ${quoteNo}\n` +
       `📅 *Date:* ${quoteDate}\n` +
       `⏳ *Validity:* Valid Until ${validUntilFormatted}\n` +
@@ -243,7 +245,7 @@ const PrintQuotation: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <span className="h-5 w-5 bg-emerald-600 rounded-md"></span>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
-                {businessName || 'UZAIR JIBRAN CLOTH'}
+                {businessName || brand.fullName}
               </h1>
             </div>
             <p className="text-xs text-slate-600 font-semibold mt-1">
@@ -386,7 +388,7 @@ const PrintQuotation: React.FC = () => {
           <div>
             <div className="border-b border-slate-400 w-44 mx-auto mb-2"></div>
             <p className="font-bold text-slate-900">Authorized Signature</p>
-            <p className="text-[10px] text-slate-500">{businessName || 'UZAIR JIBRAN CLOTH'}</p>
+            <p className="text-[10px] text-slate-500">{businessName || brand.name}</p>
           </div>
           <div>
             <div className="border-b border-slate-400 w-44 mx-auto mb-2"></div>

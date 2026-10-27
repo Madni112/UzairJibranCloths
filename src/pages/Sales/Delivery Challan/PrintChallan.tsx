@@ -4,6 +4,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { getBrandConfig } from '../../../utils/brand';
 
 
 
@@ -172,7 +173,7 @@ const PrintChallan = () => {
           {/* Official Document Banner */}
           <div className="border-b-2 border-black pb-4 mb-6 flex justify-between items-end">
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-black">UZAIR JIBRAN CLOTH</h1>
+              <h1 className="text-2xl font-black tracking-tight text-black">{businessName || getBrandConfig().fullName}</h1>
               <p className="text-xs text-gray-600 font-semibold uppercase tracking-wider">Goods Transit & Warehouse Gate Pass Voucher</p>
             </div>
             <div className="text-right">

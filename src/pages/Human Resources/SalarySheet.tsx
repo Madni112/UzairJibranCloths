@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useTenant } from '../../Context/TenantContext';
 import { useAuth } from '../../Context/AuthContext';
+import { getBrandConfig } from '../../utils/brand';
 import {
   approveSheet,
   createSheet,
@@ -1655,7 +1656,7 @@ export const SalarySheetPage: React.FC = () => {
             {/* Hidden Printable Salary Sheet Detail for A4 Landscape printout */}
             <div id="printable-salary-sheet-detail" className="hidden">
               <div className="print-header">
-                <h1>UZAIR JIBRAN CLOTH</h1>
+                <h1>{getBrandConfig().fullName}</h1>
                 <h2>MONTHLY SALARY SHEET &amp; PAYROLL REGISTER — {detail.monthLabel}</h2>
                 <div className="meta-grid">
                   <span><strong>Sheet #:</strong> {detail.number}</span>

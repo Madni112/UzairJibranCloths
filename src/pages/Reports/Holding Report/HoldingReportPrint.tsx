@@ -5,6 +5,7 @@ import { MdPrint, MdArrowBack, MdFileDownload, MdViewList, MdOutlineTableRows } 
 import { QtyBadge } from '../../../utils/QtyBadge';
 import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
+import { getBrandConfig } from '../../../utils/brand';
 import ReportPagination from '../../../components/ReportPagination';
 import { supabase } from '../../../Context/supabaseClient';
 import Spinner from '../../../ui/Spinner';
@@ -656,7 +657,7 @@ const HoldingReportPrint: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Items_Detailed_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Holding Items',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Holding Items & Pending Dispatch Audit Statement',
           filterSummary: filterMeta,
           columns,
@@ -733,7 +734,7 @@ const HoldingReportPrint: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Salesman_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Salesman Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Salesman-Wise Holding Inventory & DC/Invoice Audit Statement',
           filterSummary: filterMeta,
           columns,
@@ -812,7 +813,7 @@ const HoldingReportPrint: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Customer_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Customer Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Customer-Wise Holding Inventory & DC/Invoice Audit Statement',
           filterSummary: filterMeta,
           columns,
@@ -888,7 +889,7 @@ const HoldingReportPrint: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Gatepass_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Gatepass Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Gatepass-Wise Holding Inventory & DC/Item Audit Statement',
           filterSummary: filterMeta,
           columns,
@@ -965,7 +966,7 @@ const HoldingReportPrint: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Invoice_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Invoice Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Invoice-Wise Holding Inventory & DC/Item Audit Statement',
           filterSummary: filterMeta,
           columns,
@@ -1085,11 +1086,10 @@ const HoldingReportPrint: React.FC = () => {
                 key={p.id}
                 type="button"
                 onClick={() => setActivePerspective(p.id)}
-                className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                  activePerspective === p.id
+                className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${activePerspective === p.id
                     ? 'bg-primary text-white shadow-xs'
                     : 'text-gray-600 hover:text-black hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {p.label}
               </button>
@@ -1171,7 +1171,7 @@ const HoldingReportPrint: React.FC = () => {
           </div>
 
           <h1 className="text-3xl font-black uppercase tracking-widest font-serif text-slate-950">
-            {businessName || 'UZAIR JIBRAN CLOTH'}
+            {businessName || getBrandConfig().fullName}
           </h1>
           <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">
             COMMERCIAL HOLDING INVENTORY & PENDING DISPATCH AUDIT STATEMENT
@@ -1254,7 +1254,7 @@ const HoldingReportPrint: React.FC = () => {
                           {renderCustomerBadge(doc.customerName)}
                         </td>
                         <td className="p-1.5 border border-black font-sans text-gray-700 align-middle">{doc.salesman || '-'}</td>
-                        
+
                         {/* 📦 Product Description Sub-Rows */}
                         <td className="p-0 border border-black align-top font-sans">
                           <div className="divide-y divide-black h-full flex flex-col justify-stretch">
@@ -2282,7 +2282,7 @@ const HoldingReportPrint: React.FC = () => {
         {/* 🏢 Software & Corporate Provider Footer */}
         <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-black font-black uppercase">UZAIR JIBRAN CLOTH</span>
+            <span className="text-black font-black uppercase">{businessName || getBrandConfig().fullName}</span>
           </div>
           <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
             Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
+import { getBrandConfig } from '../../../utils/brand';
 import {
   MdPauseCircleFilled,
   MdPrint,
@@ -561,7 +562,7 @@ const HoldingReport: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Items_Detailed_Report_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Holding Items Audit',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Holding Items & Pending Dispatch Audit Statement',
           filterSummary: filterMeta,
           columns,
@@ -592,7 +593,7 @@ const HoldingReport: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Items_Salesman_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Salesman Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Salesman-Wise Holding Inventory Portfolio Statement',
           filterSummary: filterMeta,
           columns,
@@ -623,7 +624,7 @@ const HoldingReport: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Items_Customer_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Customer Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Customer-Wise Holding Stock Allocation Report',
           filterSummary: filterMeta,
           columns,
@@ -652,7 +653,7 @@ const HoldingReport: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Items_Gatepass_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Gatepass Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Gatepass / Delivery Challan Holding Stock Audit',
           filterSummary: filterMeta,
           columns,
@@ -679,7 +680,7 @@ const HoldingReport: React.FC = () => {
         await exportToExcel({
           fileName: `Holding_Items_Invoice_Wise_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: 'Invoice Holding',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: 'Invoice-Wise Holding Inventory Statement',
           filterSummary: filterMeta,
           columns,

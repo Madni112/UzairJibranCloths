@@ -1,26 +1,32 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import SidebarLinkGroup from './SidebarLinkGroup';
 import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from 'react-icons/ai';
-import { LuLogOut, LuPalette } from 'react-icons/lu';
+import { LuLogOut } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
-import { PRESET_THEME_COLORS, applySidebarColor, getSavedSidebarColor, getSafeSidebarColor } from '../../constant/themeConfig';
-import LogoDark from '../../images/logo/logo-dark.png';
-import LogoLight from '../../images/logo/logo-light.png';
-import IconDark from '../../images/logo/icon-dark.png';
-import IconLight from '../../images/logo/icon-light.png';
-import { Weight } from 'lucide-react';
+import {
+  PRESET_THEME_COLORS,
+  applySidebarColor,
+  getSavedSidebarColor,
+  getSafeSidebarColor,
+  SidebarLayoutMode,
+  getSidebarLayoutMode,
+} from '../../constant/themeConfig';
+import { getBrandConfig } from '../../utils/brand';
 
 interface SidebarProps {
   sidebarOpen: boolean;
-  setSidebarOpen: (arg: boolean) => void;
+  setSidebarOpen: (arg: boolean | ((prev: boolean) => boolean)) => void;
 }
 
+// Collapsed hover nested flyout component
 const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebarColor }: any) => {
   const [showSubFlyout, setShowSubFlyout] = useState(false);
+  const destination = (item.path && getTenantPath ? getTenantPath(item.path) : item.path) || '#';
+  const isActive = item.path && (pathname === destination || pathname === item.path);
 
-  if (item && item.children && Array.isArray(item.children)) {
+  if (item.children) {
     return (
       <li
         className="relative"
@@ -28,16 +34,16 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
         onMouseLeave={() => setShowSubFlyout(false)}
       >
         <div
-          className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer pr-4"
+          className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-800/80 dark:hover:bg-slate-100 cursor-pointer"
           style={{ color: sidebarColor }}
         >
-          <span className="truncate">{item.label}</span>
-          <AiOutlineRight size={10} className="shrink-0" style={{ color: sidebarColor }} />
+          <span>{item.label}</span>
+          <AiOutlineRight size={10} style={{ color: sidebarColor, opacity: 0.7 }} />
         </div>
 
         {showSubFlyout && (
           <div
-            className="absolute left-full top-0 -ml-1.5 z-99999 w-52 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#1E293B]/95 p-2 shadow-2xl backdrop-blur-md"
+            className="absolute left-full top-0 ml-1 min-w-[200px] rounded-xl border border-slate-700/90 dark:border-slate-200/90 bg-slate-900/95 dark:bg-white/95 p-1.5 shadow-2xl backdrop-blur-md z-99999"
             style={{ animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
           >
             <div className="absolute top-0 -left-3 w-3 h-full bg-transparent" />
@@ -59,9 +65,6 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
     );
   }
 
-  const destination = (item.path && getTenantPath ? getTenantPath(item.path) : item.path) || '#';
-  const isActive = pathname === destination || pathname === item.path;
-
   return (
     <li>
       <NavLink
@@ -75,59 +78,50 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
           backgroundColor: isActive ? `${sidebarColor}20` : undefined,
         }}
       >
-        {item.label}
+        <span>{item.label}</span>
       </NavLink>
     </li>
   );
 };
 
+// Reusable Multi-Level Recursive Sidebar Item Component
 const SidebarItem = ({
   item,
-  pathname,
   depth = 0,
+  pathname,
   sidebarOpen,
   setSidebarOpen,
+  isMobile,
   hideModal,
   openMenuId,
   setOpenMenuId,
-  menuUniqueKey,
+  parentKey = 'root',
   getTenantPath,
   sidebarColor,
+  layoutMode,
 }: any) => {
   const itemRef = useRef<HTMLDivElement>(null);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const menuUniqueKey = `${parentKey}-${item.label}`;
+  const [open, setOpen] = useState(false);
   const [showFlyout, setShowFlyout] = useState(false);
   const [flyoutTop, setFlyoutTop] = useState<number>(0);
+  const [flyoutLeft, setFlyoutLeft] = useState<number>(56);
 
   // Helper check: Recursively verifies if any nested children match the active route URL
-  const checkHasActiveChild = (routeItem: any): boolean => {
-    if (!routeItem) return false;
-    if (!routeItem.children || !Array.isArray(routeItem.children)) return false;
-
-    return routeItem.children.some((child: any) => {
-      const dest = child.path && getTenantPath ? getTenantPath(child.path) : child.path;
-      const cleanChildPath = String(child.path || '').toLowerCase();
-      const cleanDest = String(dest || '').toLowerCase();
-      const cleanPathname = String(pathname || '').toLowerCase();
-
-      if (cleanChildPath && (cleanPathname === cleanChildPath || cleanPathname === cleanDest)) return true;
-
-      // Match sub-routes (e.g., /Add, /Edit, /Print, /customer-details) of this child
-      const baseChild = cleanChildPath.replace(/\/(list|customer-details|add)$/i, '');
-      if (baseChild && baseChild.length > 2 && cleanPathname.includes(baseChild)) {
-        return true;
-      }
-
-      if (child.children) return checkHasActiveChild(child);
-      return false;
-    });
+  const checkChildActive = (node: any): boolean => {
+    if (node.path) {
+      const destination = getTenantPath ? getTenantPath(node.path) : node.path;
+      if (pathname === destination || pathname === node.path) return true;
+    }
+    if (node.children && Array.isArray(node.children)) {
+      return node.children.some((child: any) => checkChildActive(child));
+    }
+    return false;
   };
 
-  const itemDestination = item?.path && getTenantPath ? getTenantPath(item.path) : (item?.path || '');
-  const isChildActive = checkHasActiveChild(item) || Boolean(item?.path && (pathname === item.path || pathname === itemDestination));
+  const isChildActive = checkChildActive(item);
 
-  // Local toggle state initializes accurately based on the active path to support hard refreshes
-  const [open, setOpen] = useState(isChildActive);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -150,7 +144,6 @@ const SidebarItem = ({
     }
   }, [openMenuId, menuUniqueKey, depth, isChildActive]);
 
-  const isMobile = windowWidth <= 750;
   const shouldShowLabels = sidebarOpen || isMobile;
 
   const handleLinkClick = () => {
@@ -164,7 +157,10 @@ const SidebarItem = ({
   const handleMouseEnter = () => {
     if (!sidebarOpen && !isMobile && itemRef.current) {
       const rect = itemRef.current.getBoundingClientRect();
-      setFlyoutTop(rect.top);
+      const estimatedHeight = Math.min((item.children?.length || 4) * 36 + 50, 420);
+      const maxTop = Math.max(12, window.innerHeight - estimatedHeight - 16);
+      setFlyoutTop(Math.min(rect.top, maxTop));
+      setFlyoutLeft(rect.right + 8);
       setShowFlyout(true);
     }
   };
@@ -244,16 +240,18 @@ const SidebarItem = ({
                       <SidebarItem
                         key={idx}
                         item={child}
-                        pathname={pathname}
                         depth={depth + 1}
+                        pathname={pathname}
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
+                        isMobile={isMobile}
                         hideModal={hideModal}
                         openMenuId={openMenuId}
                         setOpenMenuId={setOpenMenuId}
-                        menuUniqueKey={`${menuUniqueKey}-${idx}`}
+                        parentKey={menuUniqueKey}
                         getTenantPath={getTenantPath}
                         sidebarColor={sidebarColor}
+                        layoutMode={layoutMode}
                       />
                     ))}
                   </ul>
@@ -263,12 +261,14 @@ const SidebarItem = ({
           )}
         </SidebarLinkGroup>
 
+        {/* Collapsed Flyout Popover */}
         {!sidebarOpen && showFlyout && !isMobile && (
           <div
-            className="fixed left-[56px] z-99999 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#1E293B]/95 p-2.5 shadow-2xl backdrop-blur-md"
+            className="fixed z-99999 min-w-[210px] rounded-2xl border border-slate-700/90 dark:border-slate-200/90 bg-slate-900/95 dark:bg-white/95 p-2 shadow-2xl backdrop-blur-md"
             style={{
               top: `${flyoutTop}px`,
-              animation: 'sidebarFlyoutFadeIn 0.18s ease-out forwards'
+              left: `${flyoutLeft}px`,
+              animation: 'sidebarFlyoutFadeIn 0.18s ease-out forwards',
             }}
           >
             <style>{`
@@ -277,9 +277,10 @@ const SidebarItem = ({
                 to { opacity: 1; transform: translateX(0); }
               }
             `}</style>
+            <div className="absolute top-0 -left-3 w-3 h-full bg-transparent" />
             <div
-              className="px-3 py-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-800 font-bold text-[10px] uppercase tracking-wider text-left"
-              style={{ color: sidebarColor }}
+              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-b border-slate-800 dark:border-slate-200/60 mb-1"
+              style={{ color: sidebarColor, opacity: 0.7 }}
             >
               {item.label}
             </div>
@@ -304,8 +305,24 @@ const SidebarItem = ({
   const singleDestination = (item.path && getTenantPath ? getTenantPath(item.path) : item.path) || '#';
   const isDirectActive = item.path && (pathname === singleDestination || pathname === item.path);
 
+  const handleSingleMouseEnter = () => {
+    if (!sidebarOpen && !isMobile && itemRef.current) {
+      const rect = itemRef.current.getBoundingClientRect();
+      setFlyoutTop(rect.top + (rect.height / 2) - 15);
+      setFlyoutLeft(rect.right + 8);
+      setShowFlyout(true);
+    }
+  };
+
   return (
-    <li onClick={handleLinkClick} className="w-full" title={!shouldShowLabels ? item.label : undefined}>
+    <li
+      ref={itemRef}
+      onClick={handleLinkClick}
+      className="w-full relative"
+      title={!shouldShowLabels ? item.label : undefined}
+      onMouseEnter={handleSingleMouseEnter}
+      onMouseLeave={() => !sidebarOpen && !isMobile && setShowFlyout(false)}
+    >
       <NavLink
         to={singleDestination}
         className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
@@ -332,6 +349,20 @@ const SidebarItem = ({
           </span>
         )}
       </NavLink>
+
+      {!sidebarOpen && showFlyout && !isMobile && (
+        <div
+          className="fixed z-99999 px-3 py-1.5 rounded-xl border border-slate-700/90 dark:border-slate-200/90 bg-slate-900/95 dark:bg-white/95 text-xs font-bold shadow-2xl backdrop-blur-md pointer-events-none whitespace-nowrap"
+          style={{
+            top: `${flyoutTop}px`,
+            left: `${flyoutLeft}px`,
+            color: sidebarColor,
+            animation: 'sidebarFlyoutFadeIn 0.18s ease-out forwards',
+          }}
+        >
+          {item.label}
+        </div>
+      )}
     </li>
   );
 };
@@ -343,7 +374,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const { hideModal } = useModal();
   const { pathname } = location;
   const sidebar = useRef<any>(null);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   const isTenantRoute = pathname.startsWith('/tenant=') || pathname.startsWith('/tenant-');
   const rawTenant = tenantId || (isTenantRoute ? pathname.split('/')[1] : '');
@@ -361,41 +392,27 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   // Master tracking ID to determine which global branch header is clicked open
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const brand = getBrandConfig();
 
   // Dedicated sidebar font/icon color state with contrast protection
   const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
-  const [customHexInput, setCustomHexInput] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem('uzair_jibran_sidebar_raw_color');
-      if (raw) return raw.replace('#', '');
-    }
-    return getSavedSidebarColor().replace('#', '');
-  });
+
+  // Sidebar Layout Mode (Floating Modern vs Classic Edge)
+  const [layoutMode, setLayoutMode] = useState<SidebarLayoutMode>(getSidebarLayoutMode());
+
+  useEffect(() => {
+    const updateLayoutMode = () => {
+      setLayoutMode(getSidebarLayoutMode());
+    };
+    window.addEventListener('uzair_jibran_sidebar_layout_changed', updateLayoutMode);
+    window.addEventListener('storage', updateLayoutMode);
+    return () => {
+      window.removeEventListener('uzair_jibran_sidebar_layout_changed', updateLayoutMode);
+      window.removeEventListener('storage', updateLayoutMode);
+    };
+  }, []);
+
   const [wasContrastAdjusted, setWasContrastAdjusted] = useState(false);
-  const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
-  const [collapsedColorPickerOpen, setCollapsedColorPickerOpen] = useState(false);
-  const collapsedPickerRef = useRef<HTMLDivElement>(null);
-
-  const handleSidebarColorChange = (hex: string) => {
-    const { safeColor, wasAdjusted } = applySidebarColor(hex);
-    setCurrentSidebarColor(safeColor);
-    setCustomHexInput(hex.replace('#', ''));
-    setWasContrastAdjusted(wasAdjusted);
-    if (wasAdjusted) {
-      setTimeout(() => setWasContrastAdjusted(false), 4500);
-    }
-  };
-
-  const handleCustomHexSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    let clean = customHexInput.replace('#', '').trim();
-    if (clean.length === 3) {
-      clean = clean.split('').map(c => c + c).join('');
-    }
-    if (clean.length === 6 && /^[0-9A-Fa-f]{6}$/.test(clean)) {
-      handleSidebarColorChange(`#${clean}`);
-    }
-  };
 
   useEffect(() => {
     const updateColors = () => {
@@ -411,34 +428,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     window.addEventListener('color-mode-changed', updateColors);
     window.addEventListener('storage', updateColors);
 
-    // Observe both body and documentElement for dark class changes
-    const observer = new MutationObserver(() => {
-      updateColors();
-    });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
     return () => {
       window.removeEventListener('uzair_jibran_sidebar_color_changed', updateColors);
       window.removeEventListener('color-mode-changed', updateColors);
       window.removeEventListener('storage', updateColors);
-      observer.disconnect();
     };
   }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (collapsedPickerRef.current && !collapsedPickerRef.current.contains(e.target as Node)) {
-        setCollapsedColorPickerOpen(false);
-      }
-    };
-    if (collapsedColorPickerOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [collapsedColorPickerOpen]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -449,357 +444,99 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const isMobile = windowWidth <= 750;
 
   return (
-    <>
-      {isMobile && sidebarOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 z-9999 backdrop-blur-xs transition-opacity duration-300" onClick={() => setSidebarOpen(false)} />
-      )}
+    <aside
+      ref={sidebar}
+      className={`flex flex-col bg-[#0B0F17] dark:bg-white text-slate-100 dark:text-slate-900 duration-300 ease-in-out shadow-2xl select-none ${
+        isMobile
+          ? 'fixed left-0 top-0 z-99999 h-screen block'
+          : `min-[751px]:relative min-[751px]:shrink-0 min-[751px]:z-30 ${
+              layoutMode === 'floating'
+                ? 'min-[751px]:self-start min-[751px]:my-3 min-[751px]:ml-3 min-[751px]:h-fit min-[751px]:max-h-[calc(100vh-1.5rem)] min-[751px]:rounded-3xl min-[751px]:border min-[751px]:border-slate-800/90 dark:min-[751px]:border-slate-200/90 min-[751px]:shadow-2xl'
+                : 'min-[751px]:h-screen min-[751px]:rounded-none min-[751px]:border-r min-[751px]:border-slate-800/90 dark:min-[751px]:border-slate-200/90'
+            }`
+      } ${
+        sidebarOpen
+          ? `w-72.5 translate-x-0 visible ${layoutMode === 'classic' ? 'border-r border-slate-800/90 dark:border-slate-200/90' : ''}`
+          : `w-0 -translate-x-full min-[751px]:w-18 ${layoutMode === 'floating' ? 'min-[751px]:translate-x-0' : 'min-[751px]:translate-x-0 min-[751px]:border-r min-[751px]:border-slate-800/90 dark:min-[751px]:border-slate-200/90'} max-[750px]:invisible`
+      }`}
+    >
+      {/* Brand Header */}
+      <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-slate-800/80 dark:border-slate-200/80 shrink-0">
+        <NavLink
+          to={cleanPrefix || '/'}
+          className={`flex items-center gap-3 transition-opacity duration-200 hover:opacity-90 ${
+            !sidebarOpen ? 'mx-auto' : ''
+          }`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 shrink-0 border border-primary/30 relative overflow-hidden select-none">
+            <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
+            <span className="relative z-10 font-cinzel font-black tracking-widest text-[13px] text-white leading-none pl-0.5">
+              UJC
+            </span>
+          </div>
 
-      <aside ref={sidebar} className={`fixed left-0 top-0 z-99999 flex h-screen flex-col bg-[#0B0F17] dark:bg-white duration-300 ease-in-out text-slate-100 dark:text-slate-900 shadow-2xl ${isMobile ? 'block' : 'min-[751px]:sticky min-[751px]:top-0'} ${sidebarOpen ? 'w-72.5 translate-x-0 border-r border-slate-800/90 dark:border-slate-200/90 visible' : 'w-0 -translate-x-full min-[751px]:w-18 min-[751px]:translate-x-0 min-[751px]:border-r min-[751px]:border-slate-800/90 min-[751px]:dark:border-slate-200/90 max-[750px]:invisible'}`} >
-
-        {/* Brand Header */}
-        <div className={`flex items-center justify-between gap-2 py-5 border-b border-slate-800/90 dark:border-slate-200/90 min-h-[76px] duration-300 ${sidebarOpen ? 'px-6' : 'px-0 min-[751px]:px-2 justify-center'}`} >
-          {(sidebarOpen || isMobile) ? (
-            <div className="flex items-center justify-between w-full">
-              <NavLink className="flex items-center gap-3.5 group" to="/">
-                <div className="w-13 h-13 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-105 transition-all duration-200 border border-primary/40 relative overflow-hidden select-none shrink-0">
-                  <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-                  <span className="relative z-10 font-cinzel font-black tracking-widest text-[16px] text-white leading-none pl-0.5">
-                    UJC
-                  </span>
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-1.5 leading-tight">
-                    <span className="text-[20px] font-black text-primary tracking-tight">UZAIR</span>
-                    <span className="text-[20px] font-black text-slate-100 dark:text-slate-900 tracking-tight">JIBRAN</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[12.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">CLOTH</span>
-                  </div>
-                </div>
-              </NavLink>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSidebarOpen(false);
-                }}
-                className="p-1.5 hover:bg-slate-800/80 dark:hover:bg-slate-100 rounded-lg text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black transition-colors"
-                title="Collapse Sidebar"
-              >
-                <AiOutlineArrowLeft size={18} />
-              </button>
-            </div>
-          ) : (
-            <div
-              className="w-full flex justify-center cursor-pointer py-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSidebarOpen(true);
-              }}
-              title="Open Sidebar"
-            >
-              <div className="w-13 h-13 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-105 transition-all duration-200 border border-primary/40 relative overflow-hidden select-none">
-                <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-                <span className="relative z-10 font-cinzel font-black tracking-widest text-[16px] text-white leading-none pl-0.5">
-                  UJC
-                </span>
-              </div>
+          {sidebarOpen && (
+            <div className="flex flex-col min-w-0">
+              <span className="font-cinzel font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate">
+                {brand.fullName || 'UZAIR JIBRAN CLOTH'}
+              </span>
+              <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
+                CLOTH ERP
+              </span>
             </div>
           )}
-        </div>
+        </NavLink>
 
-        {/* Navigation Section */}
-        <div className="no-scrollbar flex flex-col overflow-y-auto overflow-x-hidden flex-1">
-          <nav className={`py-4 duration-300 ${sidebarOpen ? 'px-3' : 'px-0 min-[751px]:px-2'}`}>
-            <ul className="mb-6 flex flex-col gap-1.5 w-full">
-              {(Array.isArray(roleRoutes) ? roleRoutes : [])
-                .filter((route: any) => route && !route.hideFromSidebar)
-                .map((route: any, index: number) => (
-                  <SidebarItem
-                    key={index}
-                    item={route}
-                    pathname={pathname}
-                    sidebarOpen={sidebarOpen}
-                    setSidebarOpen={setSidebarOpen}
-                    hideModal={hideModal}
-                    openMenuId={openMenuId}
-                    setOpenMenuId={setOpenMenuId}
-                    menuUniqueKey={`root-${index}`}
-                    getTenantPath={getTenantPath}
-                    sidebarColor={currentSidebarColor}
-                  />
-                ))
-              }
+        {sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 hover:bg-slate-800/80 dark:hover:bg-slate-100 rounded-lg text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black transition-colors"
+            title="Collapse Sidebar"
+          >
+            <AiOutlineArrowLeft size={16} />
+          </button>
+        )}
+      </div>
 
-              {/* SIDEBAR FONT & ICON COLOR DROPDOWN (EXPANDED) */}
-              {(sidebarOpen || isMobile) && (
-                <li className="w-full">
-                  <div
-                    onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
-                    className="group relative flex items-center justify-between rounded-xl py-2.5 px-3.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 cursor-pointer select-none"
-                    style={{ color: currentSidebarColor }}
-                  >
-                    <div className="flex items-center">
-                      <LuPalette
-                        className="text-lg shrink-0 transition-colors"
-                        style={{ color: currentSidebarColor }}
-                      />
-                      <span
-                        className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide"
-                        style={{ color: currentSidebarColor }}
-                      >
-                        Color
-                      </span>
-                    </div>
+      {/* Navigation List */}
+      <div className="flex-1 overflow-y-auto no-scrollbar py-3 px-3">
+        <ul className="flex flex-col gap-1.5">
+          {roleRoutes.filter((item: any) => item && !item.hideFromSidebar).map((item: any, idx: number) => (
+            <SidebarItem
+              key={idx}
+              item={item}
+              pathname={pathname}
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+              isMobile={isMobile}
+              hideModal={hideModal}
+              openMenuId={openMenuId}
+              setOpenMenuId={setOpenMenuId}
+              getTenantPath={getTenantPath}
+              sidebarColor={currentSidebarColor}
+              layoutMode={layoutMode}
+            />
+          ))}
 
-                    <div className="flex items-center gap-2">
-                      {wasContrastAdjusted && (
-                        <span className="text-[8px] font-black uppercase text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">
-                          Contrast Safe
-                        </span>
-                      )}
-                      <span
-                        className="w-3.5 h-3.5 rounded-full border border-black/15 shadow-xs transition-colors shrink-0"
-                        style={{ backgroundColor: currentSidebarColor }}
-                        title={`Active: ${currentSidebarColor}`}
-                      />
-                      <span
-                        className="transition-transform duration-200"
-                        style={{ color: currentSidebarColor, opacity: 0.8 }}
-                      >
-                        {colorDropdownOpen ? <AiOutlineUp size={11} /> : <AiOutlineDown size={11} />}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Collapsible Color Palette Drawer */}
-                  <div
-                    className="transition-all duration-300 ease-in-out overflow-hidden transform pl-3 ml-2 border-l"
-                    style={{
-                      maxHeight: colorDropdownOpen ? '420px' : '0px',
-                      opacity: colorDropdownOpen ? '100' : '0',
-                      marginTop: colorDropdownOpen ? '4px' : '0px',
-                      marginBottom: colorDropdownOpen ? '4px' : '0px',
-                      pointerEvents: colorDropdownOpen ? 'auto' : 'none',
-                      borderLeftColor: `${currentSidebarColor}30`,
-                    }}
-                  >
-                    <div className="p-3 my-1 rounded-2xl bg-slate-900/95 dark:bg-slate-50/95 border border-slate-700/80 dark:border-slate-200/80 shadow-xs">
-                      {/* Presets Header */}
-                      <div className="flex items-center justify-between mb-2 px-0.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          Preset Colors
-                        </span>
-                        {wasContrastAdjusted && (
-                          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-md animate-pulse">
-                            Auto-adjusted for contrast
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Presets Grid */}
-                      <div className="grid grid-cols-6 gap-1.5 mb-3">
-                        {PRESET_THEME_COLORS.map((c) => {
-                          const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
-                          return (
-                            <button
-                              key={c.hex}
-                              type="button"
-                              title={c.name}
-                              onClick={() => handleSidebarColorChange(c.hex)}
-                              className={`w-5.5 h-5.5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                                isSelected
-                                  ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
-                                  : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
-                              }`}
-                              style={{ backgroundColor: c.hex }}
-                            >
-                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Dedicated Custom Color Section */}
-                      <div className="pt-2.5 border-t border-slate-200/80 dark:border-slate-700/80">
-                        <div className="flex items-center justify-between mb-1.5 px-0.5">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                            Custom Option
-                          </span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
-                            Color Wheel & Hex
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 bg-slate-950 dark:bg-white border border-slate-700/90 dark:border-slate-200/90 rounded-xl p-1.5 shadow-2xs">
-                          {/* Color Wheel Clickable Swatch */}
-                          <label
-                            className="relative flex items-center justify-center cursor-pointer shrink-0"
-                            title="Click to open color picker wheel"
-                          >
-                            <span
-                              className="w-7 h-7 rounded-lg border border-black/15 shadow-xs transition-transform hover:scale-105 block"
-                              style={{ backgroundColor: currentSidebarColor }}
-                            />
-                            <input
-                              type="color"
-                              value={currentSidebarColor}
-                              onChange={(e) => handleSidebarColorChange(e.target.value)}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            />
-                          </label>
-
-                          {/* Hex Text Input */}
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              handleCustomHexSubmit();
-                            }}
-                            className="flex items-center flex-1 min-w-0"
-                          >
-                            <div className="flex items-center flex-1 px-1.5 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
-                              <span className="text-slate-400 select-none mr-0.5">#</span>
-                              <input
-                                type="text"
-                                maxLength={6}
-                                value={customHexInput}
-                                onChange={(e) => setCustomHexInput(e.target.value)}
-                                placeholder="RRGGBB"
-                                className="w-full bg-transparent outline-none uppercase font-mono tracking-wider text-xs"
-                              />
-                            </div>
-                            <button
-                              type="submit"
-                              className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-white shadow-xs transition hover:opacity-90 active:scale-95 cursor-pointer shrink-0"
-                              style={{ backgroundColor: currentSidebarColor }}
-                            >
-                              Apply
-                            </button>
-                          </form>
-                        </div>
-
-                        <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1.5 px-0.5 leading-tight">
-                          Protected against invisible fonts (e.g. white on light, dark on dark).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              )}
-
-              {/* SIDEBAR FONT & ICON COLOR DROPDOWN (COLLAPSED POPUP) */}
-              {!sidebarOpen && !isMobile && (
-                <li className="relative flex justify-center mx-auto w-10 h-10 px-0 my-1">
-                  <button
-                    type="button"
-                    onClick={() => setCollapsedColorPickerOpen(!collapsedColorPickerOpen)}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                    title="Color"
-                  >
-                    <LuPalette size={18} style={{ color: currentSidebarColor }} />
-                  </button>
-                  {collapsedColorPickerOpen && (
-                    <div
-                      ref={collapsedPickerRef}
-                      className="fixed left-[56px] z-99999 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#1E293B]/95 p-3 shadow-2xl backdrop-blur-md"
-                      style={{ bottom: '70px', animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1" style={{ color: currentSidebarColor }}>
-                          <LuPalette size={12} style={{ color: currentSidebarColor }} />
-                          Color
-                        </span>
-                        {wasContrastAdjusted && (
-                          <span className="text-[8px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">
-                            Protected
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Presets Grid */}
-                      <div className="grid grid-cols-6 gap-1.5 mb-2.5">
-                        {PRESET_THEME_COLORS.map((c) => {
-                          const isSelected = currentSidebarColor.toLowerCase() === c.hex.toLowerCase();
-                          return (
-                            <button
-                              key={c.hex}
-                              type="button"
-                              title={c.name}
-                              onClick={() => {
-                                handleSidebarColorChange(c.hex);
-                              }}
-                              className={`w-5 h-5 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
-                                isSelected
-                                  ? 'scale-115 ring-2 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900 border-white shadow-xs'
-                                  : 'border-black/10 hover:scale-120 opacity-85 hover:opacity-100'
-                              }`}
-                              style={{ backgroundColor: c.hex }}
-                            >
-                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Custom Option in Popover */}
-                      <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80">
-                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
-                          <label className="relative flex items-center justify-center cursor-pointer shrink-0" title="Color Picker">
-                            <span
-                              className="w-5 h-5 rounded border border-black/15 shadow-xs block"
-                              style={{ backgroundColor: currentSidebarColor }}
-                            />
-                            <input
-                              type="color"
-                              value={currentSidebarColor}
-                              onChange={(e) => handleSidebarColorChange(e.target.value)}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            />
-                          </label>
-                          <input
-                            type="text"
-                            maxLength={6}
-                            value={customHexInput}
-                            onChange={(e) => setCustomHexInput(e.target.value)}
-                            placeholder="HEX"
-                            className="w-full bg-transparent outline-none uppercase font-mono text-[10px] font-bold"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleCustomHexSubmit()}
-                            className="px-2 py-0.5 text-[10px] font-bold rounded text-white shadow-xs cursor-pointer"
-                            style={{ backgroundColor: currentSidebarColor }}
-                          >
-                            OK
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              )}
-
-              {/* Log Out Button */}
-              <li 
-                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-rose-500/15 dark:hover:bg-rose-50 hover:text-rose-400 dark:hover:text-rose-600 cursor-pointer mt-4 border-t border-slate-800/90 dark:border-slate-200/90 pt-4 ${sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'}`} 
-                style={{ color: currentSidebarColor }}
-                onClick={() => logout()} 
-                title={!sidebarOpen ? 'LogOut' : undefined} 
-              >
-                <LuLogOut
-                  className="text-lg shrink-0 transition-colors group-hover:text-rose-600 dark:group-hover:text-rose-400"
-                  style={{ color: currentSidebarColor }}
-                />
-                {(sidebarOpen || isMobile) && (
-                  <span className="ml-3 text-xs font-semibold" style={{ color: currentSidebarColor }}>
-                    Log Out
-                  </span>
-                )}
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </aside>
-    </>
+          {/* Log Out Button */}
+          <li
+            className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-rose-500/15 dark:hover:bg-rose-50 hover:text-rose-400 dark:hover:text-rose-600 cursor-pointer mt-4 border-t border-slate-800/90 dark:border-slate-200/90 pt-4 ${
+              sidebarOpen ? 'justify-start px-3.5' : 'justify-center mx-auto w-10 h-10 px-0'
+            }`}
+            style={{ color: currentSidebarColor }}
+            onClick={() => logout()}
+            title={!sidebarOpen ? 'LogOut' : undefined}
+          >
+            <LuLogOut className="text-lg shrink-0 transition-colors" />
+            {sidebarOpen && (
+              <span className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide">
+                Log Out
+              </span>
+            )}
+          </li>
+        </ul>
+      </div>
+    </aside>
   );
 };
 

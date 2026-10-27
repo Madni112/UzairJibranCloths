@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS public.inventory_categories (
 
 CREATE TABLE IF NOT EXISTS public.inventory_brands (
     id BIGSERIAL PRIMARY KEY,
-    tenant_id VARCHAR(64) DEFAULT 'bashir',
+    tenant_id VARCHAR(64) DEFAULT   'bashir',
     name VARCHAR(128) NOT NULL,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()

@@ -4,6 +4,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { getBrandConfig } from '../../../utils/brand';
 import { FiPrinter, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 
 const PrintInvoiceReceipt: React.FC = () => {
@@ -150,7 +151,7 @@ const PrintInvoiceReceipt: React.FC = () => {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900">
-                {businessName || 'UZAIR JIBRAN CLOTH'}
+                {businessName || getBrandConfig().fullName}
               </h1>
               <p className="text-xs text-slate-500 font-semibold mt-0.5">
                 Authorized Commercial Building Materials & Ceramic Store

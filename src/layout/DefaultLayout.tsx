@@ -49,22 +49,22 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={handleSetSidebarOpen} />
 
-        {/* Content Area with refined enterprise spacing and background mesh */}
-        <div 
-          className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden duration-300 ease-in-out w-full"
-        >
+        {/* Content Column: Fixed Header on top, scrollable content underneath */}
+        <div className="relative flex flex-1 flex-col h-screen overflow-hidden duration-300 ease-in-out w-full min-w-0">
           <Header sidebarOpen={sidebarOpen} setSidebarOpen={handleSetSidebarOpen} />
 
-          <main className="flex-1 bg-[#F8FAFC] dark:bg-[#0B0F17] w-full relative">
-            {/* Subtle top ambient emerald glow */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-emerald-500/5 via-teal-500/5 to-transparent dark:from-emerald-950/20 dark:via-teal-950/10 dark:to-transparent" />
-            
-            <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-8 w-full">
-              {children}
-            </div>
-          </main>
+          <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden w-full">
+            <main className="flex-1 bg-[#F8FAFC] dark:bg-[#0B0F17] w-full relative">
+              {/* Subtle top ambient cyan glow */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-primary/5 via-primary/5 to-transparent dark:from-primary/15 dark:via-primary/5 dark:to-transparent" />
+              
+              <div className="relative mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-8 w-full">
+                {children}
+              </div>
+            </main>
 
-          <Footer />
+            <Footer />
+          </div>
         </div>
 
       </div>
@@ -73,4 +73,3 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export default DefaultLayout;
-

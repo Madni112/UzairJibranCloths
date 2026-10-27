@@ -4,12 +4,14 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { getBrandConfig } from '../../../utils/brand';
 import { FiPrinter, FiArrowLeft, FiPhone, FiMapPin, FiCheckCircle, FiDollarSign, FiRotateCcw } from 'react-icons/fi';
 
 const PrintSalesReturnReceipt: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tenantId } = useAuth();
+  const { tenantId, businessName } = useAuth();
+  const brand = getBrandConfig();
   
   const [receipt, setReceipt] = useState<any>(null);
   const [linkedReturn, setLinkedReturn] = useState<any>(null);
@@ -148,7 +150,7 @@ const PrintSalesReturnReceipt: React.FC = () => {
         <div className="flex justify-between items-start border-b-2 border-emerald-700 pb-6 mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
-              UZAIR JIBRAN CLOTH
+              {businessName || brand.fullName}
             </h1>
             <p className="text-xs text-slate-500 font-semibold mt-1">
               Wholesale Ceramic Tiles, Sanitary Ware & Building Materials
@@ -157,7 +159,7 @@ const PrintSalesReturnReceipt: React.FC = () => {
               National Highway / Main Warehouse, Hyderabad, Sindh
             </p>
             <p className="text-xs text-slate-500 font-medium">
-              Tel: +92 312 8039911 | Email: support@uzairjibrancloth.com
+              Tel: +92 312 8039911 | Email: {brand.adminEmail}
             </p>
           </div>
           <div className="text-right">
@@ -351,7 +353,7 @@ const PrintSalesReturnReceipt: React.FC = () => {
 
         {/* Footer Note */}
         <div className="mt-8 text-center text-[10px] text-slate-400 print:mt-12 font-medium">
-          This is a computer-generated official refund settlement voucher from UZAIR JIBRAN CLOTH ERP System.
+          This is a computer-generated official refund settlement voucher from {brand.fullName} ERP System.
         </div>
 
       </div>

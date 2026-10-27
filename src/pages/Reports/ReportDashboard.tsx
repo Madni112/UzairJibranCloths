@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../Context/Auth';
+import { getBrandConfig } from '../../utils/brand';
 import {
   MdSearch,
   MdClear,
@@ -765,7 +766,7 @@ const ReportDashboard: React.FC = () => {
 
       await exportMultiSheetExcel({
         fileName: `Master_Reports_Directory_${new Date().toISOString().split('T')[0]}.xlsx`,
-        companyName: businessName || 'UZAIR JIBRAN CLOTH',
+        companyName: businessName || getBrandConfig().fullName,
         sheets: [
           {
             sheetName: 'Reports Catalog',

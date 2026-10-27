@@ -4,6 +4,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { getBrandConfig } from '../../../utils/brand';
 import { FiPrinter, FiArrowLeft, FiPhone, FiMapPin } from 'react-icons/fi';
 
 interface ReturnItem {
@@ -53,7 +54,8 @@ interface ReturnData {
 const PrintSalesReturn: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tenantId } = useAuth();
+  const { tenantId, businessName } = useAuth();
+  const brand = getBrandConfig();
   const [returnData, setReturnData] = useState<ReturnData | null>(null);
   const [customerInfo, setCustomerInfo] = useState<any>(null);
   const [productsCatalog, setProductsCatalog] = useState<any[]>([]);
@@ -350,7 +352,7 @@ const PrintSalesReturn: React.FC = () => {
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 uppercase">
-              UZAIR JIBRAN CLOTH
+              {businessName || brand.fullName}
             </h1>
             <p className="text-xs text-slate-500 font-medium tracking-wide uppercase mt-0.5">
               Enterprise Sales Return & Credit Adjustment Note
@@ -513,7 +515,7 @@ const PrintSalesReturn: React.FC = () => {
             <div className="border-t-2 border-slate-400 pt-2 w-48 mx-auto">
               Authorized Signature
             </div>
-            <span className="text-[10px] text-slate-400 font-normal block mt-0.5">UZAIR JIBRAN CLOTH</span>
+            <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{businessName || brand.name}</span>
           </div>
           <div>
             <div className="border-t-2 border-slate-400 pt-2 w-48 mx-auto">

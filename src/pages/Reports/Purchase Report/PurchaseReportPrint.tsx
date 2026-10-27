@@ -20,6 +20,7 @@ import {
 } from 'react-icons/md';
 import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
+import { getBrandConfig } from '../../../utils/brand';
 import ReportPagination from '../../../components/ReportPagination';
 
 const PurchaseReportPrint = () => {
@@ -51,7 +52,7 @@ const PurchaseReportPrint = () => {
       const sCat = meta?.sub_category || '';
       const pcsPerBox = Number(meta?.pieces_per_box || meta?.pcs_per_box || meta?.pieces_per_packing || 0);
       const isTile = Boolean(
-        String(pCat).toLowerCase().includes('tile') || 
+        String(pCat).toLowerCase().includes('tile') ||
         String(sCat).toLowerCase().includes('tile') ||
         String(meta?.scenario_name || '').toLowerCase().includes('tile') ||
         pcsPerBox > 1
@@ -96,7 +97,7 @@ const PurchaseReportPrint = () => {
         const sCat = meta?.sub_category || '';
         const pcsPerBox = Number(meta?.pieces_per_box || meta?.pcs_per_box || meta?.pieces_per_packing || 0);
         const isTile = Boolean(
-          String(pCat).toLowerCase().includes('tile') || 
+          String(pCat).toLowerCase().includes('tile') ||
           String(sCat).toLowerCase().includes('tile') ||
           String(meta?.scenario_name || '').toLowerCase().includes('tile') ||
           pcsPerBox > 1
@@ -185,7 +186,7 @@ const PurchaseReportPrint = () => {
     else if (rType === 'return') titlePrefix = 'Purchase Returns & Debit Ledger';
     else if (rType === 'purchase-query') titlePrefix = 'Purchase Parameter Transaction Register';
 
-    document.title = `${titlePrefix} - ${businessName || 'UZAIR JIBRAN CLOTH'}`;
+    document.title = `${titlePrefix} - ${businessName || getBrandConfig().fullName}`;
 
     const handleBeforePrint = () => setIsPrinting(true);
     const handleAfterPrint = () => setIsPrinting(false);
@@ -367,8 +368,8 @@ const PurchaseReportPrint = () => {
 
           const sku = matched?.sku || matched?.item_sr_no || '-';
           const isTile = Boolean(
-            String(pCat).toLowerCase().includes('tile') || 
-            String(sCat).toLowerCase().includes('tile') || 
+            String(pCat).toLowerCase().includes('tile') ||
+            String(sCat).toLowerCase().includes('tile') ||
             String(lCat).toLowerCase().includes('tile') ||
             Number(matched?.pieces_per_box || matched?.pcs_per_box || 0) > 1
           );
@@ -440,9 +441,9 @@ const PurchaseReportPrint = () => {
             if (!matchesSubSub) return false;
           }
           if (brandList.length > 0) {
-            const matchesBrand = brandList.some(b => 
-              brand.toLowerCase().includes(b) || 
-              b.includes(brand.toLowerCase()) || 
+            const matchesBrand = brandList.some(b =>
+              brand.toLowerCase().includes(b) ||
+              b.includes(brand.toLowerCase()) ||
               pKey.includes(b)
             );
             if (!matchesBrand) return false;
@@ -1196,7 +1197,7 @@ const PurchaseReportPrint = () => {
       await exportToExcel({
         fileName: `${filename}.xlsx`,
         sheetName: `Procurement Audit`,
-        companyName: businessName || 'UZAIR JIBRAN CLOTH',
+        companyName: businessName || getBrandConfig().fullName,
         reportTitle: `Master Procurement Accounting Statement (${String(rType).toUpperCase()})`,
         filterSummary: filterMeta,
         columns,
@@ -1330,25 +1331,23 @@ const PurchaseReportPrint = () => {
           >
             <MdArrowBack size={16} /> Back to Report Filter
           </button>
-          
+
           <div className="flex items-center gap-2 flex-wrap">
             {(rType === 'category-purchases' || rType === 'product-purchase-history' || rType === 'purchase-invoice-detail') && (
               <div className="flex items-center bg-white p-0.5 rounded border border-gray-300 shadow-2xs mr-2">
                 <button
                   type="button"
                   onClick={() => handleViewModeChange('summary')}
-                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
-                    activeViewMode === 'summary' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
-                  }`}
+                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${activeViewMode === 'summary' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
+                    }`}
                 >
                   <MdTableChart size={14} /> Summary View
                 </button>
                 <button
                   type="button"
                   onClick={() => handleViewModeChange('detailed')}
-                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
-                    activeViewMode === 'detailed' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
-                  }`}
+                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${activeViewMode === 'detailed' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
+                    }`}
                 >
                   <MdViewList size={14} /> Detailed View
                 </button>
@@ -1428,7 +1427,7 @@ const PurchaseReportPrint = () => {
           </div>
 
           <h1 className="text-3xl font-black uppercase tracking-widest font-serif text-slate-950">
-            {businessName || 'UZAIR JIBRAN CLOTH'}
+            {businessName || getBrandConfig().fullName}
           </h1>
           <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">
             Master Corporate Procurement Audit &amp; Supplier Accounts Workbook
@@ -1842,11 +1841,11 @@ const PurchaseReportPrint = () => {
                                         <td className="p-1 border border-slate-300 font-sans text-slate-600">{tx.warehouse}</td>
                                         <td className="p-1 border border-slate-300 text-right font-bold text-slate-900">{tx.qty.toLocaleString()} {tx.uom}</td>
                                         <td className="p-1 border border-slate-300 text-right font-semibold text-slate-700">Rs. {Number(tx.rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                      <td className="p-1 border border-slate-300 text-right pr-2 font-black text-emerald-800">Rs. {Number(tx.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                      <td className="p-1 border border-slate-300 text-center uppercase text-[9px] font-bold text-slate-600">{tx.payment_term}</td>
-                                    </tr>
-                                  );
-                                })}
+                                        <td className="p-1 border border-slate-300 text-right pr-2 font-black text-emerald-800">Rs. {Number(tx.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-1 border border-slate-300 text-center uppercase text-[9px] font-bold text-slate-600">{tx.payment_term}</td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </td>
@@ -2283,7 +2282,7 @@ const PurchaseReportPrint = () => {
         {/* ── SOFTWARE PROVIDER FOOTER ── */}
         <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-black font-black uppercase">{businessName || 'UZAIR JIBRAN CLOTH'}</span>
+            <span className="text-black font-black uppercase">{businessName || getBrandConfig().fullName}</span>
           </div>
           <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
             Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

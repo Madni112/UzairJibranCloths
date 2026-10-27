@@ -39,7 +39,83 @@ export const PRESET_THEME_COLORS: ThemeColor[] = [
   { name: 'Pitch Black', hex: '#000000' },
 ];
 
-export const DEFAULT_THEME_COLOR = '#06B6D4'; // Vibrant Cyan (Teal & Ocean Blue)
+export const DEFAULT_THEME_COLOR = '#06B6D4'; // Vibrant Cyan default
+
+export type SidebarLayoutMode = 'floating' | 'classic';
+
+export function getSidebarLayoutMode(): SidebarLayoutMode {
+  if (typeof window === 'undefined') return 'floating';
+  return (localStorage.getItem('uzair_jibran_sidebar_layout_mode') as SidebarLayoutMode) || 'floating';
+}
+
+export function setSidebarLayoutMode(mode: SidebarLayoutMode) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('uzair_jibran_sidebar_layout_mode', mode);
+    window.dispatchEvent(new Event('uzair_jibran_sidebar_layout_changed'));
+  }
+}
+
+export type NavbarLayoutMode = 'sticky' | 'normal';
+
+export function getNavbarLayoutMode(): NavbarLayoutMode {
+  if (typeof window === 'undefined') return 'sticky';
+  return (localStorage.getItem('uzair_jibran_navbar_layout_mode') as NavbarLayoutMode) || 'sticky';
+}
+
+export function setNavbarLayoutMode(mode: NavbarLayoutMode) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('uzair_jibran_navbar_layout_mode', mode);
+    window.dispatchEvent(new Event('uzair_jibran_navbar_layout_changed'));
+  }
+}
+
+export function getContrastTextColor(hexColor?: string): '#FFFFFF' | '#0F172A' {
+  if (!hexColor) return '#FFFFFF';
+  try {
+    const hex = hexColor.replace('#', '');
+    let r = 0, g = 0, b = 0;
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length >= 6) {
+      r = parseInt(hex.substring(0, 2), 16);
+      g = parseInt(hex.substring(2, 4), 16);
+      b = parseInt(hex.substring(4, 6), 16);
+    } else {
+      return '#FFFFFF';
+    }
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.65 ? '#0F172A' : '#FFFFFF';
+  } catch (_) {
+    return '#FFFFFF';
+  }
+}
+
+/**
+ * Returns a contrast-safe accent color for text and icons.
+ * In Light Mode: bright/white accents resolve to #0F172A so they are never invisible.
+ * In Dark Mode: pitch-dark accents resolve to #F8FAFC so they are never invisible.
+ */
+export function getSafeAccentTextColor(hexColor?: string, isDarkMode?: boolean): string {
+  if (!hexColor) return DEFAULT_THEME_COLOR;
+  const inDark = typeof isDarkMode === 'boolean' ? isDarkMode : isDarkModeActive();
+  const contrast = getContrastTextColor(hexColor);
+  if (!inDark && contrast === '#0F172A') {
+    return '#0F172A';
+  }
+  if (inDark) {
+    const hex = hexColor.replace('#', '').trim();
+    if (hex.length >= 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      if (lum < 0.25) return '#F8FAFC';
+    }
+  }
+  return hexColor;
+}
 
 export function applyAccentColor(hexColor: string) {
   if (!hexColor) return;
@@ -53,7 +129,7 @@ export function applyAccentColor(hexColor: string) {
   if (typeof document !== 'undefined') {
     document.documentElement.style.setProperty('--color-primary', hexColor);
     const hex = hexColor.replace('#', '');
-    let r = 99, g = 102, b = 241;
+    let r = 6, g = 182, b = 212;
     if (hex.length === 6) {
       r = parseInt(hex.substring(0, 2), 16);
       g = parseInt(hex.substring(2, 4), 16);
@@ -64,6 +140,11 @@ export function applyAccentColor(hexColor: string) {
     // Calculate relative luminance to determine if the color is light or dark
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     const isDark = luminance < 0.55;
+    const isLightAccent = luminance > 0.65;
+    const isDarkAccent = luminance < 0.25;
+
+    const safeLightText = isLightAccent ? '#0F172A' : hexColor;
+    const safeDarkText = isDarkAccent ? '#F8FAFC' : hexColor;
 
     // Light version of the color (for dark colors): clean lighter tone of the same color
     const lightR = Math.min(255, Math.round(r + (255 - r) * 0.38));
@@ -110,7 +191,25 @@ export function applyAccentColor(hexColor: string) {
       .bg-teal-800,
       .bg-primary {
         background-color: ${hexColor} !important;
+        ${isLightAccent ? 'color: #0F172A !important;' : 'color: #FFFFFF !important;'}
       }
+
+      ${isLightAccent ? `
+      .bg-primary svg,
+      .bg-primary span,
+      .bg-primary p,
+      .bg-primary div,
+      .bg-primary .text-white,
+      .text-white.bg-primary {
+        color: #0F172A !important;
+        stroke: #0F172A !important;
+      }
+
+      html:not(.dark) .bg-primary {
+        border-color: #CBD5E1 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+      }
+      ` : ''}
 
       /* Hover Backgrounds */
       .hover\\:bg-emerald-700:hover,
@@ -159,26 +258,49 @@ export function applyAccentColor(hexColor: string) {
         opacity: 0.75 !important;
       }
 
-      /* Text Colors */
-      .text-emerald-600,
-      .text-emerald-500,
-      .text-emerald-700,
-      .dark .text-emerald-400,
-      .text-teal-600,
-      .text-teal-500,
-      .text-teal-700,
-      .dark .text-teal-400,
-      .text-primary {
-        color: ${hexColor} !important;
+      /* Text Colors: Light Mode Contrast-Guarded */
+      html:not(.dark) .text-emerald-600,
+      html:not(.dark) .text-emerald-500,
+      html:not(.dark) .text-emerald-700,
+      html:not(.dark) .text-teal-600,
+      html:not(.dark) .text-teal-500,
+      html:not(.dark) .text-teal-700,
+      html:not(.dark) .text-primary {
+        color: ${safeLightText} !important;
+      }
+
+      /* Text Colors: Dark Mode Contrast-Guarded */
+      html.dark .text-emerald-600,
+      html.dark .text-emerald-500,
+      html.dark .text-emerald-400,
+      html.dark .text-emerald-700,
+      html.dark .text-teal-600,
+      html.dark .text-teal-500,
+      html.dark .text-teal-400,
+      html.dark .text-teal-700,
+      html.dark .text-primary {
+        color: ${safeDarkText} !important;
       }
 
       /* Hover Text Colors */
-      .hover\\:text-emerald-600:hover,
-      .hover\\:text-emerald-700:hover,
-      .hover\\:text-teal-600:hover,
-      .hover\\:text-teal-700:hover,
-      .hover\\:text-primary:hover {
-        color: ${hexColor} !important;
+      html:not(.dark) .hover\\:text-emerald-600:hover,
+      html:not(.dark) .hover\\:text-emerald-700:hover,
+      html:not(.dark) .hover\\:text-teal-600:hover,
+      html:not(.dark) .hover\\:text-teal-700:hover,
+      html:not(.dark) .hover\\:text-primary:hover,
+      html:not(.dark) .group:hover .group-hover\\:text-primary,
+      html:not(.dark) .group:hover .group-hover\\:text-emerald-600 {
+        color: ${safeLightText} !important;
+      }
+
+      html.dark .hover\\:text-emerald-600:hover,
+      html.dark .hover\\:text-emerald-700:hover,
+      html.dark .hover\\:text-teal-600:hover,
+      html.dark .hover\\:text-teal-700:hover,
+      html.dark .hover\\:text-primary:hover,
+      html.dark .group:hover .group-hover\\:text-primary,
+      html.dark .group:hover .group-hover\\:text-emerald-600 {
+        color: ${safeDarkText} !important;
       }
 
       /* Borders */
@@ -209,34 +331,10 @@ export function applyAccentColor(hexColor: string) {
         box-shadow: 0 10px 15px -3px rgba(${r}, ${g}, ${b}, 0.28) !important;
       }
 
-      /* Gradients: Start at active accent color */
-      .from-emerald-400,
-      .from-emerald-500,
-      .from-emerald-600,
-      .from-emerald-700,
-      .from-emerald-800,
-      .from-teal-400,
-      .from-teal-500,
-      .from-teal-600,
-      .from-teal-700,
-      .from-teal-800,
+      /* Gradients: only override explicit primary gradient tokens */
       .from-primary {
         --tw-gradient-from: ${hexColor} var(--tw-gradient-from-position) !important;
       }
-
-      /* Gradients: End at companion shade (light version for dark colors, dark version for light colors) */
-      .to-emerald-500,
-      .to-emerald-600,
-      .to-emerald-700,
-      .to-emerald-800,
-      .to-emerald-900,
-      .to-teal-500,
-      .to-teal-600,
-      .to-teal-700,
-      .to-teal-800,
-      .to-teal-900,
-      .to-cyan-700,
-      .to-cyan-800,
       .to-primary {
         --tw-gradient-to: ${companionShade} var(--tw-gradient-to-position) !important;
       }

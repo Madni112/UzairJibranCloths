@@ -7,6 +7,7 @@ import { MdPrint, MdArrowBack, MdFileDownload, MdViewList, MdTableChart } from '
 import { FaWhatsapp } from 'react-icons/fa';
 import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
+import { getBrandConfig } from '../../../utils/brand';
 import ReportPagination from '../../../components/ReportPagination';
 
 const SaleReportPrint = () => {
@@ -71,22 +72,23 @@ const SaleReportPrint = () => {
 
   useEffect(() => {
     const originalTitle = document.title;
+    const bName = businessName || getBrandConfig().fullName;
     if (rType === 'category-sales') {
-      document.title = 'Category-Wise Sales & Volume Report - UZAIR JIBRAN CLOTH';
+      document.title = `Category-Wise Sales & Volume Report - ${bName}`;
     } else if (rType === 'product-sales-history') {
-      document.title = 'Product Sales History Report - UZAIR JIBRAN CLOTH';
+      document.title = `Product Sales History Report - ${bName}`;
     } else if (rType === 'sales-query') {
-      document.title = 'Sales Parameter Transaction Register - UZAIR JIBRAN CLOTH';
+      document.title = `Sales Parameter Transaction Register - ${bName}`;
     } else if (rType === 'customer-sales') {
-      document.title = 'Customer Sales & Volume Analysis - UZAIR JIBRAN CLOTH';
+      document.title = `Customer Sales & Volume Analysis - ${bName}`;
     } else if (rType === 'return') {
-      document.title = 'Sales Return & Credit Ledger - UZAIR JIBRAN CLOTH';
+      document.title = `Sales Return & Credit Ledger - ${bName}`;
     } else if (rType === 'invoice') {
-      document.title = 'Sales Invoice Detail Audit - UZAIR JIBRAN CLOTH';
+      document.title = `Sales Invoice Detail Audit - ${bName}`;
     } else if (rType === 'loyalty') {
-      document.title = 'Customer Financial Statement & Invoice Ledger - UZAIR JIBRAN CLOTH';
+      document.title = `Customer Financial Statement & Invoice Ledger - ${bName}`;
     } else {
-      document.title = 'Commercial Sales Audit Statement - UZAIR JIBRAN CLOTH';
+      document.title = `Commercial Sales Audit Statement - ${bName}`;
     }
 
     return () => {
@@ -280,8 +282,8 @@ const SaleReportPrint = () => {
 
             const sku = matched?.sku || matched?.item_sr_no || '-';
             const isTile = Boolean(
-              String(pCat).toLowerCase().includes('tile') || 
-              String(sCat).toLowerCase().includes('tile') || 
+              String(pCat).toLowerCase().includes('tile') ||
+              String(sCat).toLowerCase().includes('tile') ||
               String(lCat).toLowerCase().includes('tile') ||
               Number(matched?.pieces_per_box || matched?.pcs_per_box || 0) > 1
             );
@@ -904,7 +906,7 @@ const SaleReportPrint = () => {
 
               const matchingProd = allProducts.find(
                 (p: any) => (p.product_name || '').trim().toLowerCase() === key ||
-                            (it.sku && (p.item_sr_no || '').toLowerCase() === String(it.sku).toLowerCase())
+                  (it.sku && (p.item_sr_no || '').toLowerCase() === String(it.sku).toLowerCase())
               );
 
               const prodParentCat = matchingProd?.sub_sub_category || matchingProd?.parent_category || matchingProd?.category || '';
@@ -1023,8 +1025,8 @@ const SaleReportPrint = () => {
             else invQuery = invQuery.neq('payment_term', 'Cash');
           }
           if (filters.saleMethod && filters.saleMethod !== 'All') {
-             if (filters.saleMethod === 'Direct') invQuery = invQuery.or('dc_no.is.null,dc_no.eq.""');
-             else invQuery = invQuery.neq('dc_no', '');
+            if (filters.saleMethod === 'Direct') invQuery = invQuery.or('dc_no.is.null,dc_no.eq.""');
+            else invQuery = invQuery.neq('dc_no', '');
           }
 
           let retQuery = supabase.from('sales_returns').select('*');
@@ -1055,8 +1057,8 @@ const SaleReportPrint = () => {
 
           // Filter by product / brand / category if specified in filters
           if ((filters.product && filters.product.length > 0 && !filters.product.includes('All')) ||
-              (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
-              (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
+            (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
+            (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
             const filterItemMatch = (record: any) => {
               const items = extractItemDetails(record);
               return items.some(it => {
@@ -1127,7 +1129,7 @@ const SaleReportPrint = () => {
           retPool.forEach((ret: any) => {
             let smName = ret.salesman ? String(ret.salesman).trim() : '';
             if (!smName && ret.original_invoice_no) {
-              const orig = invPool.find((i: any) => 
+              const orig = invPool.find((i: any) =>
                 String(i.invoice_no || '').toLowerCase() === String(ret.original_invoice_no).toLowerCase() ||
                 String(i.id) === String(ret.original_invoice_no).replace(/\D/g, '')
               );
@@ -1204,8 +1206,8 @@ const SaleReportPrint = () => {
             else query = query.neq('payment_term', 'Cash');
           }
           if (filters.saleMethod && filters.saleMethod !== 'All') {
-             if (filters.saleMethod === 'Direct') query = query.or('dc_no.is.null,dc_no.eq.""');
-             else query = query.neq('dc_no', '');
+            if (filters.saleMethod === 'Direct') query = query.or('dc_no.is.null,dc_no.eq.""');
+            else query = query.neq('dc_no', '');
           }
 
           const { data: invData, error: invError } = await query;
@@ -1244,8 +1246,8 @@ const SaleReportPrint = () => {
 
           // Filter by product / brand / category if specified in filters
           if ((filters.product && filters.product.length > 0 && !filters.product.includes('All')) ||
-              (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
-              (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
+            (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
+            (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
             pool = pool.filter((inv: any) => {
               const items = extractItemDetails(inv);
               return items.some(it => {
@@ -1330,8 +1332,8 @@ const SaleReportPrint = () => {
 
           // Filter by product / brand / category if specified in filters
           if ((filters.product && filters.product.length > 0 && !filters.product.includes('All')) ||
-              (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
-              (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
+            (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
+            (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
             const filterItemMatch = (record: any) => {
               const items = extractItemDetails(record);
               return items.some(it => {
@@ -1485,8 +1487,8 @@ const SaleReportPrint = () => {
 
           // Filter by product / brand / category if specified in filters
           if ((filters.product && filters.product.length > 0 && !filters.product.includes('All')) ||
-              (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
-              (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
+            (filters.parentCategory && filters.parentCategory.length > 0 && !filters.parentCategory.includes('All')) ||
+            (filters.bin && filters.bin.length > 0 && !filters.bin.includes('All'))) {
             pool = pool.filter((ret: any) => {
               const items = extractItemDetails(ret);
               return items.some(it => {
@@ -1642,8 +1644,8 @@ const SaleReportPrint = () => {
             }
 
             const billed = Number(inv.net_amount || inv.total_amount || 0);
-            const paid = inv.amount_paid !== undefined && inv.amount_paid !== null 
-              ? Number(inv.amount_paid) 
+            const paid = inv.amount_paid !== undefined && inv.amount_paid !== null
+              ? Number(inv.amount_paid)
               : (inv.receipt_status === 'Paid' || inv.sale_status === 'Completed' ? billed : 0);
             const currentRunning = customerMap[cName].net_balance + (billed - paid);
 
@@ -1872,7 +1874,7 @@ const SaleReportPrint = () => {
           exportData = [];
           reportRows.forEach((cat: any, cIdx: number) => {
             const bannerText = `🏢 PARENT: ${cat.parent_name || 'General'}  |  📂 SUB: ${cat.sub_name || '-'}  |  🏷️ CATEGORY: ${cat.category_name}  |  Sold: ${Number(cat.gross_units || 0).toLocaleString()}  |  Ret: ${Number(cat.returned_units || 0).toLocaleString()}  |  Net: ${Number(cat.net_units || 0).toLocaleString()} Units  |  Net Revenue: Rs. ${Number(cat.net_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-            
+
             exportData.push({
               _isHeader: true,
               _bannerText: bannerText
@@ -2515,9 +2517,9 @@ const SaleReportPrint = () => {
 
           const productsFormatted = rType === 'invoice'
             ? itemDetails.map(it => {
-                const lineTotal = Number(it.qty || 0) * Number(it.price || 0);
-                return `${it.name} | ${it.qty} ${it.uom} | Rs. ${Number(it.price).toLocaleString()} = Rs. ${lineTotal.toLocaleString()}${it.discountAmt > 0 ? ` (Disc: Rs. ${it.discountAmt} [${it.discountPer}%])` : ''}`;
-              }).join('\r\n')
+              const lineTotal = Number(it.qty || 0) * Number(it.price || 0);
+              return `${it.name} | ${it.qty} ${it.uom} | Rs. ${Number(it.price).toLocaleString()} = Rs. ${lineTotal.toLocaleString()}${it.discountAmt > 0 ? ` (Disc: Rs. ${it.discountAmt} [${it.discountPer}%])` : ''}`;
+            }).join('\r\n')
             : itemNames.join(' | ');
 
           return {
@@ -2534,21 +2536,21 @@ const SaleReportPrint = () => {
       const reportTitle = rType === 'product-sales-history'
         ? `Product Sales History & Market Trends Audit Report (${activeViewMode.toUpperCase()} VIEW)`
         : rType === 'sales-query'
-        ? 'Sales Parameter Multi-Criteria Transaction Register'
-        : rType === 'customer-sales'
-        ? `Customer Sales & Volume Analysis Statement (${activeViewMode.toUpperCase()} VIEW)`
-        : rType === 'sale'
-        ? `Commercial Sales Audit Ledger Statement (${activeViewMode.toUpperCase()} VIEW)`
-        : rType === 'return'
-        ? `Sales Return & Credit Adjustment Ledger Statement (${activeViewMode.toUpperCase()} VIEW)`
-        : rType === 'loyalty'
-        ? 'Customer Financial Statement & Invoice Ledger'
-        : 'Sales Invoice Detail Audit Report';
+          ? 'Sales Parameter Multi-Criteria Transaction Register'
+          : rType === 'customer-sales'
+            ? `Customer Sales & Volume Analysis Statement (${activeViewMode.toUpperCase()} VIEW)`
+            : rType === 'sale'
+              ? `Commercial Sales Audit Ledger Statement (${activeViewMode.toUpperCase()} VIEW)`
+              : rType === 'return'
+                ? `Sales Return & Credit Adjustment Ledger Statement (${activeViewMode.toUpperCase()} VIEW)`
+                : rType === 'loyalty'
+                  ? 'Customer Financial Statement & Invoice Ledger'
+                  : 'Sales Invoice Detail Audit Report';
 
       await exportToExcel({
         fileName: `${rType === 'sale' ? 'Commercial_Sales_Ledger' : rType === 'product-sales-history' ? 'Product_Sales_History' : rType === 'customer-sales' ? 'Customer_Sales_Analysis' : rType === 'return' ? 'Sales_Return_Credit_Ledger' : rType === 'sales-query' ? 'Sales_Parameter_Register' : rType}_${new Date().toISOString().split('T')[0]}.xlsx`,
         sheetName: rType === 'sale' ? 'Sales Ledger' : rType === 'customer-sales' ? 'Customer Breakdown' : rType === 'return' ? 'Return Ledger' : 'Sales Report',
-        companyName: businessName || 'UZAIR JIBRAN CLOTH',
+        companyName: businessName || getBrandConfig().fullName,
         reportTitle,
         filterSummary: filterMeta,
         columns,
@@ -2881,32 +2883,30 @@ const SaleReportPrint = () => {
       <div className="print-root-container w-full bg-white p-4 space-y-6 print:p-0 print:space-y-4">
         {/* ── TOP ACTION BUTTON BAR ── */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-100 p-3 rounded border print-hidden-element print:hidden">
-          <button 
-            type="button" 
-            onClick={() => navigate(-1)} 
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
             className="flex items-center gap-1.5 font-bold hover:underline cursor-pointer"
           >
             <MdArrowBack size={16} /> Back to Report Filter
           </button>
-          
+
           <div className="flex items-center gap-2 flex-wrap">
             {(rType === 'category-sales' || rType === 'product-sales-history' || rType === 'sale' || rType === 'customer-sales' || rType === 'return') && (
               <div className="flex items-center bg-white p-0.5 rounded border border-gray-300 shadow-2xs mr-2">
                 <button
                   type="button"
                   onClick={() => setActiveViewMode('summary')}
-                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
-                    activeViewMode === 'summary' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
-                  }`}
+                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${activeViewMode === 'summary' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
+                    }`}
                 >
                   <MdTableChart size={14} /> Summary View
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveViewMode('detailed')}
-                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
-                    activeViewMode === 'detailed' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
-                  }`}
+                  className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition cursor-pointer ${activeViewMode === 'detailed' ? 'bg-primary text-white' : 'text-gray-600 hover:text-black'
+                    }`}
                 >
                   <MdViewList size={14} /> Detailed View
                 </button>
@@ -2930,9 +2930,9 @@ const SaleReportPrint = () => {
             >
               <MdFileDownload size={16} /> {exporting ? 'Exporting...' : 'Export Excel'}
             </button>
-            <button 
-              type="button" 
-              onClick={() => window.print()} 
+            <button
+              type="button"
+              onClick={() => window.print()}
               className="flex items-center gap-1.5 bg-primary text-white py-1.5 px-4 rounded font-black cursor-pointer hover:bg-opacity-90 transition shadow-sm"
             >
               <MdPrint size={16} /> Print Report
@@ -2995,43 +2995,43 @@ const SaleReportPrint = () => {
           </div>
 
           <h1 className="text-3xl font-black uppercase tracking-widest font-serif text-slate-950">
-            {businessName || 'UZAIR JIBRAN CLOTH'}
+            {businessName || getBrandConfig().fullName}
           </h1>
           <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">
             {rType === 'category-sales'
               ? 'Category-Wise Product Sales, Net Volume Realization & Revenue Contribution Statement'
-              : rType === 'product-sales-history' 
-              ? 'Product Sales History, Velocity Trends & Realized Revenue Statement'
-              : rType === 'sales-query'
-              ? 'Sales Filter, Multi-Criteria Parameters & Chronological Audit Register'
-              : rType === 'customer-sales'
-              ? 'Customer Sales Volume, Purchasing Cycle & Revenue Contribution Statement'
-              : rType === 'sale'
-              ? 'Commercial Sales Audit Statement & Sales Executive Ledger'
-              : rType === 'loyalty'
-              ? 'Customer Financial Statement & Chronological Invoicing Ledger'
-              : rType === 'return'
-              ? 'Sales Return, Defect Restock & Credit Ledger Statement'
-              : 'Sales Invoice Detail Audit Report'}
+              : rType === 'product-sales-history'
+                ? 'Product Sales History, Velocity Trends & Realized Revenue Statement'
+                : rType === 'sales-query'
+                  ? 'Sales Filter, Multi-Criteria Parameters & Chronological Audit Register'
+                  : rType === 'customer-sales'
+                    ? 'Customer Sales Volume, Purchasing Cycle & Revenue Contribution Statement'
+                    : rType === 'sale'
+                      ? 'Commercial Sales Audit Statement & Sales Executive Ledger'
+                      : rType === 'loyalty'
+                        ? 'Customer Financial Statement & Chronological Invoicing Ledger'
+                        : rType === 'return'
+                          ? 'Sales Return, Defect Restock & Credit Ledger Statement'
+                          : 'Sales Invoice Detail Audit Report'}
           </p>
           <div className="text-xs pt-1.5 font-mono flex flex-wrap justify-between px-2 text-gray-700">
             <span>
               Report Categorization: <b className="text-black uppercase underline">
                 {rType === 'category-sales'
                   ? `Category-Wise Sales Audit (${activeViewMode.toUpperCase()} VIEW)`
-                  : rType === 'product-sales-history' 
-                  ? `Product Sales History (${activeViewMode.toUpperCase()} VIEW)` 
-                  : rType === 'sales-query'
-                  ? 'Sales Parameter Transaction Register (CHRONOLOGICAL AUDIT)'
-                  : rType === 'customer-sales'
-                  ? `Customer Sales & Volume Analysis (${activeViewMode.toUpperCase()} VIEW)`
-                  : rType === 'sale'
-                  ? `Commercial Sales Audit Ledger (${activeViewMode.toUpperCase()} VIEW)`
-                  : rType === 'return'
-                  ? `Sales Return & Credit Ledger (${activeViewMode.toUpperCase()} VIEW)`
-                  : rType === 'loyalty'
-                  ? 'CUSTOMER FINANCIAL STATEMENT & INVOICE LEDGER'
-                  : `${rType} Ledger Book`}
+                  : rType === 'product-sales-history'
+                    ? `Product Sales History (${activeViewMode.toUpperCase()} VIEW)`
+                    : rType === 'sales-query'
+                      ? 'Sales Parameter Transaction Register (CHRONOLOGICAL AUDIT)'
+                      : rType === 'customer-sales'
+                        ? `Customer Sales & Volume Analysis (${activeViewMode.toUpperCase()} VIEW)`
+                        : rType === 'sale'
+                          ? `Commercial Sales Audit Ledger (${activeViewMode.toUpperCase()} VIEW)`
+                          : rType === 'return'
+                            ? `Sales Return & Credit Ledger (${activeViewMode.toUpperCase()} VIEW)`
+                            : rType === 'loyalty'
+                              ? 'CUSTOMER FINANCIAL STATEMENT & INVOICE LEDGER'
+                              : `${rType} Ledger Book`}
               </b>
             </span>
             <span>Duration Window Block: {filters.dateFrom || 'All Time'} up to {filters.dateTo || 'All Time'}</span>
@@ -3917,10 +3917,9 @@ const SaleReportPrint = () => {
                                 Rs. {Number(tx.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </td>
                               <td className="p-1.5 border border-black text-center font-sans">
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                  tx.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
-                                  tx.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                                }`}>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
+                                    tx.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                                  }`}>
                                   {tx.status}
                                 </span>
                               </td>
@@ -4275,9 +4274,8 @@ const SaleReportPrint = () => {
                                         Return Credit
                                       </span>
                                     ) : (
-                                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${
-                                        isCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
-                                      }`}>
+                                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${isCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
+                                        }`}>
                                         {row.payment_term || 'Credit'}
                                       </span>
                                     )}
@@ -4674,9 +4672,8 @@ const SaleReportPrint = () => {
                                       )}
                                     </td>
                                     <td className="p-1.5 border border-black text-center align-top">
-                                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${
-                                        isCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
-                                      }`}>
+                                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${isCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
+                                        }`}>
                                         {row.payment_term || 'Credit'}
                                       </span>
                                     </td>
@@ -5285,9 +5282,8 @@ const SaleReportPrint = () => {
                         </td>
                         <td className="p-1.5 border border-black font-sans text-gray-600 align-top">{row.dispatch_warehouse || 'Main Warehouse'}</td>
                         <td className="p-1.5 border border-black text-center align-top">
-                          <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${
-                            isCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
-                          }`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${isCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
+                            }`}>
                             {row.payment_term || 'Credit'}
                           </span>
                         </td>
@@ -5605,7 +5601,7 @@ const SaleReportPrint = () => {
         {/* 🏢 Software & Corporate Provider Footer */}
         <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-black font-black uppercase">UZAIR JIBRAN CLOTH</span>
+            <span className="text-black font-black uppercase">{businessName || getBrandConfig().fullName}</span>
           </div>
           <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
             Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

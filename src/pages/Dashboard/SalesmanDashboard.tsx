@@ -21,7 +21,9 @@ import {
   MdWarehouse,
   MdPerson,
   MdArrowForward,
-  MdPointOfSale
+  MdPointOfSale,
+  MdKeyboardArrowUp,
+  MdKeyboardArrowDown
 } from 'react-icons/md';
 
 interface SalesInvoiceItem {
@@ -57,13 +59,24 @@ const SalesmanDashboard: React.FC = () => {
   const [salesmanList, setSalesmanList] = useState<string[]>([]);
   const [selectedSalesman, setSelectedSalesman] = useState<string>('ALL');
   const [partnerSalesmen, setPartnerSalesmen] = useState<string[]>([]);
+  const [showSalesmanDetails, setShowSalesmanDetails] = useState<boolean>(() => {
+    return localStorage.getItem('ujc_salesman_dashboard_show_details') === 'true';
+  });
+
+  const toggleSalesmanDetails = () => {
+    setShowSalesmanDetails(prev => {
+      const next = !prev;
+      localStorage.setItem('ujc_salesman_dashboard_show_details', String(next));
+      return next;
+    });
+  };
 
   const [effectiveSalesmanName, setEffectiveSalesmanName] = useState<string>(() => {
-    return userName || localStorage.getItem('zac_user_name') || '';
+    return userName || localStorage.getItem('ujc_user_name') || '';
   });
 
   const isAdminOrSuper = useMemo(() => {
-    const r = (role || localStorage.getItem('zac_user_role') || '').toLowerCase();
+    const r = (role || localStorage.getItem('ujc_user_role') || '').toLowerCase();
     return r.includes('admin') || r.includes('owner') || r.includes('developer');
   }, [role]);
 
@@ -457,8 +470,32 @@ const SalesmanDashboard: React.FC = () => {
         />
       </div>
 
+      {/* ========================================================================= */}
+      {/* EXPANDABLE OPERATIONAL DETAILS TOGGLE BAR                                */}
+      {/* ========================================================================= */}
+      <div className="flex items-center justify-center pt-2 pb-1">
+        <button
+          onClick={toggleSalesmanDetails}
+          className="group flex items-center gap-3 px-5 py-2 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+              {showSalesmanDetails ? 'Hide Live Invoices & Stock Explorer' : 'Show Live Invoices & Stock Explorer'}
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold border border-slate-200/70 dark:border-slate-700/60">
+              2 Live Modules
+            </span>
+          </div>
+          <div className="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-transform duration-200 group-hover:bg-slate-200/70 dark:group-hover:bg-slate-700">
+            {showSalesmanDetails ? <MdKeyboardArrowUp size={16} /> : <MdKeyboardArrowDown size={16} />}
+          </div>
+        </button>
+      </div>
+
       {/* 4. Main Body: Invoices Table & Live Stock Quick Checker */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {showSalesmanDetails && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
         
         {/* Left 2 Cols: Recent Invoices & Dispatch Status */}
         <div className="lg:col-span-2 space-y-4">
@@ -666,6 +703,7 @@ const SalesmanDashboard: React.FC = () => {
           </GlassCard>
         </div>
       </div>
+      )}
     </div>
   );
 };

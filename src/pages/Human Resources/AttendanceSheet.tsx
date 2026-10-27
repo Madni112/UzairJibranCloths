@@ -26,6 +26,7 @@ import { useHub } from '../Setup/useHub';
 import { isoDay } from '../../utils/dateRange';
 import Spinner from '../../ui/Spinner';
 import { toast } from 'react-hot-toast';
+import { getBrandConfig } from '../../utils/brand';
 
 const DAY_LETTER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1392,7 +1393,7 @@ export const AttendanceSheetPage: React.FC = () => {
               <div id="printable-employee-timesheet" className="hidden">
                 <div className="text-center pb-2 border-b-2 border-black mb-2">
                   <h1 className="text-xl font-black uppercase tracking-wider text-black">
-                    UZAIR JIBRAN CLOTH
+                    {getBrandConfig().fullName}
                   </h1>
                   <h2 className="text-xs font-bold uppercase text-gray-700 tracking-wide mt-0.5">
                     INDIVIDUAL EMPLOYEE MONTHLY ATTENDANCE SHEET
@@ -1520,7 +1521,7 @@ export const AttendanceSheetPage: React.FC = () => {
                       (Sign / Stamp)
                     </div>
                     <div className="w-44 border-t-2 border-black pt-1.5 font-bold text-black">Managing Director</div>
-                    <div className="text-[9.5px] text-gray-600 font-medium mt-0.5">UZAIR JIBRAN CLOTH</div>
+                    <div className="text-[9.5px] text-gray-600 font-medium mt-0.5">{getBrandConfig().name}</div>
                   </div>
                 </div>
               </div>
@@ -1533,7 +1534,7 @@ export const AttendanceSheetPage: React.FC = () => {
       <div id="printable-attendance-register" className="hidden">
         <div className="text-center pb-3 border-b-2 border-black mb-3">
           <h1 className="text-xl font-black uppercase tracking-wider text-black">
-            UZAIR JIBRAN CLOTH
+            {getBrandConfig().fullName}
           </h1>
           <h2 className="text-xs font-bold uppercase text-gray-700 tracking-wide mt-0.5">
             MONTHLY ATTENDANCE REGISTER &amp; DEDUCT-DAYS SHEET

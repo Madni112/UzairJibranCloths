@@ -7,21 +7,41 @@ const useColorMode = () => {
   useEffect(() => {
     const className = 'dark';
     const bodyClass = window.document.body.classList;
-    const htmlClass = window.document.documentElement.classList;
+    const docClass = window.document.documentElement.classList;
 
     if (colorMode === 'dark') {
       bodyClass.add(className);
-      htmlClass.add(className);
+      docClass.add(className);
     } else {
       bodyClass.remove(className);
-      htmlClass.remove(className);
+      docClass.remove(className);
     }
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('color-mode-changed'));
+      window.dispatchEvent(new CustomEvent('color-mode-changed', { detail: colorMode }));
       window.dispatchEvent(new Event('uzair_jibran_sidebar_color_changed'));
     }
   }, [colorMode]);
+
+  useEffect(() => {
+    const handleSync = (e?: any) => {
+      try {
+        const item = window.localStorage.getItem('color-theme');
+        const parsed = item ? JSON.parse(item) : (e?.detail || null);
+        if (parsed && (parsed === 'light' || parsed === 'dark') && parsed !== colorMode) {
+          setColorMode(parsed);
+        }
+      } catch (err) {}
+    };
+
+    window.addEventListener('color-mode-changed', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('color-mode-changed', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [colorMode, setColorMode]);
 
   return [colorMode, setColorMode];
 };

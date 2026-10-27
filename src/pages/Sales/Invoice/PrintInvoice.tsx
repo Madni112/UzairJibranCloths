@@ -4,6 +4,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { getBrandConfig } from '../../../utils/brand';
 import { FiPrinter, FiArrowLeft, FiPhone, FiMapPin, FiCheckCircle } from 'react-icons/fi';
 import { getInvoiceSaleTypeInfo } from './SalesHistory';
 
@@ -58,7 +59,8 @@ interface InvoiceData {
 const PrintInvoice = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { tenantId } = useAuth();
+  const { tenantId, businessName } = useAuth();
+  const brand = getBrandConfig();
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [customerInfo, setCustomerInfo] = useState<any>(null);
   const [productsCatalog, setProductsCatalog] = useState<any[]>([]);
@@ -405,15 +407,15 @@ const PrintInvoice = () => {
             <div className="flex items-center gap-2">
               <span className="h-4 w-4 bg-emerald-600 rounded-sm"></span>
               <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">
-                UZAIR JIBRAN CLOTH
+                {businessName || brand.fullName}
               </h1>
             </div>
             <p className="text-[11px] font-semibold text-slate-500 tracking-wider uppercase mt-0.5">
               Tiles, Sanitary Ware & Building Material Specialists
             </p>
             <div className="flex items-center gap-4 text-[11px] text-slate-600 mt-2 font-medium">
-              <span className="flex items-center gap-1"><FiMapPin size={12} className="text-emerald-600" /> Saddar Bazar, Hyderabad</span>
-              <span className="flex items-center gap-1"><FiPhone size={12} className="text-emerald-600" /> Tel: 2782644 45 46</span>
+              <span className="flex items-center gap-1"><FiMapPin size={12} className="text-emerald-600" /> {brand.address}</span>
+              <span className="flex items-center gap-1"><FiPhone size={12} className="text-emerald-600" /> {brand.supportPhone}</span>
             </div>
           </div>
 

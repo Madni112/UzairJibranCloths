@@ -156,7 +156,8 @@ const VendorList = () => {
                 const vendUpdates: any = { account_code: cleanCode };
                 if (openingBalanceInput) {
                     const bal = Number(openingBalanceInput);
-                    vendUpdates.currentBalance = balanceNatureInput === 'Credit' ? bal : -bal;
+                    vendUpdates.balance = balanceNatureInput === 'Credit' ? bal : -bal;
+                    vendUpdates.opening_balance = bal;
                 }
                 await supabase
                     .from('vendors')

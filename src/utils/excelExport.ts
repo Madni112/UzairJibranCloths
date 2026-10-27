@@ -1,4 +1,5 @@
 import XLSX from 'xlsx-js-style';
+import { getBrandConfig } from './brand';
 
 export interface ExcelColumn {
   header: string;
@@ -83,7 +84,7 @@ const THEMES = {
  * Creates a beautifully styled and formatted Excel Worksheet
  */
 const createStyledWorksheet = (config: any): XLSX.WorkSheet => {
-  const companyName = String(config.companyName || config.title || 'UZAIR JIBRAN CLOTH');
+  const companyName = String(config.companyName || config.title || getBrandConfig().fullName);
   const reportTitle = String(config.reportTitle || config.subtitle || 'FINANCIAL AUDIT REPORT');
   const {
     filterSummary,

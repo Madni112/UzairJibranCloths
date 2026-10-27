@@ -5,12 +5,14 @@ import IconDark from '../../images/logo/icon-dark.png';
 import IconLight from '../../images/logo/icon-light.png';
 import Spinner from '../../ui/Spinner';
 import { useAuth, detectPortalTenant } from '../../Context/Auth';
+import { getBrandConfig } from '../../utils/brand';
 import DarkModeSwitcher from '../../components/Header/DarkModeSwitcher';
 import { MdLockOutline } from 'react-icons/md';
 
 import { Navigate } from 'react-router-dom';
 
 const SignIn: React.FC = () => {
+  const brand = getBrandConfig();
   const { login, currentUser, tenantId } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -67,12 +69,12 @@ const SignIn: React.FC = () => {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-800 flex items-center justify-center shadow-lg shadow-emerald-600/30 border border-emerald-400/40 relative overflow-hidden select-none shrink-0">
               <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
               <span className="relative z-10 font-cinzel font-black tracking-widest text-[15px] text-white dark:text-[#0B0F17] leading-none pl-0.5">
-                UJC
+                {brand.code}
               </span>
             </div>
             <div className="flex items-center gap-1.5 leading-tight">
-              <span className="text-[19px] font-black text-emerald-600 dark:text-emerald-400">UZAIR JIBRAN</span>
-              <span className="text-[19px] font-black text-slate-800 dark:text-slate-100">CLOTH</span>
+              <span className="text-[19px] font-black text-emerald-600 dark:text-emerald-400">{brand.brandWord1} {brand.brandWord2}</span>
+              <span className="text-[19px] font-black text-slate-800 dark:text-slate-100">{brand.brandSuffix}</span>
             </div>
           </div>
           <ul className="flex items-center gap-2 m-0 list-none">

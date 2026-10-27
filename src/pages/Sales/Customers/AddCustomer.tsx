@@ -52,7 +52,7 @@ const AddCustomer: React.FC = () => {
   // Safe universal redirect helper that preserves tenant prefix if active
   const handleNavigateToList = () => {
     const segments = location.pathname.split('/').filter(Boolean);
-    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'uzair', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
       ? `/${segments[0]}`
       : (tenantId ? `/${tenantId}` : '');
     navigate(`${tenantPrefix}/Sales/Customers/List`);
@@ -165,11 +165,47 @@ const AddCustomer: React.FC = () => {
       };
 
       if (!isEditMode && parsedOpeningBal !== 0) {
-        payload.opening_balance = computedBalance;
-        payload.currentBalance = computedBalance;
+        payload.balance = computedBalance;
       }
 
       let customerRecordId = editData?.id;
+
+      // --- SMART SCHEMA-ADAPTIVE COLUMN MAPPER ---
+      // Dynamically probe existing database columns to prevent 'column not found in schema cache' (e.g. registrationType vs registrationtype)
+      const colMap = new Map<string, string>();
+      try {
+        const { data: probeData } = await supabase.from('customers').select('*').limit(1);
+        if (probeData && probeData.length > 0) {
+          Object.keys(probeData[0]).forEach((c) => colMap.set(c.toLowerCase(), c));
+        }
+      } catch (probeErr) {
+        console.warn('Schema probe notice:', probeErr);
+      }
+
+      // Build sanitized payload using exact database column names
+      const sanitizedPayload: any = {};
+      for (const [key, val] of Object.entries(payload)) {
+        if (colMap.size > 0) {
+          const exactCol = colMap.get(key.toLowerCase());
+          if (exactCol) {
+            sanitizedPayload[exactCol] = val;
+          }
+        } else {
+          sanitizedPayload[key] = val;
+        }
+      }
+
+      // If secondary phone was entered but DB has no secondary phone column, preserve in notes
+      if (secPhoneVal && !colMap.has('secondaryphone')) {
+        const notesKey = colMap.get('notes') || 'notes';
+        if (sanitizedPayload[notesKey]) {
+          if (!sanitizedPayload[notesKey].includes(secPhoneVal)) {
+            sanitizedPayload[notesKey] += ` | Alt Phone: ${secPhoneVal}`;
+          }
+        } else if (colMap.has('notes')) {
+          sanitizedPayload[notesKey] = `Alt Phone: ${secPhoneVal}`;
+        }
+      }
 
       // Self-healing database executor: handles schema cache column casing mismatches automatically
       const executeSave = async (dataPayload: any) => {
@@ -186,16 +222,27 @@ const AddCustomer: React.FC = () => {
         }
       };
 
-      let saveResponse = await executeSave(payload);
+      let saveResponse = await executeSave(sanitizedPayload);
 
-      // Auto-fallback if schema cache rejects specific casing (e.g. registrationType -> registrationtype)
+      // Auto-fallback: if PostgREST still reports any missing column in schema cache, strip it and retry
       if (saveResponse.error && (saveResponse.error.code === 'PGRST204' || saveResponse.error.message?.includes('schema cache'))) {
-        const fallbackPayload = { ...payload };
-        delete fallbackPayload.registrationType;
-        fallbackPayload.registrationtype = regTypeVal;
-        delete fallbackPayload.secondaryPhone;
-        fallbackPayload.secondaryphone = secPhoneVal;
-        saveResponse = await executeSave(fallbackPayload);
+        const fallbackPayload = { ...sanitizedPayload };
+        for (let attempt = 0; attempt < 6 && saveResponse.error; attempt++) {
+          const errMsg = saveResponse.error.message || '';
+          const colMatch = errMsg.match(/Could not find the '([^']+)' column/i);
+          if (colMatch && colMatch[1]) {
+            const missingCol = colMatch[1].toLowerCase();
+            const foundKey = Object.keys(fallbackPayload).find((k) => k.toLowerCase() === missingCol);
+            if (foundKey) {
+              delete fallbackPayload[foundKey];
+              saveResponse = await executeSave(fallbackPayload);
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
       }
 
       if (saveResponse.error) throw saveResponse.error;

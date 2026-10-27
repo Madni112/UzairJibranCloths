@@ -215,7 +215,7 @@ const CustomerHistory = () => {
         };
         if (openingBalanceInput) {
           const bal = Number(openingBalanceInput);
-          custUpdates.currentBalance = balanceNatureInput === 'Debit' ? bal : -bal;
+          custUpdates.balance = balanceNatureInput === 'Debit' ? bal : -bal;
         }
         await supabase
           .from('customers')
@@ -329,7 +329,7 @@ const CustomerHistory = () => {
         <button 
           onClick={() => {
             const segments = window.location.pathname.split('/').filter(Boolean);
-            const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'uzair', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+            const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
               ? `/${segments[0]}`
               : (tenantId ? `/${tenantId}` : '');
             navigate(`${tenantPrefix}/Sales/Customers/Add`);
@@ -483,7 +483,7 @@ const CustomerHistory = () => {
                       <TableActions
                         onEdit={() => {
                           const segments = window.location.pathname.split('/').filter(Boolean);
-                          const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'uzair', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
+                          const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
                             ? `/${segments[0]}`
                             : (tenantId ? `/${tenantId}` : '');
                           navigate(`${tenantPrefix}/Sales/Customers/Add`, { state: { customer: c } });

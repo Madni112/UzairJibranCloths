@@ -29,7 +29,11 @@ import {
   MdOutlineReceipt,
   MdClose,
   MdInventory,
-  MdInfoOutline
+  MdInfoOutline,
+  MdKeyboardArrowDown,
+  MdKeyboardArrowUp,
+  MdShowChart,
+  MdBarChart
 } from 'react-icons/md';
 import StatCard from '../../ui/StatCard';
 import ActionCard from '../../ui/ActionCard';
@@ -155,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
   const userRoleLower = (role || '').toLowerCase();
   let allowedModules: string[] = [];
   try {
-    const cached = localStorage.getItem('zac_user_modules');
+    const cached = localStorage.getItem('ujc_user_modules');
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed)) {
@@ -186,6 +190,17 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
   const [liquidityTab, setLiquidityTab] = useState<'bank' | 'cash'>('bank');
   const [stockModalView, setStockModalView] = useState<'allTime' | 'thisMonth'>('allTime');
   const [activeBreakdownModal, setActiveBreakdownModal] = useState<'cash' | 'bank' | 'receivables' | 'stock' | null>(null);
+  const [showOperationalDetails, setShowOperationalDetails] = useState<boolean>(() => {
+    return localStorage.getItem('ujc_dashboard_show_details') === 'true';
+  });
+
+  const toggleOperationalDetails = () => {
+    setShowOperationalDetails(prev => {
+      const next = !prev;
+      localStorage.setItem('ujc_dashboard_show_details', String(next));
+      return next;
+    });
+  };
 
   // Customer Sales Graph Data
   const [customerSalesDaily, setCustomerSalesDaily] = useState<{ dates: string[]; sales: number[] }>({ dates: [], sales: [] });
@@ -657,7 +672,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
   // 1. Sales vs Purchases Trend Chart
   const salesVsPurchasesOptions: any = {
     chart: { type: 'area', height: 300, toolbar: { show: false }, zoom: { enabled: false } },
-    colors: ['#6366F1', '#8B5CF6'],
+    colors: ['#059669', '#D97706'],
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     xaxis: {
@@ -685,7 +700,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
   const customerSalesChartOptions: any = {
     chart: { type: 'bar', height: 300, toolbar: { show: false } },
-    colors: ['#6366F1'],
+    colors: ['#059669'],
     plotOptions: {
       bar: {
         borderRadius: 4,
@@ -717,7 +732,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
   const bankDonutOptions: any = {
     chart: { type: 'donut' },
-    colors: totalBankBalance > 0 ? ['#6366F1', '#8B5CF6', '#4F46E5', '#A855F7', '#3B82F6'] : ['#CBD5E1'],
+    colors: totalBankBalance > 0 ? ['#059669', '#0D9488', '#10B981', '#14B8A6', '#334155'] : ['#CBD5E1'],
     labels: totalBankBalance > 0 ? metrics.bankAccounts.map((b) => b.accountTitle) : ['Zero Balance'],
     legend: { position: 'bottom' },
     tooltip: { y: { formatter: (val: number) => `Rs. ${totalBankBalance > 0 ? val.toLocaleString() : '0.00'}` } }
@@ -797,34 +812,66 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           onClick={() => setActiveBreakdownModal('stock')}
         />
       </div>
-
       {/* ========================================================================= */}
-      {/* SECTION 1: CUSTOMER RECEIVABLES (AGING) & TRENDING PRODUCTS               */}
+      {/* EXPANDABLE OPERATIONAL DETAILS TOGGLE BAR                                */}
+      {/* ========================================================================= */}
+      <div className="flex items-center justify-center pt-2 pb-1">
+        <button
+          onClick={toggleOperationalDetails}
+          className="group flex items-center gap-3 px-5 py-2 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+              {showOperationalDetails ? 'Hide Operational Ledgers & Analytics' : 'Show Operational Ledgers & Analytics'}
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold border border-slate-200/70 dark:border-slate-700/60">
+              8 Live Modules
+            </span>
+          </div>
+          <div className="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-transform duration-200 group-hover:bg-slate-200/70 dark:group-hover:bg-slate-700">
+            {showOperationalDetails ? <MdKeyboardArrowUp size={16} /> : <MdKeyboardArrowDown size={16} />}
+          </div>
+        </button>
+      </div>
+
+      {/* COLLAPSIBLE OPERATIONAL SECTIONS */}
+      {showOperationalDetails && (
+        <div className="space-y-6">
+          {/* ========================================================================= */}
+      {/* SECTION 1: CUSTOMER RECEIVABLES (AGING) & LOW STOCK LIMIT ALERTS           */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* WIDGET 1: CUSTOMER RECEIVABLES AGING LEDGER (7 COLS) */}
-        <div className="lg:col-span-7 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 flex flex-col justify-between">
+        <div className="lg:col-span-7 relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 flex flex-col justify-between overflow-hidden transition-all duration-200 group">
+          {/* Linear Indigo Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-indigo-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
           <div>
-            <div className="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <span className="p-1 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-                    <MdOutlineReceipt size={16} />
-                  </span>
-                  Customer Receivables
-                </h3>
-                <p className="text-[11px] text-slate-400">Last 10 outstanding sales invoices with real-time aging status</p>
+            <div className="flex justify-between items-center mb-3.5 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <MdOutlineReceipt size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Customer Receivables
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Last 10 outstanding sales invoices with real-time aging status
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold font-mono">
+              <span className="text-[10.5px] px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold font-mono border border-indigo-200/70 dark:border-indigo-800/60 shrink-0">
                 {receivablesList.length} Invoices Due
               </span>
             </div>
 
             {/* Table Container with Exactly 5 Visible Rows Height + Scrollbar */}
-            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800/80 max-h-[295px] overflow-y-auto pr-1">
+            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200/70 dark:border-slate-800 max-h-[295px] overflow-y-auto pr-1">
               <table className="w-full table-auto border-collapse font-sans text-xs">
-                <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10 shadow-sm">
-                  <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-700 text-left text-[11px] uppercase tracking-wider">
+                <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/90 backdrop-blur-xs z-10 shadow-2xs">
+                  <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-700/80 text-left text-[10.5px] uppercase tracking-wider">
                     <th className="py-2.5 px-3">Inv No.</th>
                     <th className="py-2.5 px-3">Customer</th>
                     <th className="py-2.5 px-3">Salesman</th>
@@ -832,27 +879,29 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                     <th className="py-2.5 px-3 text-right">Outstanding (Rs.)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                   {receivablesList.length > 0 ? (
                     receivablesList.map((rec) => {
-                      // Aging color scheme
-                      let badgeClass = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50';
+                      // Linear Aging Badges
+                      let badgeClass = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
                       if (rec.daysPending > 30) {
-                        badgeClass = 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50';
+                        badgeClass = 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60';
                       } else if (rec.daysPending > 7) {
-                        badgeClass = 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50';
+                        badgeClass = 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60';
+                      } else if (rec.daysPending === 0) {
+                        badgeClass = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60';
                       }
 
                       return (
-                        <tr key={rec.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150">
-                          <td className="py-2.5 px-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        <tr key={rec.id} className="hover:bg-slate-50/90 dark:hover:bg-slate-800/50 duration-150 transition-colors">
+                          <td className="py-2.5 px-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                             {rec.invoiceNo}
                           </td>
                           <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100 max-w-[140px] truncate" title={rec.customerName}>
                             {rec.customerName}
                           </td>
                           <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 max-w-[100px] truncate" title={rec.salesman}>
-                            <span className="inline-flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 font-medium">
                               <MdPerson size={13} className="text-slate-400" />
                               {rec.salesman}
                             </span>
@@ -865,7 +914,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                               </span>
                             </div>
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                          <td className="py-2.5 px-3 text-right font-mono font-black text-rose-600 dark:text-rose-400 text-xs">
                             Rs. {rec.outstandingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
@@ -882,34 +931,43 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
               </table>
             </div>
           </div>
-          <div className="pt-2 flex justify-between items-center text-[11px] text-slate-400">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center text-[11px] text-slate-400 pl-2.5 mt-2">
             <span>Scroll table to see full last 10 entries</span>
             <button
               onClick={() => navigate('/Reports/Account-Report', { state: { activeTab: 12 } })}
-              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
-              Open Receivables Ledger →
+              <span>Open Receivables Ledger</span>
+              <span>→</span>
             </button>
           </div>
         </div>
 
-        {/* WIDGET 2: TRENDING PRODUCTS LEADERBOARD (5 COLS) */}
-        <div className="lg:col-span-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 flex flex-col justify-between">
+        {/* WIDGET 2: LOW STOCK LIMIT ALERTS (5 COLS) */}
+        <div className="lg:col-span-5 relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 flex flex-col justify-between overflow-hidden transition-all duration-200 group">
+          {/* Linear Rose Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-rose-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
           <div>
-            <div className="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <span className="p-1 rounded-md bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400">
-                    <MdWarning size={16} />
-                  </span>
-                  Low Stock Limit Alerts
-                </h3>
-                <p className="text-[11px] text-slate-400">Products at or below minimum threshold</p>
+            <div className="flex justify-between items-center mb-3.5 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <MdWarning size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Low Stock Limit Alerts
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Products at or below minimum threshold
+                  </p>
+                </div>
               </div>
-              <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold font-mono ${lowStockProducts.length > 0
-                ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
-                : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                }`}>
+              <span className={`text-[10.5px] px-2.5 py-1 rounded-full font-bold font-mono border shrink-0 ${
+                lowStockProducts.length > 0
+                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200/70 dark:border-rose-800/60'
+                  : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800/60'
+              }`}>
                 {lowStockProducts.length > 0 ? `${lowStockProducts.length} Items Critical` : 'Stock Healthy 🛡️'}
               </span>
             </div>
@@ -920,26 +978,28 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                 lowStockProducts.map((p) => (
                   <div
                     key={p.id}
-                    className="p-2.5 rounded-xl border border-rose-100 dark:border-rose-950/40 bg-rose-50/40 dark:bg-rose-950/20 flex justify-between items-center gap-2 hover:bg-rose-50/70 duration-150"
+                    className="p-2.5 sm:p-3 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center gap-2.5 duration-150 group/item transition-all"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-slate-900 dark:text-white text-xs truncate" title={p.name}>
+                    <div className="min-w-0 flex-1 pl-1">
+                      <div className="font-bold text-slate-800 dark:text-slate-100 text-xs truncate group-hover/item:text-rose-600 dark:group-hover/item:text-rose-400 transition-colors" title={p.name}>
                         {p.name}
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                        <span className="text-rose-600 font-bold">Avail: {p.currentStock} {p.unit}</span>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-rose-100/80 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/50">
+                          Avail: {p.currentStock} {p.unit}
+                        </span>
                         <span>•</span>
-                        <span>Min Req: {p.minLimit} {p.unit}</span>
+                        <span className="font-medium text-slate-400">Min Req: {p.minLimit} {p.unit}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2 py-0.5 rounded bg-rose-600 text-white font-mono font-bold text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-mono font-bold text-[10.5px] shadow-2xs">
                         -{p.deficit} {p.unit}
                       </span>
                       <button
                         onClick={() => navigate('/Purchase/Purchases/Add')}
-                        className="px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold hover:border-emerald-500 hover:text-emerald-600 transition"
+                        className="px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[10.5px] font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition shadow-2xs cursor-pointer"
                         title="Create Purchase Order"
                       >
                         + Reorder
@@ -957,12 +1017,13 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
             </div>
           </div>
 
-          <div className="pt-2 text-right">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-right mt-2">
             <button
               onClick={() => navigate('/Reports/Stock-Report')}
-              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-[11px]"
+              className="text-rose-600 dark:text-rose-400 font-bold hover:underline text-[11px] inline-flex items-center gap-1 cursor-pointer"
             >
-              Open Inventory Audit Matrix →
+              <span>Open Inventory Audit Matrix</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -970,37 +1031,44 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* WIDGET 3: INTERACTIVE HOLDING INVENTORY (7 COLS) */}
-        <div className="lg:col-span-7 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 flex flex-col justify-between">
+        <div className="lg:col-span-7 relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 flex flex-col justify-between overflow-hidden transition-all duration-200 group">
+          {/* Linear Amber Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-amber-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
           <div>
             {/* Header with Dual Tabs and Dropdown Filters */}
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <span className="p-1 rounded-md bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
-                    <MdPauseCircleFilled size={16} />
-                  </span>
-                  Holding Inventory Center
-                </h3>
-                <p className="text-[11px] text-slate-400">Committed orders held at warehouse pending customer pickup</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-3.5 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/70 dark:border-amber-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <MdPauseCircleFilled size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Holding Inventory Center
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Committed orders held at warehouse pending customer pickup
+                  </p>
+                </div>
               </div>
 
               {/* Mode Tabs & Selector */}
-              <div className="flex items-center gap-2">
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold">
                   <button
                     onClick={() => setHoldingTab('warehouse')}
-                    className={`px-2.5 py-1 rounded-md transition ${holdingTab === 'warehouse'
-                      ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                      : 'text-slate-500'
+                    className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${holdingTab === 'warehouse'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
                       }`}
                   >
                     Warehouse In-Charge
                   </button>
                   <button
                     onClick={() => setHoldingTab('invoice')}
-                    className={`px-2.5 py-1 rounded-md transition ${holdingTab === 'invoice'
-                      ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                      : 'text-slate-500'
+                    className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${holdingTab === 'invoice'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
                       }`}
                   >
                     Invoice-Wise
@@ -1012,7 +1080,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                   <select
                     value={selectedWarehouseGuy}
                     onChange={(e) => setSelectedWarehouseGuy(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none max-w-[150px] truncate"
+                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200 outline-none max-w-[150px] truncate shadow-2xs cursor-pointer focus:ring-1 focus:ring-amber-500"
                   >
                     {warehouseGuysList.map(guy => (
                       <option key={guy} value={guy}>{guy === 'All' ? 'All Warehouse Staff' : guy}</option>
@@ -1022,7 +1090,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                   <select
                     value={selectedHoldingInvoice}
                     onChange={(e) => setSelectedHoldingInvoice(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none max-w-[150px] truncate"
+                    className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200 outline-none max-w-[150px] truncate shadow-2xs cursor-pointer focus:ring-1 focus:ring-amber-500"
                   >
                     {holdingInvoicesList.map(inv => (
                       <option key={inv} value={inv}>{inv === 'All' ? 'All Invoices' : inv}</option>
@@ -1033,10 +1101,10 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
             </div>
 
             {/* Holding Items Table */}
-            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800/80 max-h-[295px] overflow-y-auto pr-1">
+            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200/70 dark:border-slate-800 max-h-[295px] overflow-y-auto pr-1">
               <table className="w-full table-auto border-collapse font-sans text-xs">
-                <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10 shadow-sm">
-                  <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-700 text-left text-[11px] uppercase tracking-wider">
+                <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/90 backdrop-blur-xs z-10 shadow-2xs">
+                  <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-700/80 text-left text-[10.5px] uppercase tracking-wider">
                     <th className="py-2.5 px-3">Item / SKU</th>
                     <th className="py-2.5 px-3">{holdingTab === 'warehouse' ? 'Gatepass (DC)' : 'Invoice #'}</th>
                     <th className="py-2.5 px-3">Customer</th>
@@ -1047,16 +1115,16 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                   {filteredHoldingItems.length > 0 ? (
                     filteredHoldingItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150">
-                        <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white max-w-[150px] truncate" title={item.productName}>
+                      <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100 max-w-[150px] truncate" title={item.productName}>
                           {item.productName}
-                          <div className="text-[10px] text-slate-400 font-normal font-mono">
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-normal font-mono mt-0.5">
                             {holdingTab === 'warehouse' ? `Staff: ${item.warehouseGuy}` : `Salesman: ${item.salesman}`}
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-700 dark:text-emerald-400 text-[11px]">
+                        <td className="py-2.5 px-3 font-mono font-bold text-amber-600 dark:text-amber-400 text-[11px]">
                           {holdingTab === 'warehouse' ? item.gatepassNo : item.invoiceNo}
-                          <div className="text-[10px] text-slate-400 font-normal">{item.date}</div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">{item.date}</div>
                         </td>
                         <td className="py-2.5 px-3 font-medium text-slate-700 dark:text-slate-300 max-w-[120px] truncate" title={item.customerName}>
                           {item.customerName}
@@ -1081,31 +1149,39 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
             </div>
           </div>
 
-          <div className="pt-2 flex justify-between items-center text-[11px] text-slate-400">
-            <span>Showing {filteredHoldingItems.length} active committed holding items</span>
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center text-[11px] mt-2">
+            <span className="text-slate-400 dark:text-slate-500 font-medium">Showing {filteredHoldingItems.length} active committed holding items</span>
             <button
               onClick={() => navigate('/Reports/Holding-Report')}
-              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+              className="text-amber-600 dark:text-amber-400 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
-              Open Full Holding Report →
+              <span>Open Full Holding Report</span>
+              <span>→</span>
             </button>
           </div>
         </div>
 
-        {/* WIDGET 4: LOW STOCK & MINIMUM LIMIT ALERTS (5 COLS) */}
-        <div className="lg:col-span-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 flex flex-col justify-between">
+        {/* WIDGET 4: TOP TRENDING PRODUCTS (5 COLS) */}
+        <div className="lg:col-span-5 relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 flex flex-col justify-between overflow-hidden transition-all duration-200 group">
+          {/* Linear Orange Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-orange-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
           <div>
-            <div className="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <span className="p-1 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-                    <MdLocalFireDepartment size={16} />
-                  </span>
-                  Top Trending Products
-                </h3>
-                <p className="text-[11px] text-slate-400">Ranked by revenue velocity & order frequency</p>
+            <div className="flex justify-between items-center mb-3.5 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 border border-orange-200/70 dark:border-orange-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <MdLocalFireDepartment size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Top Trending Products
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Ranked by revenue velocity & order frequency
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold">
+              <span className="text-[10.5px] px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 font-bold font-mono border border-orange-200/70 dark:border-orange-800/60 shrink-0">
                 Top Demand 🔥
               </span>
             </div>
@@ -1116,28 +1192,28 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                 trendingProducts.map((p, idx) => (
                   <div
                     key={p.name}
-                    className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/60 duration-150 flex items-center gap-3"
+                    className="p-2.5 sm:p-3 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 flex items-center gap-3 transition-all duration-150 group/item"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-emerald-600/10 text-emerald-600 font-black text-xs flex items-center justify-center shrink-0">
-                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : <span className="font-mono text-slate-500 dark:text-slate-400">#{idx + 1}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-1">
-                        <span className="font-bold text-slate-900 dark:text-white truncate text-xs" title={p.name}>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 truncate text-xs group-hover/item:text-orange-600 dark:group-hover/item:text-orange-400 transition-colors" title={p.name}>
                           {p.name}
                         </span>
-                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-xs shrink-0 ml-2">
+                        <span className="font-mono font-bold text-slate-900 dark:text-white text-xs shrink-0 ml-2">
                           Rs. {(p.totalRevenue / 1000).toFixed(1)}k
                         </span>
                       </div>
-                      <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
-                        <span>{p.category}</span>
-                        <span>{p.unitsSold.toLocaleString()} units sold ({p.transactionCount} bills)</span>
+                      <div className="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500 mb-1.5 font-medium">
+                        <span className="truncate mr-2">{p.category}</span>
+                        <span className="shrink-0">{p.unitsSold.toLocaleString()} units sold ({p.transactionCount} bills)</span>
                       </div>
                       {/* Mini visual velocity bar */}
-                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full"
+                          className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full"
                           style={{ width: `${Math.max(8, p.percentageOfTotal)}%` }}
                         />
                       </div>
@@ -1151,12 +1227,13 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
               )}
             </div>
           </div>
-          <div className="pt-2 text-right">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-right mt-2">
             <button
               onClick={() => navigate('/Reports/Sales-Report')}
-              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-[11px]"
+              className="text-orange-600 dark:text-orange-400 font-bold hover:underline text-[11px] inline-flex items-center gap-1 cursor-pointer"
             >
-              View Full Product Sales Analytics →
+              <span>View Full Product Sales Analytics</span>
+              <span>→</span>
             </button>
           </div>
         </div>
@@ -1175,37 +1252,61 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Bank Allocation Donut Chart (4 cols) */}
-        <div className="lg:col-span-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 sm:p-6 flex flex-col justify-between">
+        <div className="lg:col-span-4 relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 sm:p-6 flex flex-col justify-between overflow-hidden transition-all duration-200 group">
+          {/* Linear Cyan Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-cyan-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
           <div>
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 flex items-center gap-2">
-              <MdAccountBalance className="text-emerald-600" />
-              Bank Balance
-            </h3>
+            <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-950/60 dark:text-cyan-400 border border-cyan-200/70 dark:border-cyan-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <MdAccountBalance size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Bank Balance
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Distribution across corporate liquid accounts
+                  </p>
+                </div>
+              </div>
+            </div>
             <ReactApexChart options={bankDonutOptions} series={bankDonutSeries} type="donut" height={260} />
           </div>
-          <div className="text-[11px] text-slate-400 text-center pt-2">
-            Net Liquid Reserves: <span className="font-bold text-slate-900 dark:text-white font-mono">Rs. {(metrics.totalBankBalance + metrics.cashBalance).toLocaleString()}</span>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 text-center pt-3 border-t border-slate-100 dark:border-slate-800/80 mt-2 font-medium">
+            Net Liquid Reserves: <span className="font-bold text-slate-800 dark:text-slate-100 font-mono">Rs. {(metrics.totalBankBalance + metrics.cashBalance).toLocaleString()}</span>
           </div>
         </div>
 
         {/* Liquid Ledgers (Bank Accounts & Cash Drawer Tabs) (8 cols) */}
-        <div className="lg:col-span-8 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 sm:p-6 flex flex-col justify-between">
+        <div className="lg:col-span-8 relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 sm:p-6 flex flex-col justify-between overflow-hidden transition-all duration-200 group">
+          {/* Linear Emerald Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-emerald-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
           <div>
-            <div className="flex flex-wrap justify-between items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
-                  Cash & Bank Ledgers
-                </h3>
-                <p className="text-[11px] text-slate-400">Reconciled corporate bank accounts & cash drawer transactions</p>
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <MdAccountBalanceWallet size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Cash & Bank Ledgers
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Reconciled corporate bank accounts & cash drawer transactions
+                  </p>
+                </div>
               </div>
 
               {/* Dual Tab: Bank Accounts vs Cash Drawer */}
-              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl font-bold text-xs">
+              <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 font-bold text-xs">
                 <button
                   onClick={() => setLiquidityTab('bank')}
-                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 ${liquidityTab === 'bank'
-                    ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                  className={`px-3 py-1 rounded-md text-[11px] transition-all flex items-center gap-1.5 cursor-pointer ${liquidityTab === 'bank'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
                     }`}
                 >
                   <MdAccountBalance size={14} />
@@ -1213,9 +1314,9 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                 </button>
                 <button
                   onClick={() => setLiquidityTab('cash')}
-                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 ${liquidityTab === 'cash'
-                    ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                  className={`px-3 py-1 rounded-md text-[11px] transition-all flex items-center gap-1.5 cursor-pointer ${liquidityTab === 'cash'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
                     }`}
                 >
                   <MdAccountBalanceWallet size={14} />
@@ -1226,10 +1327,10 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
             {/* TAB 1: BANK ACCOUNTS LEDGER TABLE */}
             {liquidityTab === 'bank' && (
-              <div className="max-w-full overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800 max-h-[260px] overflow-y-auto">
+              <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200/70 dark:border-slate-800 max-h-[260px] overflow-y-auto">
                 <table className="w-full table-auto border-collapse font-mono text-xs">
-                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10">
-                    <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800 text-left text-[11px] uppercase tracking-wider">
+                  <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/90 backdrop-blur-xs z-10 shadow-2xs">
+                    <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-700/80 text-left text-[10.5px] uppercase tracking-wider">
                       <th className="py-2.5 px-3">Bank Title</th>
                       <th className="py-2.5 px-3">Account Number</th>
                       <th className="py-2.5 px-3 text-right">Debit (+In)</th>
@@ -1242,22 +1343,22 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                       metrics.bankAccounts.map((b) => (
                         <tr
                           key={b.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150"
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150 transition-colors"
                         >
-                          <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white font-sans flex items-center gap-2">
-                            <span className="p-1 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                          <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100 font-sans flex items-center gap-2">
+                            <span className="p-1 rounded-md bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400 border border-cyan-200/60 dark:border-cyan-800/50">
                               <MdAccountBalance size={14} />
                             </span>
                             {b.bankName} - {b.accountTitle}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{b.accountNumber || '-'}</td>
-                          <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">
+                          <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono">{b.accountNumber || '-'}</td>
+                          <td className="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400 font-semibold font-mono">
                             {b.totalInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="py-2.5 px-3 text-right text-rose-500 font-semibold">
+                          <td className="py-2.5 px-3 text-right text-rose-500 dark:text-rose-400 font-semibold font-mono">
                             {b.totalOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-black text-slate-900 dark:text-white">
+                          <td className="py-2.5 px-3 text-right font-black text-slate-900 dark:text-white font-mono">
                             Rs. {b.netBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
@@ -1276,10 +1377,10 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
             {/* TAB 2: CASH DRAWER SETTLEMENT TABLE */}
             {liquidityTab === 'cash' && (
-              <div className="max-w-full overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800 max-h-[260px] overflow-y-auto">
+              <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200/70 dark:border-slate-800 max-h-[260px] overflow-y-auto">
                 <table className="w-full table-auto border-collapse font-mono text-xs">
-                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10">
-                    <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800 text-left text-[11px] uppercase tracking-wider">
+                  <thead className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/90 backdrop-blur-xs z-10 shadow-2xs">
+                    <tr className="text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-700/80 text-left text-[10.5px] uppercase tracking-wider">
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3">Source / Voucher</th>
                       <th className="py-2.5 px-3">Party / Particulars</th>
@@ -1292,10 +1393,10 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                       cashTransactions.map((c) => (
                         <tr
                           key={c.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150"
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 duration-150 transition-colors"
                         >
-                          <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{c.date}</td>
-                          <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white font-sans">
+                          <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono">{c.date}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100 font-sans">
                             {(() => {
                               const s = String(c.source || '');
                               if (s.toLowerCase().includes('sale bill')) {
@@ -1320,14 +1421,14 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                             {c.party}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.type === 'Inflow'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${c.type === 'Inflow'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/50'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/50'
                               }`}>
                               {c.type === 'Inflow' ? '+ Received' : '- Paid'}
                             </span>
                           </td>
-                          <td className={`py-2.5 px-3 text-right font-black ${c.type === 'Inflow' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                          <td className={`py-2.5 px-3 text-right font-black font-mono ${c.type === 'Inflow' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                             }`}>
                             Rs. {c.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
@@ -1346,13 +1447,13 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
             )}
           </div>
 
-          <div className="pt-3 flex justify-between items-center text-xs">
-            <span className="text-[11px] text-slate-400">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center text-xs mt-2">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
               {liquidityTab === 'bank' ? 'Real-time verified bank reconciliation' : `Current Cash In Hand: Rs. ${metrics.cashBalance.toLocaleString()}`}
             </span>
             <button
               onClick={() => navigate('/Reports/Account-Report')}
-              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-xs flex items-center gap-1"
+              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-xs flex items-center gap-1 cursor-pointer"
             >
               <span>View Full General Ledger</span>
               <span>→</span>
@@ -1360,46 +1461,65 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           </div>
         </div>
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* CHART 1: SALES VS PROCUREMENT */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 sm:p-6">
-          <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
-                Sales vs Purchases
-              </h3>
-              <p className="text-[11px] text-slate-400">Monthly comparative velocity & margins</p>
+        <div className="relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 sm:p-6 overflow-hidden transition-all duration-200 group">
+          {/* Linear Blue Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-blue-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
+          <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/70 dark:border-blue-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                <MdShowChart size={18} />
+              </div>
+              <div>
+                <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  Sales vs Purchases
+                </h3>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">Monthly comparative velocity & margins</p>
+              </div>
             </div>
-            <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold font-mono">Live Sync</span>
+            <span className="text-[10.5px] px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold font-mono border border-blue-200/70 dark:border-blue-800/60 shrink-0">
+              Live Sync
+            </span>
           </div>
           <ReactApexChart options={salesVsPurchasesOptions} series={salesVsPurchasesSeries} type="area" height={300} />
         </div>
 
         {/* CHART 2: CUSTOMER SALES VOLUME GRAPH (TABS: DAILY / MONTHLY) */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#111827] shadow-sm p-5 sm:p-6">
-          <div className="flex flex-wrap justify-between items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
-                Customer Sales Trend
-              </h3>
-              <p className="text-[11px] text-slate-400">Interactive timeframe aggregation</p>
+        <div className="relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xs hover:shadow-xs p-5 sm:p-6 overflow-hidden transition-all duration-200 group">
+          {/* Linear Purple Accent Notch */}
+          <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-purple-500 shadow-xs transition-all duration-200 group-hover:w-2" />
+
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800/80 pb-3 pl-2.5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200/70 dark:border-purple-800/60 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                <MdBarChart size={18} />
+              </div>
+              <div>
+                <h3 className="font-black text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  Customer Sales Trend
+                </h3>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">Interactive timeframe aggregation</p>
+              </div>
             </div>
             {/* Tab Switcher: Daily vs Monthly */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl font-bold text-xs">
+            <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 font-bold text-xs">
               <button
                 onClick={() => setChartViewTab('daily')}
-                className={`px-3 py-1 rounded-lg transition-all ${chartViewTab === 'daily'
-                  ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                className={`px-3 py-1 rounded-md text-[11px] transition-all cursor-pointer ${chartViewTab === 'daily'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
                   }`}
               >
                 📅 Daily (Last 14d)
               </button>
               <button
                 onClick={() => setChartViewTab('monthly')}
-                className={`px-3 py-1 rounded-lg transition-all ${chartViewTab === 'monthly'
-                  ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                className={`px-3 py-1 rounded-md text-[11px] transition-all cursor-pointer ${chartViewTab === 'monthly'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
                   }`}
               >
                 📆 Monthly
@@ -1409,7 +1529,8 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           <ReactApexChart options={customerSalesChartOptions} series={customerSalesChartSeries} type="bar" height={300} />
         </div>
       </div>
-
+        </div>
+      )}
       {/* ========================================================================= */}
       {/* ASSET & FINANCIAL METRIC BREAKDOWN POPUP MODAL                            */}
       {/* ========================================================================= */}
@@ -1420,7 +1541,15 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
             {/* Top Modal Header */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 shadow-2xs border ${
+                  activeBreakdownModal === 'cash'
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200/70 dark:border-emerald-800/60'
+                    : activeBreakdownModal === 'bank'
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-200/70 dark:border-blue-800/60'
+                    : activeBreakdownModal === 'receivables'
+                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border-indigo-200/70 dark:border-indigo-800/60'
+                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-200/70 dark:border-amber-800/60'
+                }`}>
                   {activeBreakdownModal === 'stock' && <MdAssessment size={22} />}
                   {activeBreakdownModal === 'cash' && <MdAccountBalanceWallet size={22} />}
                   {activeBreakdownModal === 'bank' && <MdAccountBalance size={22} />}
@@ -1455,29 +1584,36 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
               {/* === 1. STOCK MODAL === */}
               {activeBreakdownModal === 'stock' && (
                 <div className="space-y-4">
-                  {/* Big Hero Card */}
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white shadow-md relative overflow-hidden">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Current Physical Stock Valuation</span>
-                        <div className="text-3xl font-black mt-1 font-mono tracking-tight text-white">
-                          Rs. {metrics.inventoryAssetValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {/* Linear Hero Card */}
+                  <div className="relative p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 shadow-2xs overflow-hidden">
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-amber-500 shadow-xs" />
+                    <div className="pl-2.5">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Current Physical Stock Valuation
+                          </span>
+                          <div className="text-3xl sm:text-4xl font-black mt-1.5 font-mono tracking-tight text-slate-900 dark:text-white">
+                            Rs. {metrics.inventoryAssetValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                            Total Inventory
+                          </span>
+                          <span className="font-mono font-black text-xl text-slate-900 dark:text-white">
+                            {(metrics.totalStockUnits || 0).toLocaleString()} <span className="text-xs font-normal text-slate-400">Units</span>
+                          </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200 block">Total Inventory</span>
-                        <span className="font-mono font-black text-lg text-white">
-                          {(metrics.totalStockUnits || 0).toLocaleString()} Units
+                      <div className="mt-3 flex items-center gap-2 flex-wrap">
+                        <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          ✓ 100% Synced with Live Stock Registry
+                        </span>
+                        <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-600/60">
+                          Evaluated at Selling Price
                         </span>
                       </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white">
-                        ✓ 100% Synced with Live Stock Registry
-                      </span>
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30">
-                        Evaluated at Selling Price
-                      </span>
                     </div>
                   </div>
 
@@ -1633,35 +1769,53 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
               {/* === 2. CASH MODAL === */}
               {activeBreakdownModal === 'cash' && (
                 <div className="space-y-4">
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-emerald-100">Net Cash in Hand</span>
-                    <div className="text-3xl font-black mt-1 font-mono tracking-tight">
-                      Rs. {metrics.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {/* Linear Hero Card */}
+                  <div className="relative p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 shadow-2xs overflow-hidden">
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-emerald-500 shadow-xs" />
+                    <div className="pl-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Net Cash in Hand
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Reconciled Treasury
+                        </span>
+                      </div>
+                      <div className="text-3xl sm:text-4xl font-black mt-1.5 font-mono tracking-tight text-slate-900 dark:text-white">
+                        Rs. {metrics.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-4 space-y-3 font-sans text-xs">
-                    <div className="flex justify-between items-center py-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
-                      <span className="text-slate-600 dark:text-slate-300">Total Cash Inflows (All-Time):</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                        Rs. {metrics.totalCashInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {/* Fintech Inflow vs Outflow Metric Tiles */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40">
+                      <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 block">Total Cash Inflows (All-Time)</span>
+                      <span className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1 block">
+                        +Rs. {metrics.totalCashInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
-                      <span className="text-slate-600 dark:text-slate-300">Total Cash Outflows (All-Time):</span>
-                      <span className="font-bold text-rose-600 dark:text-rose-400 font-mono">
-                        Rs. {metrics.totalCashOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+
+                    <div className="p-3.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-800/40">
+                      <span className="text-[11px] font-semibold text-rose-800 dark:text-rose-300 block">Total Cash Outflows (All-Time)</span>
+                      <span className="text-base font-black font-mono text-rose-600 dark:text-rose-400 mt-1 block">
+                        -Rs. {metrics.totalCashOutflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Summary Ledger */}
+                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-4 space-y-2.5 font-sans text-xs">
                     <div className="flex justify-between items-center py-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
-                      <span className="text-slate-600 dark:text-slate-300">This Month Cash Collected:</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">This Month Cash Collected:</span>
+                      <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
                         Rs. {metrics.thisMonthCashInflow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 font-bold text-sm">
+                    <div className="flex justify-between items-center pt-2 font-bold text-sm bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
                       <span className="text-slate-900 dark:text-white">Net Cash Balance:</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-mono text-base font-black">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-mono text-lg font-black">
                         Rs. {metrics.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -1672,10 +1826,19 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
               {/* === 3. BANK MODAL === */}
               {activeBreakdownModal === 'bank' && (
                 <div className="space-y-4">
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-700 text-white shadow-md">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-teal-100">Total Bank Balance</span>
-                    <div className="text-3xl font-black mt-1 font-mono tracking-tight">
-                      Rs. {metrics.totalBankBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {/* Linear Hero Card */}
+                  <div className="relative p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 shadow-2xs overflow-hidden">
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-blue-500 shadow-xs" />
+                    <div className="pl-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Bank Balance</span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-blue-100/80 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          {metrics.bankAccounts.length} Verified Accounts
+                        </span>
+                      </div>
+                      <div className="text-3xl sm:text-4xl font-black mt-1.5 font-mono tracking-tight text-slate-900 dark:text-white">
+                        Rs. {metrics.totalBankBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
                   </div>
 
@@ -1702,14 +1865,20 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
               {/* === 4. RECEIVABLES MODAL === */}
               {activeBreakdownModal === 'receivables' && (
                 <div className="space-y-4">
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-md">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-amber-100">Total Customer Receivables</span>
-                    <div className="text-3xl font-black mt-1 font-mono tracking-tight">
-                      Rs. {metrics.totalReceivables.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {/* Linear Hero Card */}
+                  <div className="relative p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 shadow-2xs overflow-hidden">
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full bg-indigo-500 shadow-xs" />
+                    <div className="pl-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Customer Receivables</span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-indigo-100/80 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          {receivablesList.length} Active Pending Invoices
+                        </span>
+                      </div>
+                      <div className="text-3xl sm:text-4xl font-black mt-1.5 font-mono tracking-tight text-slate-900 dark:text-white">
+                        Rs. {metrics.totalReceivables.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
-                    <span className="inline-block mt-2 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white">
-                      {receivablesList.length} Active Pending Invoices
-                    </span>
                   </div>
 
                   <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-4 space-y-2 font-sans text-xs max-h-56 overflow-y-auto">

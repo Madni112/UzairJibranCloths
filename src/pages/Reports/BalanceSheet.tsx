@@ -24,6 +24,7 @@ import {
 } from 'react-icons/md';
 import { useAuth } from '../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../utils/excelExport';
+import { getBrandConfig } from '../../utils/brand';
 import { toast } from 'react-hot-toast';
 
 const defaultMetrics: FinancialSummary = {
@@ -177,7 +178,7 @@ const BalanceSheet: React.FC = () => {
         await exportToExcel({
           fileName: `Commercial_Executive_Summary_${asOfDate}.xlsx`,
           sheetName: 'Executive Summary',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: `Commercial Executive Performance Statement (As of ${asOfDate})`,
           filterSummary: {
             'As Of Date': asOfDate,
@@ -216,7 +217,7 @@ const BalanceSheet: React.FC = () => {
         await exportToExcel({
           fileName: `Corporate_Balance_Sheet_${asOfDate}.xlsx`,
           sheetName: 'Balance Sheet',
-          companyName: businessName || 'UZAIR JIBRAN CLOTH',
+          companyName: businessName || getBrandConfig().fullName,
           reportTitle: `Corporate GAAP Balance Sheet Statement (As of ${asOfDate})`,
           filterSummary: { 'As Of Date': asOfDate, 'Accounting Standard': 'GAAP (Assets = Liabilities + Equity)' },
           columns,
@@ -384,7 +385,7 @@ const BalanceSheet: React.FC = () => {
       </div>
 
       <div className="balance-sheet-print-container flex flex-col gap-6">
-        
+
         {/* Printable Header for physical paper prints */}
         <div className="hidden print:block relative text-center mb-4 border-b-2 border-black pb-3">
           <div className="absolute left-2 top-0">
@@ -437,7 +438,7 @@ const BalanceSheet: React.FC = () => {
               </span>
             </div>
           </div>
-          <h1 className="text-3xl font-black text-slate-950 uppercase tracking-widest font-serif">{businessName || 'UZAIR JIBRAN CLOTH'}</h1>
+          <h1 className="text-3xl font-black text-slate-950 uppercase tracking-widest font-serif">{businessName || getBrandConfig().fullName}</h1>
           <h2 className="text-xs font-extrabold text-gray-800 uppercase tracking-widest font-mono mt-1">
             {activePerspective === 'summary'
               ? 'COMMERCIAL EXECUTIVE SUMMARY & FINANCIAL TRAJECTORY STATEMENT'
@@ -458,7 +459,7 @@ const BalanceSheet: React.FC = () => {
 
             {/* 📊 6 Executive KPI Briefing Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              
+
               {/* Card 1: Liquid Funds */}
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-4 shadow-xs relative overflow-hidden">
                 <div className="flex justify-between items-start">
@@ -818,7 +819,7 @@ const BalanceSheet: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 font-sans">
-                  
+
                   {/* 1. CASH IN HAND ACCORDION */}
                   <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <div
@@ -1001,7 +1002,7 @@ const BalanceSheet: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 font-sans">
-                  
+
                   {/* SECTION HEADER: CURRENT LIABILITIES */}
                   <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 pt-1">
                     Current Liabilities (Supplier Credit &amp; Debts)
@@ -1139,7 +1140,7 @@ const BalanceSheet: React.FC = () => {
         {/* 🏢 Software & Corporate Provider Footer */}
         <div className="mt-6 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-black font-black uppercase">{businessName || 'UZAIR JIBRAN CLOTH'}</span>
+            <span className="text-black font-black uppercase">{businessName || getBrandConfig().fullName}</span>
           </div>
           <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
             Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

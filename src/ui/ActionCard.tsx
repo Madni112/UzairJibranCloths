@@ -1,28 +1,146 @@
 import React from 'react';
 import { IconType } from 'react-icons';
-import GlassCard from './GlassCard';
+import { LuArrowUpRight } from 'react-icons/lu';
 
 interface ActionCardProps {
   title: string;
   subtitle: string;
   Icon: IconType;
-  bgGradient?: string; // Tailwind gradient class for background
+  bgGradient?: string;
   onClick: () => void;
 }
 
-const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, Icon, bgGradient = 'bg-gradient-to-br from-emerald-600 to-teal-700', onClick }) => {
+interface CardTheme {
+  accentHex: string;
+  indicatorBg: string;
+  iconBgClass: string;
+}
+
+const CARD_THEMES: Record<string, CardTheme> = {
+  sales: {
+    accentHex: '#059669',
+    indicatorBg: 'bg-emerald-500',
+    iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
+  },
+  purchases: {
+    accentHex: '#2563EB',
+    indicatorBg: 'bg-blue-500',
+    iconBgClass: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/70 dark:border-blue-800/60',
+  },
+  products: {
+    accentHex: '#0D9488',
+    indicatorBg: 'bg-teal-500',
+    iconBgClass: 'bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400 border border-teal-200/70 dark:border-teal-800/60',
+  },
+  'sale return': {
+    accentHex: '#64748B',
+    indicatorBg: 'bg-slate-500',
+    iconBgClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+  },
+  'stock report': {
+    accentHex: '#D97706',
+    indicatorBg: 'bg-amber-500',
+    iconBgClass: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/70 dark:border-amber-800/60',
+  },
+  "today's sale": {
+    accentHex: '#10B981',
+    indicatorBg: 'bg-emerald-500',
+    iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
+  },
+  'this month sales': {
+    accentHex: '#8B5CF6',
+    indicatorBg: 'bg-purple-500',
+    iconBgClass: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200/70 dark:border-purple-800/60',
+  },
+  'this month purchases': {
+    accentHex: '#E11D48',
+    indicatorBg: 'bg-rose-500',
+    iconBgClass: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60',
+  },
+  'new sales invoice': {
+    accentHex: '#059669',
+    indicatorBg: 'bg-emerald-500',
+    iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
+  },
+  'invoice receipts': {
+    accentHex: '#2563EB',
+    indicatorBg: 'bg-blue-500',
+    iconBgClass: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/70 dark:border-blue-800/60',
+  },
+  'customers directory': {
+    accentHex: '#8B5CF6',
+    indicatorBg: 'bg-purple-500',
+    iconBgClass: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200/70 dark:border-purple-800/60',
+  },
+  'live stock report': {
+    accentHex: '#D97706',
+    indicatorBg: 'bg-amber-500',
+    iconBgClass: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/70 dark:border-amber-800/60',
+  },
+  'dispatch challans': {
+    accentHex: '#E11D48',
+    indicatorBg: 'bg-rose-500',
+    iconBgClass: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60',
+  },
+  'inward challan': {
+    accentHex: '#4F46E5',
+    indicatorBg: 'bg-indigo-500',
+    iconBgClass: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60',
+  },
+  'shop receiving': {
+    accentHex: '#0891B2',
+    indicatorBg: 'bg-cyan-500',
+    iconBgClass: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/60 dark:text-cyan-400 border border-cyan-200/70 dark:border-cyan-800/60',
+  },
+  'warehouse inventory': {
+    accentHex: '#0D9488',
+    indicatorBg: 'bg-teal-500',
+    iconBgClass: 'bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400 border border-teal-200/70 dark:border-teal-800/60',
+  },
+};
+
+const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, Icon, onClick }) => {
+  const key = title.toLowerCase().trim();
+  const theme = CARD_THEMES[key] || {
+    accentHex: '#059669',
+    indicatorBg: 'bg-emerald-500',
+    iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
+  };
+
   return (
     <div
-      className={`p-5 rounded-2xl cursor-pointer transform transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${bgGradient} text-white flex items-center justify-between shadow-md relative overflow-hidden group`}
       onClick={onClick}
+      className="group relative flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 cursor-pointer overflow-hidden select-none"
     >
-      
-      <div className="flex flex-col z-10">
-        <span className="text-sm font-extrabold uppercase tracking-wider">{title}</span>
-        <span className="text-xs font-medium text-white/85 mt-0.5">{subtitle}</span>
+      {/* Concept 2: Linear Accent Indicator Notch */}
+      <span
+        className={`absolute left-0 top-3 bottom-3 w-1.25 rounded-r-full ${theme.indicatorBg} shadow-xs transition-all duration-200 group-hover:w-2`}
+      />
+
+      {/* Content */}
+      <div className="flex flex-col min-w-0 pl-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 group-hover:text-primary transition-colors">
+            {title}
+          </span>
+          <LuArrowUpRight
+            size={13}
+            className="text-slate-400 opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-200"
+          />
+        </div>
+        <span 
+          className="text-[11.5px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-full"
+          title={subtitle}
+        >
+          {subtitle}
+        </span>
       </div>
-      <div className="p-2.5 rounded-xl bg-white/15 backdrop-blur-xs group-hover:scale-110 transition-transform duration-200 z-10">
-        <Icon size={24} />
+
+      {/* Icon Pill with Soft Translucent Tint */}
+      <div
+        className={`p-2.5 rounded-xl ${theme.iconBgClass} group-hover:scale-110 transition-transform duration-200 shrink-0 shadow-2xs`}
+      >
+        <Icon size={20} />
       </div>
     </div>
   );

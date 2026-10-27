@@ -10,6 +10,33 @@ import { FiPrinter, FiSave, FiCheck, FiX, FiUserCheck, FiTrash2, FiUser, FiAlert
 import { SearchableDropdown } from '../../../components/SearchableDropdown';
 import { useAuth } from '../../../Context/Auth';
 import { logActivity } from '../../../service/auditLogger';
+import { triggerFeedbackSound } from '../../../utils/audioFeedback';
+import { fetchCustomerCreditLimits } from '../../../utils/creditLimitUtils';
+
+// Universal comprehensive search helper matching across Name, Code, Category, Sub Cat, Parent Cat, Brand, and Description
+const matchesProductSearch = (p: any, query: string): boolean => {
+  if (!query) return true;
+  const q = query.toLowerCase().trim();
+  const name = String(p?.product_name || p?.itemName || '').toLowerCase();
+  const code = String(p?.item_sr_no || p?.skuCode || '').toLowerCase();
+  const cat = String(p?.category || '').toLowerCase();
+  const subCat = String(p?.sub_category || '').toLowerCase();
+  const parentCat = String(p?.sub_sub_category || '').toLowerCase();
+  const brand = String(p?.brand || p?.bin || '').toLowerCase();
+  const desc = String(p?.product_description || '').toLowerCase();
+  const sku = ('sku-' + (p?.id || '')).toLowerCase();
+
+  return (
+    name.includes(q) ||
+    code.includes(q) ||
+    cat.includes(q) ||
+    subCat.includes(q) ||
+    parentCat.includes(q) ||
+    brand.includes(q) ||
+    desc.includes(q) ||
+    sku.includes(q)
+  );
+};
 
 // Helper to identify Tile products based on parent category
 const isTileProduct = (p: any) => {
@@ -20,7 +47,21 @@ const isTileProduct = (p: any) => {
 const NewInvoice = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tenantId, role, userName } = useAuth();
+  const { tenantId, role, userName, userEmail } = useAuth();
+  const [customerCreditLimitsMap, setCustomerCreditLimitsMap] = useState<Record<string, number>>({});
+
+  const checkAndAlertCreditLimit = (cust: any) => {
+    if (!cust) return;
+    const limit = Number(customerCreditLimitsMap[String(cust.id)] || 0);
+    const bal = Number(cust.currentBalance !== undefined ? cust.currentBalance : (cust.balance || 0));
+    if (limit > 0 && bal >= limit) {
+      triggerFeedbackSound('warning', userEmail);
+      toast.error(`Credit Limit Warning: "${cust.customerName}" has an outstanding balance of Rs. ${bal.toLocaleString()} which exceeds their agreed credit limit of Rs. ${limit.toLocaleString()}!`, { duration: 6000 });
+    } else if (limit > 0 && bal >= 0.75 * limit) {
+      triggerFeedbackSound('warning', userEmail);
+      toast(`Credit Limit Alert: "${cust.customerName}" has reached ${Math.round((bal / limit) * 100)}% of their credit limit (Rs. ${limit.toLocaleString()}).`, { icon: '⚠️', duration: 5000 });
+    }
+  };
   const currentRole = (role || localStorage.getItem('zac_user_role') || '').toLowerCase();
   const currentSalesmanName = (userName || localStorage.getItem('zac_user_name') || '').trim();
   const isSalesman = currentRole.includes('salesman');
@@ -3482,7 +3523,7 @@ const NewInvoice = () => {
                                       </>
                                     )}
                                     <td className="p-2 text-right pr-4 text-success font-black">Rs. {lineCalc.netTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-1 w-8 text-center">{values.items.length > 1 && <button type="button" onClick={() => remove(idx)} className="text-gray-400 hover:text-danger cursor-pointer"><FiTrash2 size={14} /></button>}</td>
+                                    <td className="p-1 w-8 text-center">{values.items.length > 1 && <button type="button" onClick={() => { remove(idx); triggerFeedbackSound('delete', userEmail); }} className="text-gray-400 hover:text-danger cursor-pointer"><FiTrash2 size={14} /></button>}</td>
                                   </tr>
                                 );
                               })}
@@ -4227,7 +4268,7 @@ const NewInvoice = () => {
                                           
                                           <button
                                             type="button"
-                                            onClick={() => remove(rIdx)}
+                                            onClick={() => { remove(rIdx); triggerFeedbackSound('delete', userEmail); }}
                                             className="text-gray-400 hover:text-danger cursor-pointer p-0.5"
                                             title="Remove Return Item"
                                           >

@@ -7,6 +7,7 @@ import { MdPrint, MdArrowBack, MdFileDownload, MdTableChart, MdViewList, MdWarni
 import { FaWhatsapp } from 'react-icons/fa';
 import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
+import { getBrandConfig } from '../../../utils/brand';
 import ReportPagination from '../../../components/ReportPagination';
 
 const StockReportPrint = () => {
@@ -965,7 +966,7 @@ const StockReportPrint = () => {
             await exportToExcel({
                 fileName: `Stock_Report_Tab${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`,
                 sheetName: tabTitle.substring(0, 30),
-                companyName: businessName || 'UZAIR JIBRAN CLOTH',
+                companyName: businessName || getBrandConfig().fullName,
                 reportTitle: `Master Dynamic Inventory - ${tabTitle}`,
                 filterSummary: filterMeta,
                 columns,
@@ -985,7 +986,7 @@ const StockReportPrint = () => {
 
     const handleShareWhatsApp = () => {
         const lines = [
-            `📊 *${businessName || 'UZAIR JIBRAN CLOTH'}*`,
+            `📊 *${businessName || getBrandConfig().name}*`,
             `📦 *Stock Valuation & Inventory Summary*`,
             `━━━━━━━━━━━━━━━━━━━━━`,
             `📑 *SKU Products Tracked:* ${reportRows.length}`,
@@ -1062,7 +1063,7 @@ const StockReportPrint = () => {
                 </div>
 
                 <div className="text-center space-y-1 py-4 border-b border-double border-slate-300">
-                    <h1 className="text-xl font-black uppercase tracking-widest font-serif">UZAIR JIBRAN CLOTH</h1>
+                    <h1 className="text-xl font-black uppercase tracking-widest font-serif">{businessName || getBrandConfig().fullName}</h1>
                     <p className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Master Dynamic Inventory Valuation & Real-Time Stock Balance Ledger</p>
 
                     <div className="text-[10px] pt-1 font-mono flex justify-between px-2 text-gray-600">
@@ -1839,7 +1840,7 @@ const StockReportPrint = () => {
                 {/* 🏢 Software & Corporate Provider Footer */}
                 <div className="mt-8 pt-3 border-t border-gray-300 flex justify-between items-center text-[10px] text-gray-600 font-sans print:border-gray-400 break-inside-avoid">
                     <div className="flex items-center gap-2 font-bold">
-                        <span className="text-black font-black uppercase">UZAIR JIBRAN CLOTH</span>
+                        <span className="text-black font-black uppercase">{businessName || getBrandConfig().fullName}</span>
                     </div>
                     <div className="text-[9.5px] text-gray-600 font-mono font-medium text-right">
                         Software Solution &amp; Cloud Infrastructure by <b className="text-black font-bold">NHT ENTERPRISES (Noor Horizon Technologies)</b>

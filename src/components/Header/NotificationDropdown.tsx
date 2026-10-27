@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { FiBell } from 'react-icons/fi';
 import { supabase } from '../../Context/supabaseClient';
 import { useAuth } from '../../Context/Auth';
+import { triggerFeedbackSound } from '../../utils/audioFeedback';
 
 const NotificationDropdown = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifying, setNotifying] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   
-  const { role, userLocationName, tenantId } = useAuth();
+  const { role, userLocationName, tenantId, userEmail } = useAuth();
   
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
@@ -72,6 +73,7 @@ const NotificationDropdown = () => {
           
           setNotifications((prev) => [newNotif, ...prev].slice(0, 10)); // Keep latest 10
           setNotifying(true);
+          triggerFeedbackSound('notification', userEmail);
         }
       )
       .subscribe();
