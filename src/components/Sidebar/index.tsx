@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import SidebarLinkGroup from './SidebarLinkGroup';
 import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from 'react-icons/ai';
-import { LuLogOut } from 'react-icons/lu';
+import { LuLogOut, LuSlidersHorizontal } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
 import {
@@ -517,6 +517,28 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               layoutMode={layoutMode}
             />
           ))}
+
+          {/* Settings Button */}
+          <li className="w-full mt-2">
+            <NavLink
+              to={getTenantPath('/settings')}
+              className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
+                pathname === getTenantPath('/settings') || pathname === '/settings' ? 'font-bold shadow-xs' : ''
+              } ${sidebarOpen ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
+              style={{
+                color: currentSidebarColor,
+                backgroundColor: pathname === getTenantPath('/settings') || pathname === '/settings' ? `${currentSidebarColor}20` : undefined,
+              }}
+              title={!sidebarOpen ? 'Settings' : undefined}
+            >
+              <LuSlidersHorizontal className="text-lg shrink-0 transition-colors" />
+              {sidebarOpen && (
+                <span className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide">
+                  Settings
+                </span>
+              )}
+            </NavLink>
+          </li>
 
           {/* Log Out Button */}
           <li
