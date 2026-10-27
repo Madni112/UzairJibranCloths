@@ -157,10 +157,12 @@ const SidebarItem = ({
   const handleMouseEnter = () => {
     if (!sidebarOpen && !isMobile && itemRef.current) {
       const rect = itemRef.current.getBoundingClientRect();
+      const asideEl = itemRef.current.closest('aside');
+      const edgeRight = asideEl ? asideEl.getBoundingClientRect().right : rect.right;
       const estimatedHeight = Math.min((item.children?.length || 4) * 36 + 50, 420);
       const maxTop = Math.max(12, window.innerHeight - estimatedHeight - 16);
       setFlyoutTop(Math.min(rect.top, maxTop));
-      setFlyoutLeft(rect.right + 8);
+      setFlyoutLeft(edgeRight + 2);
       setShowFlyout(true);
     }
   };
@@ -308,8 +310,10 @@ const SidebarItem = ({
   const handleSingleMouseEnter = () => {
     if (!sidebarOpen && !isMobile && itemRef.current) {
       const rect = itemRef.current.getBoundingClientRect();
+      const asideEl = itemRef.current.closest('aside');
+      const edgeRight = asideEl ? asideEl.getBoundingClientRect().right : rect.right;
       setFlyoutTop(rect.top + (rect.height / 2) - 15);
-      setFlyoutLeft(rect.right + 8);
+      setFlyoutLeft(edgeRight + 2);
       setShowFlyout(true);
     }
   };
