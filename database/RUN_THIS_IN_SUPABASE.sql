@@ -909,3 +909,8 @@ DELETE FROM public.products WHERE category IN ('Wall Tiles', 'Floor Tiles', 'Por
 NOTIFY pgrst, 'reload schema';
 
 
+
+
+-- Dedicated Sub Area & Area columns for customers
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sub_area VARCHAR(255);
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS area VARCHAR(255);

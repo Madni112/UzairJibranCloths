@@ -28,6 +28,7 @@ import {
   MdArrowForward
 } from 'react-icons/md';
 import { SearchableDropdown } from '../../../components/SearchableDropdown';
+import SearchableAddableDropdown from '../../../components/SearchableAddableDropdown';
 
 const TIER_OPTIONS = [
   'Retail / General',
@@ -36,11 +37,57 @@ const TIER_OPTIONS = [
   'Registered Corporate'
 ];
 
+const DEFAULT_AREAS = [
+  'Resham Gali | Cloth Market',
+  'Main Sarafa Bazaar | Cloth Market',
+  'Boulton Market | Saddar',
+  'Liaquat Market | Malir',
+  'Tariq Road | PECHS',
+  'Hyderi Market | North Nazimabad',
+  'Jama Cloth Market | M.A. Jinnah Road',
+  'Shershah Market | SITE',
+  'Station Road | Sukkur',
+  'Cloth Market | Hyderabad',
+  'Shahi Bazaar | Hyderabad',
+  'Anarkali Bazaar | Lahore',
+  'Azam Cloth Market | Lahore',
+  'Rail Bazaar | Faisalabad',
+  'Karkhano Market | Peshawar',
+];
+
 const AddCustomer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(1);
   const [companies, setCompanies] = useState<any[]>([]);
   const [suggestedCode, setSuggestedCode] = useState<string>('');
+  const [areaOptions, setAreaOptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('uj_custom_areas');
+      const customList: string[] = saved ? JSON.parse(saved) : [];
+      return Array.from(new Set([...DEFAULT_AREAS, ...customList])).sort();
+    } catch {
+      return DEFAULT_AREAS;
+    }
+  });
+
+  const handleAddCustomArea = (newVal: string) => {
+    const clean = newVal.trim();
+    if (!clean) return;
+    setAreaOptions((prev) => {
+      const updated = Array.from(new Set([clean, ...prev])).sort();
+      try {
+        const saved = localStorage.getItem('uj_custom_areas');
+        const customList: string[] = saved ? JSON.parse(saved) : [];
+        if (!customList.includes(clean)) {
+          localStorage.setItem('uj_custom_areas', JSON.stringify([...customList, clean]));
+        }
+      } catch (e) {
+        console.error('Failed to save custom area:', e);
+      }
+      return updated;
+    });
+    toast.success(`Added "${clean}" to Sub Area | Area list`);
+  };
   const { tenantId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -68,6 +115,21 @@ const AddCustomer: React.FC = () => {
         ]);
 
         if (compRes.data) setCompanies(compRes.data);
+
+        // Also merge any existing areas from customers table
+        try {
+          const { data: custAreaData } = await supabase.from('customers').select('city, address').limit(100);
+          if (custAreaData && custAreaData.length > 0) {
+            const dbAreas = custAreaData
+              .map((c: any) => c.city)
+              .filter((v: any) => typeof v === 'string' && v.trim().length > 1);
+            if (dbAreas.length > 0) {
+              setAreaOptions((prev) => Array.from(new Set([...prev, ...dbAreas])).sort());
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load areas from customers table:', e);
+        }
 
         // Derive next suggested customer ledger code (1020-xxx)
         if (!isEditMode) {
@@ -143,6 +205,10 @@ const AddCustomer: React.FC = () => {
 
       const payload: any = {
         customerName: trimmedName,
+        sub_area: values.subArea ? values.subArea.trim() : '',
+        subArea: values.subArea ? values.subArea.trim() : '',
+        area: values.subArea ? values.subArea.trim() : '',
+        city: values.subArea ? (values.subArea.includes('|') ? values.subArea.split('|')[1].trim() : values.subArea.trim()) : 'Hyderabad',
         customer_code: cleanCode,
         customerCode: cleanCode,
         coa_code: cleanCode,
@@ -192,6 +258,20 @@ const AddCustomer: React.FC = () => {
           }
         } else {
           sanitizedPayload[key] = val;
+        }
+      }
+
+      // If Sub Area was entered but DB has no sub_area column, preserve in notes
+      const subAreaVal = values.subArea ? values.subArea.trim() : '';
+      if (subAreaVal && !colMap.has('sub_area') && !colMap.has('subarea')) {
+        const notesKey = colMap.get('notes') || 'notes';
+        const areaNote = `Sub Area | Area: ${subAreaVal}`;
+        if (sanitizedPayload[notesKey]) {
+          if (!sanitizedPayload[notesKey].includes(areaNote)) {
+            sanitizedPayload[notesKey] += ` | ${areaNote}`;
+          }
+        } else if (colMap.has('notes')) {
+          sanitizedPayload[notesKey] = areaNote;
         }
       }
 
@@ -367,6 +447,7 @@ const AddCustomer: React.FC = () => {
           customer_code: editData.customer_code || editData.customerCode || editData.coa_code || '',
           page_no: editData.page_no || editData.pageNo || editData.page_number || '',
           registrationType: editData.registrationType || 'Retail / General',
+          subArea: editData.sub_area || editData.subArea || editData.city || '',
           primaryPhone: editData.primaryPhone || editData.phone || '',
           secondaryPhone: editData.secondaryPhone || '',
           email: editData.email || '',
@@ -380,6 +461,7 @@ const AddCustomer: React.FC = () => {
           balanceNature: (editData.currentBalance && editData.currentBalance < 0) ? 'Credit' : 'Debit'
         } : {
           customerName: '',
+          subArea: '',
           customer_code: '',
           page_no: '',
           registrationType: 'Retail / General',
@@ -505,7 +587,7 @@ const AddCustomer: React.FC = () => {
                       name="customerName"
                       onChange={handleChange}
                       value={values.customerName}
-                      placeholder="e.g. Haji Muhammad / Al-Madina Trading & Tiles"
+                      placeholder="e.g. Haji Muhammad / Al-Madina Cloth House"
                       className={`w-full rounded-xl border bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-3 text-xs font-semibold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:ring-2 focus:ring-primary/20 ${
                         touched.customerName && errors.customerName 
                           ? 'border-red-500 focus:border-red-500' 
@@ -521,6 +603,22 @@ const AddCustomer: React.FC = () => {
                         Must be unique per business entity to prevent duplicate ledger postings
                       </p>
                     )}
+                  </div>
+
+                  {/* Sub Area | Area Searchable + Addable Dropdown */}
+                  <div className="md:col-span-2">
+                    <SearchableAddableDropdown
+                      label="Sub Area | Area"
+                      placeholder="Sub Area | Area"
+                      options={areaOptions}
+                      value={values.subArea || ''}
+                      onChange={(val) => setFieldValue('subArea', val)}
+                      onAddNew={(newVal) => {
+                        handleAddCustomArea(newVal);
+                        setFieldValue('subArea', newVal);
+                      }}
+                      helperText="Select or type a new Sub Area | Area (interactable with arrow keys & enter)"
+                    />
                   </div>
 
                   {/* Customer Code / Account Code */}
