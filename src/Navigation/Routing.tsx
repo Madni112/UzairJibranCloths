@@ -74,12 +74,30 @@ function Navigation() {
 
   return (
     <Routes>
-      {/* 1. PUBLIC ENTERPRISE LANDING */}
-      <Route path="/" element={<CompanyLanding />} />
+      {/* 1. ROOT PORTAL URL: Authenticated -> Dashboard, Unauthenticated -> Single Universal SignIn */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? (
+            <DefaultLayout>
+              <Dashboard />
+            </DefaultLayout>
+          ) : (
+            <SignIn />
+          )
+        }
+      />
 
-      {/* 2. AUTHENTICATION (Unifies all portal logins) */}
-      <Route path="/signin" element={<SignIn />} />
-      <Route path="/login" element={<SignIn />} />
+      {/* 2. UNIVERSAL SIGN-IN & LOGIN ROUTES */}
+      <Route
+        path="/signin"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
+      />
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
+      />
+      <Route path="/landing" element={<CompanyLanding />} />
 
       {/* 3. ROOT DASHBOARD ENTRY */}
       <Route
