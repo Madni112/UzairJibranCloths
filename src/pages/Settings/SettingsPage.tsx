@@ -48,6 +48,17 @@ import {
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import {
+  recordDeviceHeartbeat,
+  fetchAllDevices,
+  revokeDevice,
+  revokeAllOtherDevices,
+  detectDeviceDetails,
+  getPersistentDeviceId,
+  getClientIp,
+  UserDevice,
+  formatLastOnline,
+} from '../../utils/deviceTracker';
 import { supabase } from '../../Context/supabaseClient';
 import { useAuth } from '../../Context/Auth';
 import { getBrandConfig } from '../../utils/brand';
@@ -426,26 +437,35 @@ const SettingsPage: React.FC = () => {
 
   const [terminatingOthers, setTerminatingOthers] = useState(false);
   const [terminatingCurrent, setTerminatingCurrent] = useState(false);
-  const [knownTerminals, setKnownTerminals] = useState([
-    {
-      id: 'term-1',
-      name: 'Counter #1 POS Terminal',
-      location: 'Main Showroom / Cashier Desk',
-      device: 'Windows Desktop • Chrome',
-      lastActive: 'Today, 02:40 AM',
-      ip: '192.168.1.105 (Local LAN)',
-      status: 'idle',
-    },
-    {
-      id: 'term-2',
-      name: 'Warehouse Handheld Scanner',
-      location: 'Depot A-39 / Inventory Bay',
-      device: 'Android Terminal • Barcode POS',
-      lastActive: 'Yesterday, 07:15 PM',
-      ip: '192.168.1.142 (WiFi)',
-      status: 'offline',
-    },
-  ]);
+  const [deviceList, setDeviceList] = useState<UserDevice[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [currentClientIp, setCurrentClientIp] = useState<string>('Detecting IP...');
+
+  const loadRealDevices = async () => {
+    try {
+      setLoadingDevices(true);
+      await recordDeviceHeartbeat(userEmail, tenantId || 'bashir');
+      const ip = await getClientIp();
+      setCurrentClientIp(ip);
+      const devices = await fetchAllDevices(userEmail, tenantId || 'bashir');
+      setDeviceList(devices);
+    } catch (e) {
+      console.warn('Error loading devices:', e);
+    } finally {
+      setLoadingDevices(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRealDevices();
+
+    const interval = setInterval(() => {
+      recordDeviceHeartbeat(userEmail, tenantId || 'bashir');
+      fetchAllDevices(userEmail, tenantId || 'bashir').then(setDeviceList);
+    }, 45000);
+
+    return () => clearInterval(interval);
+  }, [userEmail, tenantId]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -474,8 +494,10 @@ const SettingsPage: React.FC = () => {
   const handleSignOutOtherSessions = async () => {
     setTerminatingOthers(true);
     try {
-      await (supabase.auth as any).signOut({ scope: 'others' });
-      setKnownTerminals((prev) => prev.map((t) => ({ ...t, status: 'offline', lastActive: 'Revoked just now' })));
+      await (supabase.auth as any).signOut({ scope: 'others' }).catch(() => {});
+      await revokeAllOtherDevices();
+      const updated = await fetchAllDevices(userEmail, tenantId || 'bashir');
+      setDeviceList(updated);
       toast.success('All other remote device sessions have been revoked successfully.');
       triggerFeedbackSound('delete', userEmail);
     } catch (err: any) {
@@ -485,10 +507,16 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleDisconnectTerminal = (termId: string, name: string) => {
-    setKnownTerminals((prev) => prev.filter((t) => t.id !== termId));
-    toast.success(`Access revoked for ${name}.`);
-    triggerFeedbackSound('delete', userEmail);
+  const handleDisconnectTerminal = async (termId: string, name: string) => {
+    try {
+      await revokeDevice(termId);
+      const updated = await fetchAllDevices(userEmail, tenantId || 'bashir');
+      setDeviceList(updated);
+      toast.success(`Access revoked for ${name}.`);
+      triggerFeedbackSound('delete', userEmail);
+    } catch {
+      toast.error(`Failed to revoke access for ${name}`);
+    }
   };
 
   const handleClearWorkstationCache = () => {
@@ -2593,88 +2621,131 @@ const SettingsPage: React.FC = () => {
 
                   <div className="p-3.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                      <LuGlobe size={11} className="text-primary" /> Branch Network
+                      <LuGlobe size={11} className="text-primary" /> Workstation IP
                     </span>
-                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-1">
-                      {portalName} • Local LAN
+                    <div className="text-xs font-mono font-bold text-slate-800 dark:text-slate-100 mt-1 truncate">
+                      {currentClientIp}
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* OTHER AUTHORIZED WORKSTATIONS / REMOTE SESSIONS */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <LuLaptop className="text-primary text-lg" />
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        Other Authorized Workstations & Remote Terminals
-                      </h3>
-                      <p className="text-[11px] text-slate-400">
-                        Past verified POS terminals and devices assigned to this business portal.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-slate-400 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800">
-                    {knownTerminals.length} Terminals
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {knownTerminals.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400">
-                      No other remote devices connected. Only this workstation has active access.
-                    </div>
-                  ) : (
-                    knownTerminals.map((terminal) => (
-                      <div
-                        key={terminal.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition gap-3"
-                      >
-                        <div className="flex items-start sm:items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-base shrink-0">
-                            {terminal.device.toLowerCase().includes('android') ? (
-                              <LuSmartphone />
-                            ) : (
-                              <LuMonitor />
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-slate-800 dark:text-slate-100">
-                                {terminal.name}
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.2 rounded-full ${
-                                  terminal.status === 'idle'
-                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
-                                    : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                }`}
-                              >
-                                {terminal.status === 'idle' ? 'Standby / Idle' : 'Disconnected'}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                              {terminal.location} • {terminal.device} • Last active {terminal.lastActive}
-                            </p>
-                          </div>
+              {(() => {
+                const otherDevices = deviceList.filter((d) => !d.isCurrent);
+                return (
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <LuLaptop className="text-primary text-lg" />
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                            Other Authorized Workstations & Remote Terminals
+                          </h3>
+                          <p className="text-[11px] text-slate-400">
+                            Real-time connected cashier workstations, mobile POS scanners, and branch devices.
+                          </p>
                         </div>
-
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
                         <button
                           type="button"
-                          onClick={() => handleDisconnectTerminal(terminal.id, terminal.name)}
-                          className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                          title="Revoke access for this terminal"
+                          onClick={loadRealDevices}
+                          disabled={loadingDevices}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          title="Refresh active devices"
                         >
-                          <LuXCircle size={13} />
-                          <span>Disconnect</span>
+                          <LuRefreshCw size={12} className={loadingDevices ? 'animate-spin text-primary' : ''} />
+                          <span>{loadingDevices ? 'Refreshing...' : 'Refresh'}</span>
                         </button>
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80">
+                          {otherDevices.length} {otherDevices.length === 1 ? 'Terminal' : 'Terminals'}
+                        </span>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {otherDevices.length === 0 ? (
+                        <div className="py-10 text-center space-y-2">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800/80 text-slate-400 flex items-center justify-center text-xl mx-auto">
+                            <LuShieldCheck />
+                          </div>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            No Other Remote Devices Active
+                          </p>
+                          <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                            Only this current workstation has active authorized access to this portal. If another cashier or scanner signs in, they will appear here live.
+                          </p>
+                        </div>
+                      ) : (
+                        otherDevices.map((terminal) => (
+                          <div
+                            key={terminal.deviceId}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition gap-3"
+                          >
+                            <div className="flex items-start sm:items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-base shrink-0">
+                                {terminal.deviceType.toLowerCase().includes('mobile') ||
+                                terminal.os.toLowerCase().includes('android') ||
+                                terminal.os.toLowerCase().includes('iphone') ? (
+                                  <LuSmartphone />
+                                ) : (
+                                  <LuMonitor />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-xs text-slate-800 dark:text-slate-100">
+                                    {terminal.deviceName}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      terminal.status === 'online'
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                                        : terminal.status === 'idle'
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
+                                        : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                    }`}
+                                  >
+                                    {terminal.status === 'online'
+                                      ? 'Active Now'
+                                      : terminal.status === 'idle'
+                                      ? `Standby / Idle ${terminal.timeAgo || ''}`
+                                      : `Offline ${terminal.timeAgo || ''}`}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                    {terminal.ip}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                                  {terminal.location} • {terminal.os} • {terminal.browser} •{' '}
+                                  {terminal.status === 'offline' ? (
+                                    <span className="text-slate-600 dark:text-slate-300 font-medium">
+                                      Last online: <b className="text-slate-700 dark:text-slate-200">{terminal.formattedLastActive}</b>
+                                    </span>
+                                  ) : (
+                                    <span>Last active: {terminal.formattedLastActive}</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDisconnectTerminal(terminal.deviceId, terminal.deviceName)}
+                              className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                              title="Revoke access for this terminal"
+                            >
+                              <LuXCircle size={13} />
+                              <span>Disconnect</span>
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* SECURITY & PROTOCOL SPECIFICATIONS */}
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm space-y-4">

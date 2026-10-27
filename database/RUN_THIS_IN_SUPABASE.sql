@@ -918,3 +918,26 @@ NOTIFY pgrst, 'reload schema';
 -- Dedicated Sub Area & Area columns for customers
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sub_area VARCHAR(255);
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS area VARCHAR(255);
+
+-- User Devices & Workstation Security Tracking
+CREATE TABLE IF NOT EXISTS public.user_devices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id VARCHAR(128) UNIQUE NOT NULL,
+    user_email VARCHAR(255),
+    tenant_id VARCHAR(64) DEFAULT 'bashir',
+    device_name VARCHAR(255),
+    device_type VARCHAR(64),
+    browser VARCHAR(128),
+    os VARCHAR(128),
+    screen_resolution VARCHAR(64),
+    ip_address VARCHAR(64),
+    location_name VARCHAR(255) DEFAULT 'Showroom Floor',
+    is_active BOOLEAN DEFAULT TRUE,
+    last_active TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.user_devices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "user_devices_all" ON public.user_devices;
+CREATE POLICY "user_devices_all" ON public.user_devices FOR ALL USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';
