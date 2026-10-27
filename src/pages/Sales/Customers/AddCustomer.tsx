@@ -266,6 +266,7 @@ const AddCustomer: React.FC = () => {
 
   const validationSchema = Yup.object().shape({
     customerName: Yup.string().trim().required('Customer / Business Name is required'),
+    subArea: Yup.string().trim().required('Sub Area is required'),
     primaryPhone: Yup.string().trim().required('Primary Contact Phone is required'),
   });
 
@@ -482,6 +483,11 @@ const AddCustomer: React.FC = () => {
   const validateRequiredFields = (values: any): boolean => {
     if (!values.customerName || !values.customerName.trim()) {
       toast.error('Customer / Business Name is required (Step 1: Identity)');
+      setActiveTab(1);
+      return false;
+    }
+    if (!values.subArea || !values.subArea.trim()) {
+      toast.error('Sub Area is required (Step 1: Identity)');
       setActiveTab(1);
       return false;
     }
