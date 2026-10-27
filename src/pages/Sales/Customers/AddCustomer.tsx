@@ -38,29 +38,7 @@ const TIER_OPTIONS = [
 ];
 
 const DEFAULT_SUB_AREAS = [
-  'Resham Gali',
-  'Main Sarafa Bazaar',
-  'Boulton Market',
-  'Liaquat Market',
-  'Tariq Road',
-  'Hyderi Market',
-  'Jama Cloth Market',
-  'Shershah Market',
-  'Station Road',
-  'Cloth Market',
-  'Shahi Bazaar',
-  'Anarkali Bazaar',
-  'Azam Cloth Market',
-  'Rail Bazaar',
-  'Karkhano Market',
-  'Rabi Center',
-  'Cliff Shopping Mall',
-  'Ashiana Center',
-  'Liberty Market',
-  'Ichhra Bazaar',
-];
-
-const DEFAULT_AREAS = [
+  // Cities as primary Sub Area / City
   'Hyderabad',
   'Karachi',
   'Sukkur',
@@ -70,22 +48,75 @@ const DEFAULT_AREAS = [
   'Multan',
   'Peshawar',
   'Quetta',
-  'Saddar',
+  'Nawabshah',
+  'Mirpurkhas',
+  'Larkana',
+  // Specific Hubs & Bazaars
+  'Resham Gali',
+  'Main Sarafa Bazaar',
   'Cloth Market',
+  'Shahi Bazaar',
+  'Station Road',
+  'Boulton Market',
+  'Jama Cloth Market',
+  'Tariq Road',
+  'Hyderi Market',
+  'Shershah Market',
+  'Liaquat Market',
+  'Cliff Shopping Mall',
+  'Ashiana Center',
+  'Anarkali Bazaar',
+  'Azam Cloth Market',
+  'Liberty Market',
+  'Ichhra Bazaar',
+  'Rail Bazaar',
+  'Clock Tower',
+  'Karkhano Market',
+  'Rabi Center',
+];
+
+const DEFAULT_AREAS = [
+  'Cloth Market',
+  'Resham Gali',
+  'Shahi Bazaar',
+  'Saddar',
+  'Latifabad',
+  'Qasimabad',
+  'Auto Bhan',
+  'Boulton Market',
+  'Jama Cloth Market',
+  'Tariq Road',
+  'Hyderi',
   'PECHS',
   'North Nazimabad',
-  'M.A. Jinnah Road',
-  'SITE',
-  'Gulberg',
   'Clifton',
+  'Azam Cloth Market',
+  'Anarkali Bazaar',
+  'Liberty Market',
+  'Rail Bazaar',
 ];
 
 const DEFAULT_SUBAREA_AREAS_MAP: Record<string, string[]> = {
+  // Cities mapping to their local areas
+  'Hyderabad': ['Cloth Market', 'Resham Gali', 'Shahi Bazaar', 'Saddar', 'Latifabad', 'Qasimabad', 'Auto Bhan', 'Tilak Incline', 'Tower'],
+  'Karachi': ['Boulton Market', 'Jama Cloth Market', 'Tariq Road', 'Saddar', 'Hyderi', 'Liaquat Market', 'Clifton', 'PECHS', 'SITE', 'Gulshan-e-Iqbal', 'Korangi'],
+  'Sukkur': ['Station Road', 'Main Sarafa Bazaar', 'Cloth Market', 'Clock Tower', 'Barrage Colony', 'Military Road'],
+  'Lahore': ['Azam Cloth Market', 'Anarkali Bazaar', 'Ichhra Bazaar', 'Liberty Market', 'Shah Alam Market', 'Gulberg', 'Mall Road'],
+  'Faisalabad': ['Rail Bazaar', 'Clock Tower', 'Karkhana Bazaar', 'Jhang Bazaar', 'Montgomery Bazaar', 'D Ground'],
+  'Rawalpindi': ['Rabi Center', 'Raja Bazaar', 'Moti Bazaar', 'Saddar', 'Commercial Market'],
+  'Multan': ['Hussain Agahi Bazaar', 'Gulgast Colony', 'Cantonment', 'Cloth Market'],
+  'Peshawar': ['Karkhano Market', 'Shaheen Bazaar', 'Qissa Khwani', 'University Road'],
+  'Quetta': ['Liaquat Bazaar', 'Suraj Ganj Bazaar', 'Kandahari Bazaar'],
+  'Nawabshah': ['Cloth Market', 'Chakra Bazaar', 'Masjid Road'],
+  'Mirpurkhas': ['Shahi Bazaar', 'Station Road', 'Cloth Market'],
+  'Larkana': ['Shahi Bazaar', 'Station Road', 'Bank Square'],
+
+  // Specific Bazaars mapping to their parent areas / cities
   'Resham Gali': ['Cloth Market', 'Hyderabad', 'Sindh'],
   'Main Sarafa Bazaar': ['Cloth Market', 'Hyderabad', 'Sukkur'],
   'Cloth Market': ['Hyderabad', 'Karachi', 'Sukkur'],
-  'Shahi Bazaar': ['Hyderabad', 'Sindh'],
-  'Station Road': ['Sukkur', 'Sindh'],
+  'Shahi Bazaar': ['Hyderabad', 'Mirpurkhas', 'Sindh'],
+  'Station Road': ['Sukkur', 'Mirpurkhas', 'Sindh'],
   'Boulton Market': ['Saddar', 'Karachi'],
   'Jama Cloth Market': ['M.A. Jinnah Road', 'Saddar', 'Karachi'],
   'Tariq Road': ['PECHS', 'Karachi'],
@@ -99,7 +130,7 @@ const DEFAULT_SUBAREA_AREAS_MAP: Record<string, string[]> = {
   'Liberty Market': ['Gulberg', 'Lahore'],
   'Ichhra Bazaar': ['Lahore', 'Punjab'],
   'Rail Bazaar': ['Faisalabad', 'Punjab'],
-  'Clock Tower': ['Faisalabad', 'Punjab'],
+  'Clock Tower': ['Faisalabad', 'Sukkur'],
   'Karkhano Market': ['Peshawar', 'KPK'],
   'Rabi Center': ['Rawalpindi', 'Islamabad'],
 };
@@ -308,7 +339,14 @@ const AddCustomer: React.FC = () => {
         sub_area: values.subArea ? values.subArea.trim() : '',
         subArea: values.subArea ? values.subArea.trim() : '',
         area: values.area ? values.area.trim() : '',
-        city: values.area ? values.area.trim() : (values.city || 'Hyderabad'),
+        city: (() => {
+          const s = (values.subArea || '').trim();
+          const a = (values.area || '').trim();
+          const PAK_CITIES = ['hyderabad', 'karachi', 'sukkur', 'lahore', 'faisalabad', 'rawalpindi', 'multan', 'peshawar', 'quetta', 'nawabshah', 'mirpurkhas', 'larkana', 'islamabad'];
+          if (PAK_CITIES.includes(s.toLowerCase())) return s;
+          if (PAK_CITIES.includes(a.toLowerCase())) return a;
+          return s || a || values.city || 'Hyderabad';
+        })(),
         customer_code: cleanCode,
         customerCode: cleanCode,
         coa_code: cleanCode,
@@ -729,7 +767,7 @@ const AddCustomer: React.FC = () => {
                           ? subAreaToAreasMap[values.subArea]
                           : DEFAULT_AREAS
                       }
-                      helperText="Area unlocks after selecting Sub Area and saves under it (navigate with ↑ ↓ and Enter ↵)"
+                      helperText="Sub Area can be a City or Market (Required). Area is optional."
                     />
                   </div>
 

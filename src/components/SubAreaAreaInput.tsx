@@ -26,11 +26,11 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   onAreaAdd,
   subAreaOptions,
   areaOptions,
-  helperText = 'Sub Area is required. Area is optional.',
+  helperText = 'Sub Area can be a City or Market. Area is optional.',
   disabled = false,
   required = true,
 }) => {
-  // Area is locked until a Sub Area is selected
+  // Area is locked until a Sub Area / City is selected
   const isAreaLocked = disabled || !subAreaValue.trim();
 
   // Sub Area Section State
@@ -61,7 +61,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtered Sub Areas
+  // Filtered Sub Areas / Cities
   const filteredSubAreas = useMemo(() => {
     const q = subQuery.trim().toLowerCase();
     if (!q) return subAreaOptions;
@@ -76,7 +76,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   const canAddSub = Boolean(trimmedSubQuery && !subExactMatch);
   const totalSubCount = filteredSubAreas.length + (canAddSub ? 1 : 0);
 
-  // Filtered Areas under selected Sub Area
+  // Filtered Areas under selected Sub Area / City
   const filteredAreas = useMemo(() => {
     const q = areaQuery.trim().toLowerCase();
     if (!q) return areaOptions;
@@ -106,7 +106,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     }
   }, [areaHighlightIdx, isAreaOpen]);
 
-  // Handle Sub Area Select / Add -> unlocks Area cleanly without blocking popover
+  // Handle Sub Area Select / Add -> unlocks Area cleanly without blocking popup
   const handleSelectSub = (val: string) => {
     onSubAreaChange(val);
     setSubQuery('');
@@ -206,12 +206,12 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      {/* Header Label: Clear emphasis that Sub Area is Required and Area is Optional */}
+      {/* Header Label: Clear emphasis that Sub Area / City is Required and Area is Optional */}
       <div className="mb-1.5 flex items-center justify-between">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
           <MdLocationOn className="text-primary text-sm" />
           <span>
-            Sub Area <span className="text-red-500">*</span>
+            Sub Area / City <span className="text-red-500">*</span>
           </span>
           <span className="text-slate-300 dark:text-slate-600 font-normal">|</span>
           <span className="text-slate-500 dark:text-slate-400 font-semibold">
@@ -243,13 +243,13 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           disabled ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''
         }`}
       >
-        {/* LEFT PART: SUB AREA (Important / Required) */}
+        {/* LEFT PART: SUB AREA / CITY (Important / Required) */}
         <div className="relative flex items-center px-3 py-2.5">
           <input
             ref={subInputRef}
             type="text"
             disabled={disabled}
-            placeholder="Sub Area *"
+            placeholder="Sub Area / City *"
             value={isSubOpen ? subQuery : subAreaValue}
             onChange={(e) => {
               setSubQuery(e.target.value);
@@ -277,7 +277,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                   setIsAreaOpen(false);
                 }}
                 className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition"
-                title="Clear Sub Area"
+                title="Clear"
               >
                 <MdClose size={12} />
               </button>
@@ -301,10 +301,10 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           {/* Sub Area Dropdown List */}
           {isSubOpen && (
             <div className="absolute top-full left-0 z-99999 mt-1.5 w-[260px] sm:w-[320px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
-              <ul ref={subListRef} className="max-h-52 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
+              <ul ref={subListRef} className="max-h-56 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
                 {filteredSubAreas.length === 0 && !canAddSub && (
                   <li className="px-3 py-3 text-center text-xs text-slate-400">
-                    No matching sub areas found
+                    No matching sub areas / cities found
                   </li>
                 )}
 
@@ -378,7 +378,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
             ref={areaInputRef}
             type="text"
             disabled={isAreaLocked}
-            placeholder={isAreaLocked ? 'Select Sub Area first...' : 'Area (Optional)'}
+            placeholder={isAreaLocked ? 'Select Sub Area / City first...' : 'Area (Optional)'}
             value={isAreaOpen ? areaQuery : areaValue}
             onChange={(e) => {
               if (isAreaLocked) return;
@@ -401,7 +401,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
           <div className="absolute right-2.5 flex items-center gap-1">
             {isAreaLocked ? (
-              <span title="Please select Sub Area first" className="text-slate-400">
+              <span title="Please select Sub Area / City first" className="text-slate-400">
                 <MdLockOutline size={14} />
               </span>
             ) : (
@@ -441,7 +441,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           {/* Area Dropdown List */}
           {isAreaOpen && !isAreaLocked && (
             <div className="absolute top-full right-0 z-99999 mt-1.5 w-[260px] sm:w-[320px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
-              <ul ref={areaListRef} className="max-h-52 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
+              <ul ref={areaListRef} className="max-h-56 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
                 {filteredAreas.length === 0 && !canAddArea && (
                   <li className="px-3 py-3 text-center text-xs text-slate-400">
                     No matching areas found
