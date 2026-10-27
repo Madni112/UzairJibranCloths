@@ -80,6 +80,30 @@ const DEFAULT_AREAS = [
   'Clifton',
 ];
 
+const DEFAULT_SUBAREA_AREAS_MAP: Record<string, string[]> = {
+  'Resham Gali': ['Cloth Market', 'Hyderabad', 'Sindh'],
+  'Main Sarafa Bazaar': ['Cloth Market', 'Hyderabad', 'Sukkur'],
+  'Cloth Market': ['Hyderabad', 'Karachi', 'Sukkur'],
+  'Shahi Bazaar': ['Hyderabad', 'Sindh'],
+  'Station Road': ['Sukkur', 'Sindh'],
+  'Boulton Market': ['Saddar', 'Karachi'],
+  'Jama Cloth Market': ['M.A. Jinnah Road', 'Saddar', 'Karachi'],
+  'Tariq Road': ['PECHS', 'Karachi'],
+  'Hyderi Market': ['North Nazimabad', 'Karachi'],
+  'Shershah Market': ['SITE', 'Karachi'],
+  'Liaquat Market': ['Malir', 'Karachi'],
+  'Cliff Shopping Mall': ['Clifton', 'Karachi'],
+  'Ashiana Center': ['Clifton', 'Karachi'],
+  'Anarkali Bazaar': ['Lahore', 'Punjab'],
+  'Azam Cloth Market': ['Lahore', 'Punjab'],
+  'Liberty Market': ['Gulberg', 'Lahore'],
+  'Ichhra Bazaar': ['Lahore', 'Punjab'],
+  'Rail Bazaar': ['Faisalabad', 'Punjab'],
+  'Clock Tower': ['Faisalabad', 'Punjab'],
+  'Karkhano Market': ['Peshawar', 'KPK'],
+  'Rabi Center': ['Rawalpindi', 'Islamabad'],
+};
+
 const AddCustomer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(1);
@@ -95,13 +119,14 @@ const AddCustomer: React.FC = () => {
     }
   });
 
-  const [areaOptions, setAreaOptions] = useState<string[]>(() => {
+  // Mapping of Sub Area -> List of Areas saved under it
+  const [subAreaToAreasMap, setSubAreaToAreasMap] = useState<Record<string, string[]>>(() => {
     try {
-      const saved = localStorage.getItem('uj_custom_areas');
-      const customList: string[] = saved ? JSON.parse(saved) : [];
-      return Array.from(new Set([...DEFAULT_AREAS, ...customList])).sort();
+      const saved = localStorage.getItem('uj_subarea_areas_map');
+      const customMap = saved ? JSON.parse(saved) : {};
+      return { ...DEFAULT_SUBAREA_AREAS_MAP, ...customMap };
     } catch {
-      return DEFAULT_AREAS;
+      return DEFAULT_SUBAREA_AREAS_MAP;
     }
   });
 
@@ -124,23 +149,27 @@ const AddCustomer: React.FC = () => {
     toast.success(`Added "${clean}" to Sub Areas`);
   };
 
-  const handleAddCustomArea = (newVal: string) => {
-    const clean = newVal.trim();
-    if (!clean) return;
-    setAreaOptions((prev) => {
-      const updated = Array.from(new Set([clean, ...prev])).sort();
+  // Saves new area specifically UNDER the active Sub Area
+  const handleAddCustomArea = (newArea: string, currentSubArea: string) => {
+    const cleanArea = newArea.trim();
+    const cleanSub = currentSubArea.trim();
+    if (!cleanArea) return;
+
+    setSubAreaToAreasMap((prev) => {
+      const existing = prev[cleanSub] || DEFAULT_AREAS;
+      const updatedList = Array.from(new Set([cleanArea, ...existing])).sort();
+      const nextMap = { ...prev, [cleanSub]: updatedList };
+
       try {
-        const saved = localStorage.getItem('uj_custom_areas');
-        const customList: string[] = saved ? JSON.parse(saved) : [];
-        if (!customList.includes(clean)) {
-          localStorage.setItem('uj_custom_areas', JSON.stringify([...customList, clean]));
-        }
+        localStorage.setItem('uj_subarea_areas_map', JSON.stringify(nextMap));
       } catch (e) {
-        console.error('Failed to save custom area:', e);
+        console.error('Failed to save subarea-areas map:', e);
       }
-      return updated;
+
+      return nextMap;
     });
-    toast.success(`Added "${clean}" to Areas`);
+
+    toast.success(`Saved "${cleanArea}" under "${cleanSub}"`);
   };
   const { tenantId } = useAuth();
   const location = useLocation();
@@ -180,12 +209,22 @@ const AddCustomer: React.FC = () => {
             if (dbSubAreas.length > 0) {
               setSubAreaOptions((prev) => Array.from(new Set([...prev, ...dbSubAreas])).sort());
             }
-            const dbAreas = custAreaData
-              .map((c: any) => c.area || c.city)
-              .filter((v: any) => typeof v === 'string' && v.trim().length > 1);
-            if (dbAreas.length > 0) {
-              setAreaOptions((prev) => Array.from(new Set([...prev, ...dbAreas])).sort());
-            }
+
+            // Sync sub_area -> area database records into mapping
+            setSubAreaToAreasMap((prev) => {
+              const nextMap = { ...prev };
+              custAreaData.forEach((c: any) => {
+                const s = c.sub_area?.trim();
+                const a = (c.area || c.city)?.trim();
+                if (s && a) {
+                  const curr = nextMap[s] || DEFAULT_AREAS;
+                  if (!curr.includes(a)) {
+                    nextMap[s] = [a, ...curr];
+                  }
+                }
+              });
+              return nextMap;
+            });
           }
         } catch (e) {
           console.warn('Could not load areas from customers table:', e);
@@ -524,7 +563,7 @@ const AddCustomer: React.FC = () => {
         } : {
           customerName: '',
           subArea: '',
-          area: 'Hyderabad',
+          area: '',
           customer_code: '',
           page_no: '',
           registrationType: 'Retail / General',
@@ -679,8 +718,12 @@ const AddCustomer: React.FC = () => {
                       onSubAreaAdd={handleAddCustomSubArea}
                       onAreaAdd={handleAddCustomArea}
                       subAreaOptions={subAreaOptions}
-                      areaOptions={areaOptions}
-                      helperText="Sub Area and Area are separate database fields combined in a single input (use ↑ ↓ and Enter ↵)"
+                      areaOptions={
+                        values.subArea && subAreaToAreasMap[values.subArea]
+                          ? subAreaToAreasMap[values.subArea]
+                          : DEFAULT_AREAS
+                      }
+                      helperText="Area unlocks after selecting Sub Area and saves under it (navigate with ↑ ↓ and Enter ↵)"
                     />
                   </div>
 

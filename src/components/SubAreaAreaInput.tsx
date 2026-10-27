@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MdSearch, MdClose, MdKeyboardArrowDown, MdAdd, MdLocationOn } from 'react-icons/md';
+import { MdSearch, MdClose, MdKeyboardArrowDown, MdAdd, MdLocationOn, MdLockOutline } from 'react-icons/md';
 
 interface SubAreaAreaInputProps {
   label?: string;
@@ -8,7 +8,7 @@ interface SubAreaAreaInputProps {
   onSubAreaChange: (val: string) => void;
   onAreaChange: (val: string) => void;
   onSubAreaAdd?: (val: string) => void;
-  onAreaAdd?: (val: string) => void;
+  onAreaAdd?: (val: string, currentSubArea: string) => void;
   subAreaOptions: string[];
   areaOptions: string[];
   helperText?: string;
@@ -25,9 +25,12 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   onAreaAdd,
   subAreaOptions,
   areaOptions,
-  helperText = 'Select or type Sub Area and Area separately (navigate with ↑ ↓ and Enter ↵)',
+  helperText = 'Select Sub Area first to unlock and choose Area (navigate with ↑ ↓ and Enter ↵)',
   disabled = false,
 }) => {
+  // Area is locked/disabled until Sub Area has a value
+  const isAreaLocked = disabled || !subAreaValue.trim();
+
   // Sub Area Section State
   const [isSubOpen, setIsSubOpen] = useState(false);
   const [subQuery, setSubQuery] = useState('');
@@ -71,7 +74,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   const canAddSub = Boolean(trimmedSubQuery && !subExactMatch);
   const totalSubCount = filteredSubAreas.length + (canAddSub ? 1 : 0);
 
-  // Filtered Areas
+  // Filtered Areas under selected Sub Area
   const filteredAreas = useMemo(() => {
     const q = areaQuery.trim().toLowerCase();
     if (!q) return areaOptions;
@@ -101,16 +104,18 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     }
   }, [areaHighlightIdx, isAreaOpen]);
 
-  // Handle Sub Area Select / Add
+  // Handle Sub Area Select / Add -> enables and opens Area automatically
   const handleSelectSub = (val: string) => {
     onSubAreaChange(val);
     setSubQuery('');
     setIsSubOpen(false);
-    // Auto advance focus to Area input
+    // Clear area if changing sub area, and open Area dropdown
+    onAreaChange('');
+    setAreaQuery('');
     setTimeout(() => {
       areaInputRef.current?.focus();
       setIsAreaOpen(true);
-    }, 50);
+    }, 60);
   };
 
   const handleAddNewSub = (val: string) => {
@@ -120,14 +125,16 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
     onSubAreaChange(clean);
     setSubQuery('');
     setIsSubOpen(false);
-    // Auto advance focus to Area input
+    // Clear area if changing sub area, and open Area dropdown
+    onAreaChange('');
+    setAreaQuery('');
     setTimeout(() => {
       areaInputRef.current?.focus();
       setIsAreaOpen(true);
-    }, 50);
+    }, 60);
   };
 
-  // Handle Area Select / Add
+  // Handle Area Select / Add (saves under current sub area)
   const handleSelectArea = (val: string) => {
     onAreaChange(val);
     setAreaQuery('');
@@ -137,7 +144,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
   const handleAddNewArea = (val: string) => {
     const clean = val.trim();
     if (!clean) return;
-    if (onAreaAdd) onAreaAdd(clean);
+    if (onAreaAdd) onAreaAdd(clean, subAreaValue);
     onAreaChange(clean);
     setAreaQuery('');
     setIsAreaOpen(false);
@@ -178,7 +185,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
   // Keyboard Navigation: Area
   const handleAreaKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
+    if (isAreaLocked) return;
 
     if (!isAreaOpen) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
@@ -211,11 +218,16 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      {/* Header Label with Clear All shortcut */}
+      {/* Header Label with Clear Both */}
       <div className="mb-1.5 flex items-center justify-between">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
           <MdLocationOn className="text-primary text-sm" />
           <span>{label}</span>
+          {subAreaValue && (
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal ml-1">
+              (Sub Area: <b>{subAreaValue}</b>)
+            </span>
+          )}
         </label>
         {(subAreaValue || areaValue) && (
           <button
@@ -225,6 +237,8 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
               onAreaChange('');
               setSubQuery('');
               setAreaQuery('');
+              setIsSubOpen(false);
+              setIsAreaOpen(false);
             }}
             className="text-[10px] text-slate-400 hover:text-red-500 transition cursor-pointer font-medium"
           >
@@ -239,13 +253,13 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           disabled ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''
         }`}
       >
-        {/* LEFT PART: SUB AREA */}
-        <div className="relative flex items-center px-3 py-2">
+        {/* LEFT PART: SUB AREA (Always active first) */}
+        <div className="relative flex items-center px-3 py-2.5">
           <input
             ref={subInputRef}
             type="text"
             disabled={disabled}
-            placeholder="Sub Area"
+            placeholder="Select / Type Sub Area"
             value={isSubOpen ? subQuery : subAreaValue}
             onChange={(e) => {
               setSubQuery(e.target.value);
@@ -267,7 +281,10 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   onSubAreaChange('');
+                  onAreaChange(''); // Area must reset when Sub Area is cleared
                   setSubQuery('');
+                  setAreaQuery('');
+                  setIsAreaOpen(false);
                 }}
                 className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition"
                 title="Clear Sub Area"
@@ -293,9 +310,9 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
 
           {/* Sub Area Dropdown Popover */}
           {isSubOpen && (
-            <div className="absolute top-full left-0 z-99999 mt-1.5 w-[260px] sm:w-[300px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
+            <div className="absolute top-full left-0 z-99999 mt-1.5 w-[260px] sm:w-[320px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
               <div className="px-3 py-1.5 bg-slate-100/70 dark:bg-slate-800/60 border-b border-stroke dark:border-strokedark flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                <span>Sub Area List</span>
+                <span>1. Select Sub Area</span>
                 <span>Type to search / add</span>
               </div>
 
@@ -358,70 +375,97 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
           )}
         </div>
 
-        {/* RIGHT PART: AREA */}
-        <div className="relative flex items-center px-3 py-2">
+        {/* RIGHT PART: AREA (Enabled ONLY AFTER Sub Area selected) */}
+        <div
+          onClick={() => {
+            if (isAreaLocked) {
+              // Guide user to pick Sub Area first
+              setIsSubOpen(true);
+              setTimeout(() => subInputRef.current?.focus(), 50);
+            }
+          }}
+          className={`relative flex items-center px-3 py-2.5 transition ${
+            isAreaLocked
+              ? 'bg-slate-100/70 dark:bg-slate-800/40 cursor-not-allowed select-none'
+              : 'cursor-text'
+          }`}
+        >
           <input
             ref={areaInputRef}
             type="text"
-            disabled={disabled}
-            placeholder="Area"
+            disabled={isAreaLocked}
+            placeholder={isAreaLocked ? 'Select Sub Area first...' : 'Select / Type Area'}
             value={isAreaOpen ? areaQuery : areaValue}
             onChange={(e) => {
+              if (isAreaLocked) return;
               setAreaQuery(e.target.value);
               if (!isAreaOpen) setIsAreaOpen(true);
             }}
             onFocus={() => {
+              if (isAreaLocked) return;
               setIsAreaOpen(true);
               setIsSubOpen(false);
               setAreaQuery(areaValue || '');
             }}
             onKeyDown={handleAreaKeyDown}
-            className="w-full bg-transparent text-slate-900 dark:text-white text-xs font-semibold outline-none placeholder:text-slate-400 placeholder:font-normal truncate pr-6"
+            className={`w-full bg-transparent text-xs font-semibold outline-none truncate pr-6 ${
+              isAreaLocked
+                ? 'text-slate-400 placeholder:text-slate-400 placeholder:italic cursor-not-allowed'
+                : 'text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal'
+            }`}
           />
 
           <div className="absolute right-2.5 flex items-center gap-1">
-            {areaValue && !isAreaOpen && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAreaChange('');
-                  setAreaQuery('');
-                }}
-                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition"
-                title="Clear Area"
-              >
-                <MdClose size={12} />
-              </button>
+            {isAreaLocked ? (
+              <span title="Please select Sub Area first" className="text-slate-400">
+                <MdLockOutline size={14} />
+              </span>
+            ) : (
+              <>
+                {areaValue && !isAreaOpen && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAreaChange('');
+                      setAreaQuery('');
+                    }}
+                    className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition"
+                    title="Clear Area"
+                  >
+                    <MdClose size={12} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAreaOpen(!isAreaOpen);
+                    setIsSubOpen(false);
+                    if (!isAreaOpen) setTimeout(() => areaInputRef.current?.focus(), 50);
+                  }}
+                  className="text-slate-400 hover:text-primary transition"
+                >
+                  <MdKeyboardArrowDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isAreaOpen ? 'rotate-180 text-primary' : ''}`}
+                  />
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                setIsAreaOpen(!isAreaOpen);
-                setIsSubOpen(false);
-                if (!isAreaOpen) setTimeout(() => areaInputRef.current?.focus(), 50);
-              }}
-              className="text-slate-400 hover:text-primary transition"
-            >
-              <MdKeyboardArrowDown
-                size={16}
-                className={`transition-transform duration-200 ${isAreaOpen ? 'rotate-180 text-primary' : ''}`}
-              />
-            </button>
           </div>
 
           {/* Area Dropdown Popover */}
-          {isAreaOpen && (
-            <div className="absolute top-full right-0 z-99999 mt-1.5 w-[260px] sm:w-[300px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
+          {isAreaOpen && !isAreaLocked && (
+            <div className="absolute top-full right-0 z-99999 mt-1.5 w-[260px] sm:w-[320px] rounded-xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-2xl overflow-hidden animate-in fade-in duration-100">
               <div className="px-3 py-1.5 bg-slate-100/70 dark:bg-slate-800/60 border-b border-stroke dark:border-strokedark flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                <span>Area List</span>
-                <span>Type to search / add</span>
+                <span>2. Areas for "{subAreaValue}"</span>
+                <span>Type to add under this</span>
               </div>
 
               <ul ref={areaListRef} className="max-h-52 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
                 {filteredAreas.length === 0 && !canAddArea && (
                   <li className="px-3 py-3 text-center text-xs text-slate-400">
-                    No matching areas found
+                    No areas saved under "{subAreaValue}" yet. Type a new area name to add it!
                   </li>
                 )}
 
@@ -452,7 +496,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                   );
                 })}
 
-                {/* Add New Area Option */}
+                {/* Add New Area Option (Saved specifically under current Sub Area) */}
                 {canAddArea && (
                   <li
                     onClick={() => handleAddNewArea(trimmedAreaQuery)}
@@ -465,7 +509,7 @@ export const SubAreaAreaInput: React.FC<SubAreaAreaInputProps> = ({
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <MdAdd className="shrink-0" size={14} />
-                      <span className="truncate">Add Area <b>"{trimmedAreaQuery}"</b></span>
+                      <span className="truncate">Add <b>"{trimmedAreaQuery}"</b> under {subAreaValue}</span>
                     </div>
                     <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shrink-0">
                       Enter ↵
