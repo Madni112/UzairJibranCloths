@@ -28,7 +28,7 @@ import {
   MdArrowForward
 } from 'react-icons/md';
 import { SearchableDropdown } from '../../../components/SearchableDropdown';
-import SearchableAddableDropdown from '../../../components/SearchableAddableDropdown';
+import SubAreaAreaInput from '../../../components/SubAreaAreaInput';
 
 const TIER_OPTIONS = [
   'Retail / General',
@@ -37,22 +37,47 @@ const TIER_OPTIONS = [
   'Registered Corporate'
 ];
 
+const DEFAULT_SUB_AREAS = [
+  'Resham Gali',
+  'Main Sarafa Bazaar',
+  'Boulton Market',
+  'Liaquat Market',
+  'Tariq Road',
+  'Hyderi Market',
+  'Jama Cloth Market',
+  'Shershah Market',
+  'Station Road',
+  'Cloth Market',
+  'Shahi Bazaar',
+  'Anarkali Bazaar',
+  'Azam Cloth Market',
+  'Rail Bazaar',
+  'Karkhano Market',
+  'Rabi Center',
+  'Cliff Shopping Mall',
+  'Ashiana Center',
+  'Liberty Market',
+  'Ichhra Bazaar',
+];
+
 const DEFAULT_AREAS = [
-  'Resham Gali | Cloth Market',
-  'Main Sarafa Bazaar | Cloth Market',
-  'Boulton Market | Saddar',
-  'Liaquat Market | Malir',
-  'Tariq Road | PECHS',
-  'Hyderi Market | North Nazimabad',
-  'Jama Cloth Market | M.A. Jinnah Road',
-  'Shershah Market | SITE',
-  'Station Road | Sukkur',
-  'Cloth Market | Hyderabad',
-  'Shahi Bazaar | Hyderabad',
-  'Anarkali Bazaar | Lahore',
-  'Azam Cloth Market | Lahore',
-  'Rail Bazaar | Faisalabad',
-  'Karkhano Market | Peshawar',
+  'Hyderabad',
+  'Karachi',
+  'Sukkur',
+  'Lahore',
+  'Faisalabad',
+  'Rawalpindi',
+  'Multan',
+  'Peshawar',
+  'Quetta',
+  'Saddar',
+  'Cloth Market',
+  'PECHS',
+  'North Nazimabad',
+  'M.A. Jinnah Road',
+  'SITE',
+  'Gulberg',
+  'Clifton',
 ];
 
 const AddCustomer: React.FC = () => {
@@ -60,6 +85,16 @@ const AddCustomer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [companies, setCompanies] = useState<any[]>([]);
   const [suggestedCode, setSuggestedCode] = useState<string>('');
+  const [subAreaOptions, setSubAreaOptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('uj_custom_sub_areas');
+      const customList: string[] = saved ? JSON.parse(saved) : [];
+      return Array.from(new Set([...DEFAULT_SUB_AREAS, ...customList])).sort();
+    } catch {
+      return DEFAULT_SUB_AREAS;
+    }
+  });
+
   const [areaOptions, setAreaOptions] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('uj_custom_areas');
@@ -69,6 +104,25 @@ const AddCustomer: React.FC = () => {
       return DEFAULT_AREAS;
     }
   });
+
+  const handleAddCustomSubArea = (newVal: string) => {
+    const clean = newVal.trim();
+    if (!clean) return;
+    setSubAreaOptions((prev) => {
+      const updated = Array.from(new Set([clean, ...prev])).sort();
+      try {
+        const saved = localStorage.getItem('uj_custom_sub_areas');
+        const customList: string[] = saved ? JSON.parse(saved) : [];
+        if (!customList.includes(clean)) {
+          localStorage.setItem('uj_custom_sub_areas', JSON.stringify([...customList, clean]));
+        }
+      } catch (e) {
+        console.error('Failed to save custom sub area:', e);
+      }
+      return updated;
+    });
+    toast.success(`Added "${clean}" to Sub Areas`);
+  };
 
   const handleAddCustomArea = (newVal: string) => {
     const clean = newVal.trim();
@@ -86,7 +140,7 @@ const AddCustomer: React.FC = () => {
       }
       return updated;
     });
-    toast.success(`Added "${clean}" to Sub Area | Area list`);
+    toast.success(`Added "${clean}" to Areas`);
   };
   const { tenantId } = useAuth();
   const location = useLocation();
@@ -116,12 +170,18 @@ const AddCustomer: React.FC = () => {
 
         if (compRes.data) setCompanies(compRes.data);
 
-        // Also merge any existing areas from customers table
+        // Also merge any existing areas and sub areas from customers table
         try {
-          const { data: custAreaData } = await supabase.from('customers').select('city, address').limit(100);
+          const { data: custAreaData } = await supabase.from('customers').select('city, address, sub_area, area').limit(100);
           if (custAreaData && custAreaData.length > 0) {
+            const dbSubAreas = custAreaData
+              .map((c: any) => c.sub_area)
+              .filter((v: any) => typeof v === 'string' && v.trim().length > 1);
+            if (dbSubAreas.length > 0) {
+              setSubAreaOptions((prev) => Array.from(new Set([...prev, ...dbSubAreas])).sort());
+            }
             const dbAreas = custAreaData
-              .map((c: any) => c.city)
+              .map((c: any) => c.area || c.city)
               .filter((v: any) => typeof v === 'string' && v.trim().length > 1);
             if (dbAreas.length > 0) {
               setAreaOptions((prev) => Array.from(new Set([...prev, ...dbAreas])).sort());
@@ -207,8 +267,8 @@ const AddCustomer: React.FC = () => {
         customerName: trimmedName,
         sub_area: values.subArea ? values.subArea.trim() : '',
         subArea: values.subArea ? values.subArea.trim() : '',
-        area: values.subArea ? values.subArea.trim() : '',
-        city: values.subArea ? (values.subArea.includes('|') ? values.subArea.split('|')[1].trim() : values.subArea.trim()) : 'Hyderabad',
+        area: values.area ? values.area.trim() : '',
+        city: values.area ? values.area.trim() : (values.city || 'Hyderabad'),
         customer_code: cleanCode,
         customerCode: cleanCode,
         coa_code: cleanCode,
@@ -261,11 +321,12 @@ const AddCustomer: React.FC = () => {
         }
       }
 
-      // If Sub Area was entered but DB has no sub_area column, preserve in notes
-      const subAreaVal = values.subArea ? values.subArea.trim() : '';
-      if (subAreaVal && !colMap.has('sub_area') && !colMap.has('subarea')) {
+      // If Sub Area or Area was entered but DB has no dedicated columns, preserve in notes
+      const sVal = values.subArea ? values.subArea.trim() : '';
+      const aVal = values.area ? values.area.trim() : '';
+      if ((sVal || aVal) && !colMap.has('sub_area') && !colMap.has('subarea')) {
         const notesKey = colMap.get('notes') || 'notes';
-        const areaNote = `Sub Area | Area: ${subAreaVal}`;
+        const areaNote = `Location: ${[sVal, aVal].filter(Boolean).join(' | ')}`;
         if (sanitizedPayload[notesKey]) {
           if (!sanitizedPayload[notesKey].includes(areaNote)) {
             sanitizedPayload[notesKey] += ` | ${areaNote}`;
@@ -447,7 +508,8 @@ const AddCustomer: React.FC = () => {
           customer_code: editData.customer_code || editData.customerCode || editData.coa_code || '',
           page_no: editData.page_no || editData.pageNo || editData.page_number || '',
           registrationType: editData.registrationType || 'Retail / General',
-          subArea: editData.sub_area || editData.subArea || editData.city || '',
+          subArea: editData.sub_area || editData.subArea || '',
+          area: editData.area || editData.city || 'Hyderabad',
           primaryPhone: editData.primaryPhone || editData.phone || '',
           secondaryPhone: editData.secondaryPhone || '',
           email: editData.email || '',
@@ -462,6 +524,7 @@ const AddCustomer: React.FC = () => {
         } : {
           customerName: '',
           subArea: '',
+          area: 'Hyderabad',
           customer_code: '',
           page_no: '',
           registrationType: 'Retail / General',
@@ -605,19 +668,19 @@ const AddCustomer: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Sub Area | Area Searchable + Addable Dropdown */}
+                  {/* Sub Area | Area Dual Dropdown in Single Unified Input */}
                   <div className="md:col-span-2">
-                    <SearchableAddableDropdown
+                    <SubAreaAreaInput
                       label="Sub Area | Area"
-                      placeholder="Sub Area | Area"
-                      options={areaOptions}
-                      value={values.subArea || ''}
-                      onChange={(val) => setFieldValue('subArea', val)}
-                      onAddNew={(newVal) => {
-                        handleAddCustomArea(newVal);
-                        setFieldValue('subArea', newVal);
-                      }}
-                      helperText="Select or type a new Sub Area | Area (interactable with arrow keys & enter)"
+                      subAreaValue={values.subArea || ''}
+                      areaValue={values.area || ''}
+                      onSubAreaChange={(val) => setFieldValue('subArea', val)}
+                      onAreaChange={(val) => setFieldValue('area', val)}
+                      onSubAreaAdd={handleAddCustomSubArea}
+                      onAreaAdd={handleAddCustomArea}
+                      subAreaOptions={subAreaOptions}
+                      areaOptions={areaOptions}
+                      helperText="Sub Area and Area are separate database fields combined in a single input (use ↑ ↓ and Enter ↵)"
                     />
                   </div>
 
