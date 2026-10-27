@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MdSearch, MdClose, MdKeyboardArrowDown, MdAdd, MdLocationOn } from 'react-icons/md';
+import { MdSearch, MdClose, MdKeyboardArrowDown, MdAdd } from 'react-icons/md';
 
 interface SearchableAddableDropdownProps {
   label?: string;
@@ -12,6 +12,7 @@ interface SearchableAddableDropdownProps {
   disabled?: boolean;
   helperText?: string;
   required?: boolean;
+  icon?: React.ReactNode;
 }
 
 export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps> = ({
@@ -20,11 +21,12 @@ export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps>
   value,
   onChange,
   onAddNew,
-  placeholder = 'Sub Area | Area',
+  placeholder = 'Select option',
   className = '',
   disabled = false,
   helperText,
   required = false,
+  icon,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -140,7 +142,7 @@ export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps>
       {label && (
         <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
           <span className="flex items-center gap-1.5">
-            <MdLocationOn className="text-primary text-sm" />
+            {icon && <span className="text-primary text-sm flex items-center">{icon}</span>}
             <span>{label}</span>
             {required && <span className="text-red-500">*</span>}
           </span>
@@ -176,7 +178,7 @@ export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps>
         }`}
       >
         <div className="flex items-center gap-2 truncate">
-          <MdLocationOn className="text-primary/70 shrink-0 text-base" />
+          {icon && <span className="text-primary/70 shrink-0 text-sm flex items-center">{icon}</span>}
           <span className={value ? 'text-slate-900 dark:text-white font-bold tracking-tight' : 'text-slate-400 font-normal'}>
             {value || placeholder}
           </span>
@@ -252,7 +254,7 @@ export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps>
           >
             {filteredOptions.length === 0 && !canAddNew && (
               <li className="px-3 py-4 text-center text-xs text-slate-400 font-medium">
-                No matching areas found
+                No matching options found
               </li>
             )}
 
@@ -273,10 +275,7 @@ export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps>
                       : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-medium'
                   }`}
                 >
-                  <div className="flex items-center gap-2 truncate">
-                    <MdLocationOn className={`text-sm shrink-0 ${isSelected || isHighlighted ? 'text-primary' : 'text-slate-400'}`} />
-                    <span className="truncate">{opt}</span>
-                  </div>
+                  <span className="truncate">{opt}</span>
                   {isSelected && (
                     <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-primary/20 text-primary">
                       Selected
@@ -318,4 +317,3 @@ export const SearchableAddableDropdown: React.FC<SearchableAddableDropdownProps>
 };
 
 export default SearchableAddableDropdown;
-

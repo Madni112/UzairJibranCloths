@@ -867,6 +867,7 @@ const AddCustomer: React.FC = () => {
                     <SearchableAddableDropdown
                       label="Customer Tier / Category"
                       placeholder="Customer Tier / Category"
+                      icon={<MdTag className="text-primary text-sm" />}
                       value={values.registrationType || 'Retail / General'}
                       onChange={(val) => setFieldValue('registrationType', val || 'Retail / General')}
                       onAddNew={(newTier) => {
