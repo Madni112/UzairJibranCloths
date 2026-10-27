@@ -44,7 +44,7 @@ const CompanyLanding: React.FC = () => {
               <span className="hover:text-white transition cursor-pointer">Support</span>
             </div>
             <NavLink
-              to="/bashir/signin"
+              to="/signin"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition duration-200"
             >
               <span>Client Portal</span>
@@ -72,7 +72,7 @@ const CompanyLanding: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
           <NavLink
-            to="/bashir/signin"
+            to="/signin"
             className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/45 hover:-translate-y-0.5 transition duration-200"
           >
             <span>Access Portal</span>

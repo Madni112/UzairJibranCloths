@@ -1,6 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Route, Routes, useLocation, Navigate, useParams } from 'react-router-dom';
+import Loader from '../common/Loader';
 import SignIn from '../pages/Authentication/SignIn';
-import CompanyLanding from '../pages/Landing/CompanyLanding';
 import DeveloperDashboard from '../pages/Developer/DeveloperDashboard';
 import DefaultLayout from '../layout/DefaultLayout';
 import Dashboard from '../pages/Dashboard/Dashboard';
@@ -9,66 +10,86 @@ import SettingsPage from '../pages/Settings/SettingsPage';
 import { useAuth } from '../Context/Auth';
 
 /**
- * Enterprise Route Guard
- * Enforces unified authentication across all routes.
+ * Universal Route Guard for all ERP Sub-pages
  */
-const AppRouteGuard = ({ children }: { children: JSX.Element }) => {
+const AppRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
+  const { pathname } = useLocation();
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-white dark:bg-boxdark">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/signin" replace />;
   }
 
-  return children;
+  // Auto-correct any corrupt nested prefixes (e.g. /purchase/Reports/Reports-Dashboard -> /Reports/Reports-Dashboard)
+  const segments = pathname.split('/').filter(Boolean);
+  const reservedPrefixes = ['purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'human-resources', 'human-resource', 'hr', 'crm'];
+  if (segments.length >= 2 && reservedPrefixes.includes(segments[0].toLowerCase()) && reservedPrefixes.includes(segments[1].toLowerCase())) {
+    const cleanPath = `/${segments.slice(1).join('/')}`;
+    return <Navigate to={cleanPath} replace />;
+  }
+
+  return <>{children}</>;
 };
 
 function Navigation() {
-  const { getRoleBasedRoutes, isAuthenticated } = useAuth();
+  const { pathname } = useLocation();
+  const { isAuthenticated, getRoleBasedRoutes, loading: authLoading } = useAuth();
+
   const roleRoutes = getRoleBasedRoutes();
 
-  // Recursively renders dynamic routes matching the multi-level Sidebar structure
-  const renderRoutes = (routes: any[]) => {
-    return routes.flatMap((item: any, idx: number) => {
-      const routeElements: any[] = [];
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
-      if (item.path && item.component) {
-        routeElements.push(
+  if (authLoading) {
+    return <Loader />;
+  }
+
+  const renderRoutes = (routes: any[]): any => {
+    return routes.flatMap((route, index) => {
+      const flat: any[] = [];
+
+      if (route.path && route.component) {
+        const cleanSub = route.path.replace(/^\//, '');
+
+        // 1. Direct standard ERP route
+        flat.push(
           <Route
-            key={`${item.path}-${idx}`}
-            path={item.path}
+            key={`direct-${index}-${route.path}`}
+            path={route.path}
             element={
               <AppRouteGuard>
-                <DefaultLayout>{item.component}</DefaultLayout>
+                <DefaultLayout>{route.component}</DefaultLayout>
               </AppRouteGuard>
             }
           />
         );
-        routeElements.push(
-          <Route
-            key={`${item.path}-tenant-${idx}`}
-            path={`/:tenantPath${item.path.startsWith('/') ? item.path : `/${item.path}`}`}
-            element={
-              <AppRouteGuard>
-                <DefaultLayout>{item.component}</DefaultLayout>
-              </AppRouteGuard>
-            }
-          />
-        );
+
+        // 2. Legacy tenant-prefixed route fallback (e.g. /bashir/sales/invoice/list -> same component)
+        if (cleanSub) {
+          flat.push(
+            <Route
+              key={`tenant-${index}-${route.path}`}
+              path={`/:tenantPath/${cleanSub}`}
+              element={
+                <AppRouteGuard>
+                  <DefaultLayout>{route.component}</DefaultLayout>
+                </AppRouteGuard>
+              }
+            />
+          );
+        }
       }
 
-      if (item.children && Array.isArray(item.children)) {
-        routeElements.push(...renderRoutes(item.children));
+      if (route.children) {
+        flat.push(...renderRoutes(route.children));
       }
 
-      return routeElements;
+      return flat;
     });
   };
 
@@ -88,18 +109,7 @@ function Navigation() {
         }
       />
 
-      {/* 2. UNIVERSAL SIGN-IN & LOGIN ROUTES */}
-      <Route
-        path="/signin"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
-      />
-      <Route
-        path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
-      />
-      <Route path="/landing" element={<CompanyLanding />} />
-
-      {/* 3. ROOT DASHBOARD ENTRY */}
+      {/* 1.5. DASHBOARD ROUTES */}
       <Route
         path="/dashboard"
         element={
@@ -121,7 +131,17 @@ function Navigation() {
         }
       />
 
-      {/* 3.5. DEVELOPER PORTAL */}
+      {/* 2. UNIVERSAL SIGN-IN & LOGIN ROUTES */}
+      <Route
+        path="/signin"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
+      />
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
+      />
+
+      {/* 3. SUPER ADMIN & EMPLOYEE ROLE MANAGEMENT CONSOLE */}
       <Route path="/dev/master" element={<DeveloperDashboard />} />
       <Route path="/Administration/Roles" element={<DeveloperDashboard />} />
       <Route path="/Administration/Users" element={<DeveloperDashboard />} />
@@ -161,20 +181,20 @@ function Navigation() {
       {/* 5. LEGACY TENANT GATE REDIRECTS (Gracefully redirects any old links) */}
       <Route path="/:tenantPath/signin" element={<Navigate to="/signin" replace />} />
       <Route path="/:tenantPath/login" element={<Navigate to="/signin" replace />} />
-
-      {/* 6. TENANT ROOT REDIRECT */}
       <Route
         path="/:tenantPath"
         element={
-          <AppRouteGuard>
+          isAuthenticated ? (
             <DefaultLayout>
               <Dashboard />
             </DefaultLayout>
-          </AppRouteGuard>
+          ) : (
+            <SignIn />
+          )
         }
       />
 
-      {/* 7. CATCH-ALL (404) */}
+      {/* 6. 404 NOT FOUND */}
       <Route
         path="*"
         element={

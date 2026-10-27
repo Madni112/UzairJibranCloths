@@ -9,7 +9,7 @@ import { getBrandConfig } from '../../utils/brand';
 import DarkModeSwitcher from '../../components/Header/DarkModeSwitcher';
 import { MdLockOutline } from 'react-icons/md';
 
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 const SignIn: React.FC = () => {
   const brand = getBrandConfig();
@@ -20,10 +20,13 @@ const SignIn: React.FC = () => {
   // Check active tenant slug if coming from a tenant link (e.g. /bashir/signin)
   const activeTenantSlug = detectPortalTenant();
 
-  // If user is already authenticated with a valid Supabase User ID for this tenant, redirect to dashboard!
-  const currentTenant = String(tenantId || '').toLowerCase().trim();
-  if (currentUser?.id && currentTenant && activeTenantSlug && currentTenant === activeTenantSlug.toLowerCase().trim()) {
-    return <Navigate to={`/${currentTenant}`} replace />;
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const currentTenant = String(tenantId || 'uzair').toLowerCase().trim();
+
+  // If user is already authenticated, redirect immediately to dashboard
+  if (currentUser?.id || isAuthenticated) {
+    return <Navigate to={currentTenant ? `/${currentTenant}` : '/'} replace />;
   }
 
 
@@ -48,6 +51,7 @@ const SignIn: React.FC = () => {
         setLoading(true);
         setAuthError(null);
         await login(values.email, values.password);
+        navigate(currentTenant ? `/${currentTenant}` : '/', { replace: true });
       } catch (error: any) {
         setAuthError(error.message || 'An error occurred during sign in');
       } finally {
