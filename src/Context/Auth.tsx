@@ -407,7 +407,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Route aliases mapping
         const aliases: Record<string, string[]> = {
-          '/': ['dashboard', 'dashboards', '/dashboard/executive', '/', '/dashboard/salesman', '/dashboard/warehouse', 'salesman-dashboard', 'warehouse-dashboard'],
+          '/dashboard': ['dashboard', 'dashboards', '/dashboard/executive', '/', '/dashboard', '/dashboard/salesman', '/dashboard/warehouse', 'salesman-dashboard', 'warehouse-dashboard'],
+          '/': ['dashboard', 'dashboards', '/dashboard/executive', '/', '/dashboard', '/dashboard/salesman', '/dashboard/warehouse', 'salesman-dashboard', 'warehouse-dashboard'],
           'dashboard': ['/', 'dashboard', 'dashboards', '/dashboard/executive', '/dashboard/salesman', '/dashboard/warehouse'],
           '/dashboard/executive': ['dashboard', 'dashboards', '/', '/dashboard/executive'],
           '/dashboard/salesman': ['salesman-dashboard', '/dashboard/salesman', 'dashboards', 'dashboard', '/'],
@@ -445,7 +446,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const routePath = String(route.path || '').toLowerCase().trim();
 
           // 2. Standalone pages (like Dashboard)
-          if (routePath === '/' || label === 'dashboard' || label === 'dashboards') {
+          if (routePath === '/' || routePath === '/dashboard' || label === 'dashboard' || label === 'dashboards') {
             const isAllowed =
               lowerAllowed.includes('dashboard') ||
               lowerAllowed.includes('dashboards') ||

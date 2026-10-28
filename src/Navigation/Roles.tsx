@@ -104,7 +104,7 @@ import FollowUps from '../pages/CRM/FollowUps';
 
 export const adminRoutes = [
   {
-    path: '/',
+    path: '/dashboard',
     component: <Dashboard />,
     label: 'Dashboard',
     icon: MdDashboard,
