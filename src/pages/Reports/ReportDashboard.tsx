@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../Context/Auth';
 import { getBrandConfig } from '../../utils/brand';
 import {
@@ -540,7 +540,28 @@ const ReportDashboard: React.FC = () => {
   const [reportsList, setReportsList] = useState<ReportItem[]>(getInitialReports);
   const [categoriesList, setCategoriesList] = useState(getInitialCategories);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getInitialCategory = () => {
+    const fromState = (location.state as any)?.category;
+    const fromParam = searchParams.get('category');
+    return fromState || fromParam || 'all';
+  };
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(getInitialCategory);
+
+  // Synchronize category if query params or location state change dynamically
+  useEffect(() => {
+    const target = (location.state as any)?.category || searchParams.get('category');
+    if (target && target !== selectedCategory) {
+      setSelectedCategory(target);
+      setCollapsedCats((prev) => ({
+        ...prev,
+        [target]: false,
+      }));
+    }
+  }, [location.state, searchParams]);
   const [exporting, setExporting] = useState(false);
   const [draggedReportId, setDraggedReportId] = useState<string | null>(null);
   const [draggedCatKey, setDraggedCatKey] = useState<string | null>(null);
@@ -597,11 +618,13 @@ const ReportDashboard: React.FC = () => {
     if (categoryKey === selectedCategory || categoryKey === 'all') {
       setSelectedCategory('all');
       setCollapsedCats({});
+      setSearchParams({}, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     setSelectedCategory(categoryKey);
+    setSearchParams({ category: categoryKey }, { replace: true });
     setCollapsedCats((prev) => ({
       ...prev,
       [categoryKey]: false,
@@ -732,6 +755,7 @@ const ReportDashboard: React.FC = () => {
       setReportsList(ALL_REPORTS);
       setCategoriesList(CATEGORY_META);
       setCollapsedCats({});
+      setSearchParams({}, { replace: true });
       setSearchQuery('');
       setSelectedCategory('all');
       toast.success('Reports layout reset to default order.');
@@ -1012,7 +1036,10 @@ const ReportDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedCategory('all')}
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setSearchParams({}, { replace: true });
+                  }}
                   className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer self-start sm:self-auto shadow-sm"
                 >
                   <span>← Back to All Reports</span>

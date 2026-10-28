@@ -153,7 +153,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, tenantId } = useAuth();
   const [adminView, setAdminView] = useState<'executive' | 'salesman' | 'warehouse'>(initialView);
 
   const userRoleLower = (role || '').toLowerCase();
@@ -767,7 +767,16 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
         <ActionCard title="Purchases" subtitle="Buy New Product" Icon={MdLocalMall} bgGradient="bg-gradient-to-br from-teal-700 to-emerald-900" onClick={() => navigate('/Purchase/Purchases/list')} />
         <ActionCard title="Products" subtitle="Items List" Icon={MdAddBox} bgGradient="bg-gradient-to-br from-teal-600 to-cyan-800" onClick={() => navigate('/Administration/Products/list')} />
         <ActionCard title="Sale Return" subtitle="Customer Return" Icon={MdCompareArrows} bgGradient="bg-gradient-to-br from-slate-700 to-slate-900" onClick={() => navigate('/Sales/Sales-Return/List')} />
-        <ActionCard title="Stock Report" subtitle="Inventory Audit" Icon={MdAssessment} bgGradient="bg-gradient-to-br from-emerald-700 to-teal-900" onClick={() => navigate('/Reports/Stock-Report')} />
+        <ActionCard
+          title="Stock Report"
+          subtitle="Inventory Audit"
+          Icon={MdAssessment}
+          bgGradient="bg-gradient-to-br from-emerald-700 to-teal-900"
+          onClick={() => {
+            const dest = tenantId ? `/${tenantId}/Reports/Reports-Dashboard?category=inventory` : '/Reports/Reports-Dashboard?category=inventory';
+            navigate(dest, { state: { category: 'inventory' } });
+          }}
+        />
         <ActionCard title="Today's Sale" subtitle={`Rs. ${metrics.todaysSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdTrendingUp} bgGradient="bg-gradient-to-br from-teal-500 to-emerald-700" onClick={() => { }} />
         <ActionCard title="This Month Sales" subtitle={`Rs. ${metrics.thisMonthSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdArrowUpward} bgGradient="bg-gradient-to-br from-emerald-800 to-slate-900" onClick={() => { }} />
         <ActionCard title="This Month Purchases" subtitle={`Rs. ${metrics.thisMonthPurchases.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdArrowDownward} bgGradient="bg-gradient-to-br from-teal-800 to-slate-900" onClick={() => { }} />
@@ -1019,7 +1028,10 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
 
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-right mt-2">
             <button
-              onClick={() => navigate('/Reports/Stock-Report')}
+              onClick={() => {
+                const dest = tenantId ? `/${tenantId}/Reports/Reports-Dashboard?category=inventory` : '/Reports/Reports-Dashboard?category=inventory';
+                navigate(dest, { state: { category: 'inventory' } });
+              }}
               className="text-rose-600 dark:text-rose-400 font-bold hover:underline text-[11px] inline-flex items-center gap-1 cursor-pointer"
             >
               <span>Open Inventory Audit Matrix</span>
@@ -1738,7 +1750,8 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                           type="button"
                           onClick={() => {
                             setActiveBreakdownModal(null);
-                            navigate(`${tenantId ? `/${tenantId}` : ''}/Reports/Stock Report`);
+                            const dest = tenantId ? `/${tenantId}/Reports/Reports-Dashboard?category=inventory` : '/Reports/Reports-Dashboard?category=inventory';
+                            navigate(dest, { state: { category: 'inventory' } });
                           }}
                           className="text-[11px] font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
                         >
