@@ -12,8 +12,15 @@ import {
   MdAccountBalanceWallet,
   MdWarehouse,
   MdPhone,
-  MdStorefront
+  MdStorefront,
+  MdEmail,
+  MdLocationOn,
+  MdLanguage,
+  MdCode,
+  MdSupportAgent,
+  MdOpenInNew
 } from 'react-icons/md';
+import { FaWhatsapp } from 'react-icons/fa';
 import {
   LuActivity,
   LuCpu,
@@ -87,10 +94,10 @@ const CompanyLanding: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => scrollToSection('warehouse-topology')}
+              onClick={() => scrollToSection('developer-contact')}
               className="hover:text-slate-950 dark:hover:text-white transition duration-150 cursor-pointer"
             >
-              Multi-Location
+              Developer & Tech
             </button>
             <button
               type="button"
@@ -424,120 +431,134 @@ const CompanyLanding: React.FC = () => {
         </div>
       </section>
 
-      {/* ── 5. MULTI-LOCATION DISTRIBUTION & GLOBAL SHARD TOPOLOGY ── */}
-      <section id="warehouse-topology" className="py-16 sm:py-20 border-t border-slate-200 dark:border-slate-800/80 bg-slate-100/60 dark:bg-[#060913]/60 relative z-10 transition-colors duration-200">
+      {/* ── 5. SYSTEM ARCHITECT & DEVELOPER CONTACT CORE ── */}
+      <section id="developer-contact" className="py-16 sm:py-20 border-t border-slate-200 dark:border-slate-800/80 bg-slate-100/60 dark:bg-[#060913]/60 relative z-10 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             
-            {/* Left: Stitch Topology Description & Stats */}
+            {/* Left: NHT Enterprises & Abdul Sattar Profile */}
             <div className="lg:col-span-5 space-y-5 text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/25 text-[11px] font-mono font-bold uppercase tracking-wider">
-                GEO-DISTRIBUTED CONSENSUS
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/25 text-[11px] font-mono font-bold uppercase tracking-wider">
+                <MdCode className="text-sm" /> SYSTEM ARCHITECT & DEVELOPER
               </div>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-                Active-Active Worldwide Replication
+                NHT ENTERPRISES
               </h2>
+              <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono -mt-2">
+                Lead Systems Architect: Abdul Sattar
+              </div>
               <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">
-                Maintain sovereign boundary integrity without sacrificing global inventory synchronization. Noor Horizon Technologies provisions multi-region quorum consensus nodes guaranteeing continuous availability even under extreme network partition events.
+                Specialized in bespoke enterprise ERP systems, automated wholesale billing architectures, and high-precision double-entry financial engines. Engineered specifically for Pakistan&apos;s textile, cloth trading, and industrial retail ecosystems.
               </p>
               
-              {/* Stat Callouts matching Stitch mockup */}
-              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-slate-200 dark:border-slate-800/80">
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white font-mono">
-                    50,000+
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                    SKU Automated Allocation/Sec
-                  </div>
+              {/* Core System Guarantees & Features */}
+              <div className="space-y-2.5 pt-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <div className="flex items-center gap-2.5">
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
+                  <span>Custom Textile & Wholesale Point-of-Sale Modules</span>
                 </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 font-mono">
-                    14 Global
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                    Cloud Zones in Active State
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
+                  <span>Multi-Godown Fabric Rolls (Thaan) & Yardage Ledger</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
+                  <span>PostgreSQL Powered Double-Entry Automatic Accounting</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
+                  <span>Direct WhatsApp Hotfix & 24/7 Dedicated Support</span>
                 </div>
               </div>
             </div>
 
-            {/* Right: Stitch-Faithful Radial Topology Diagram Visual */}
-            <div className="lg:col-span-7 bg-white dark:bg-[#090E1A] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-7 shadow-xl dark:shadow-2xl relative transition-colors duration-200">
+            {/* Right: Modern Interactive Developer Contact Console */}
+            <div className="lg:col-span-7 bg-white dark:bg-[#090E1A] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl dark:shadow-2xl relative transition-colors duration-200">
               
-              {/* Top Meta Bar */}
+              {/* Header Bar */}
               <div className="flex flex-wrap justify-between items-center text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-6 gap-2">
-                <div className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
-                  <span className="text-blue-600 dark:text-blue-400">🌐</span>
-                  <span>SYNCHRONIZATION TOPOLOGY • GLOBAL SHARD FABRIC</span>
+                <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>NHT ENTERPRISES • DEVELOPER CONTACT CONSOLE</span>
                 </div>
-                <span className="text-slate-500 dark:text-slate-400">
-                  RPO = 0.0s • RTO &lt; 100ms
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  HYDERABAD, PAKISTAN
                 </span>
               </div>
 
-              {/* Radial Constellation Interactive Canvas */}
-              <div className="relative h-60 sm:h-72 w-full bg-slate-50/70 dark:bg-slate-950/40 rounded-xl border border-slate-200/80 dark:border-slate-800/60 p-4 overflow-hidden flex items-center justify-center">
+              {/* Contact Information Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
-                {/* SVG Connecting Dashed Lines */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <line x1="50" y1="50" x2="24" y2="24" stroke="currentColor" strokeDasharray="3 3" className="text-blue-400/60 dark:text-blue-400/40" strokeWidth="1" />
-                  <line x1="50" y1="50" x2="76" y2="24" stroke="currentColor" strokeDasharray="3 3" className="text-blue-400/60 dark:text-blue-400/40" strokeWidth="1" />
-                  <line x1="50" y1="50" x2="24" y2="76" stroke="currentColor" strokeDasharray="3 3" className="text-blue-400/60 dark:text-blue-400/40" strokeWidth="1" />
-                  <line x1="50" y1="50" x2="76" y2="76" stroke="currentColor" strokeDasharray="3 3" className="text-blue-400/60 dark:text-blue-400/40" strokeWidth="1" />
-                </svg>
-
-                {/* Node 1: Top Left */}
-                <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                    <span>US-EAST (Primary)</span>
+                {/* 1. Direct Phone & WhatsApp */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold">
+                    <FaWhatsapp className="text-base" /> Direct WhatsApp & Call
                   </div>
+                  <p className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    +92 312 8039911
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Contact: Abdul Sattar
+                  </p>
                 </div>
 
-                {/* Node 2: Top Right */}
-                <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span>EU-CENTRAL (Frankfurt)</span>
+                {/* 2. Official Email */}
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-mono text-xs font-bold">
+                    <MdEmail className="text-base" /> Official Email
                   </div>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    nht@noorhorizontechnologies.com
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Enterprise Software Inquiries
+                  </p>
                 </div>
 
-                {/* Center: Consensus Root Node */}
-                <div className="relative z-20 flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 ring-4 ring-white dark:ring-slate-900">
-                    <LuCpu className="w-6 h-6 animate-pulse" />
+                {/* 3. Physical Office Location */}
+                <div className="sm:col-span-2 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold">
+                    <MdLocationOn className="text-base" /> Engineering Office
                   </div>
-                  <span className="text-[10px] sm:text-[11px] font-mono font-black tracking-wider text-slate-900 dark:text-slate-100 mt-2 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">
-                    CONSENSUS ROOT
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-snug">
+                    Office Near Chohan Kanta, Faizan E Madina Road, Affandi Town, Hyderabad, Sindh, Pakistan
+                  </p>
+                </div>
+
+                {/* 4. Official Web Domain */}
+                <div className="sm:col-span-2 p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-mono text-slate-700 dark:text-slate-300">
+                    <MdLanguage className="text-base text-slate-500 dark:text-slate-400" />
+                    <span>noorhorizontechnologies.com</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30">
+                    Portal V2.0 Coming Soon
                   </span>
                 </div>
 
-                {/* Node 3: Bottom Left */}
-                <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 z-10">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span>SA-EAST (Sao Paulo)</span>
-                  </div>
-                </div>
-
-                {/* Node 4: Bottom Right */}
-                <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-10">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span>AP-NORTHEAST (Tokyo)</span>
-                  </div>
-                </div>
-
               </div>
 
-              {/* Bottom Meta Bar matching Stitch mockup */}
-              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 gap-2">
-                <span>RAFT ELECTION TIMEOUT: 150ms</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold tracking-wider">
-                  STATE MACHINE: SYNCHRONIZED
-                </span>
+              {/* Direct Action Buttons: WhatsApp & Email */}
+              <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-3">
+                <a
+                  href="https://wa.me/923128039911?text=Hello%20Abdul%20Sattar,%20I%20am%20interested%20in%20a%20custom%20ERP%20or%20software%20solution."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 hover:-translate-y-0.5 transition duration-200 cursor-pointer"
+                >
+                  <FaWhatsapp className="text-sm" />
+                  <span>Chat with Abdul Sattar on WhatsApp</span>
+                </a>
+
+                <a
+                  href="mailto:nht@noorhorizontechnologies.com"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-100 font-bold text-xs shadow-sm hover:-translate-y-0.5 transition duration-200 cursor-pointer"
+                >
+                  <MdEmail className="text-sm" />
+                  <span>Send Email Inquiry</span>
+                </a>
               </div>
+
             </div>
 
           </div>
@@ -611,7 +632,7 @@ const CompanyLanding: React.FC = () => {
           </div>
 
           <div className="text-center sm:text-right text-[11px]">
-            Engineered and maintained natively by <span className="text-slate-700 dark:text-slate-300 font-semibold">Noor Horizon Technologies</span> for <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Uzair Jibran Cloth</span>.
+            Engineered and maintained natively by <span className="text-slate-700 dark:text-slate-300 font-semibold">NHT ENTERPRISES (Abdul Sattar)</span> for <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Uzair Jibran Cloth</span>.
           </div>
         </div>
       </footer>
