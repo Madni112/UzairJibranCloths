@@ -386,7 +386,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const rawTenant = tenantId || (isTenantRoute ? pathname.split('/')[1] : '');
   const cleanSlug = rawTenant ? rawTenant.replace(/^tenant=/, '').replace(/^tenant-/, '').toLowerCase().trim() : '';
   const reservedPrefixes = ['auth', 'dev', 'assets', 'api', 'purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'sales-return'];
-  const cleanPrefix = cleanSlug && !reservedPrefixes.includes(cleanSlug) ? `/${cleanSlug}` : '';
+  const cleanPrefix = '';
 
   const getTenantPath = (path?: string) => {
     if (!path || typeof path !== 'string') return '';
@@ -473,7 +473,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         {sidebarOpen ? (
           <>
             <NavLink
-              to={cleanPrefix || '/'}
+              to="/dashboard"
               className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-90"
             >
               <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-100 p-1 flex items-center justify-center shadow-md shrink-0 border border-slate-800 dark:border-slate-200 overflow-hidden select-none">

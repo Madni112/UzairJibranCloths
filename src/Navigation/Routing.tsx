@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Route, Routes, useLocation, Navigate, useParams } from 'react-router-dom';
+import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Loader from '../common/Loader';
 import SignIn from '../pages/Authentication/SignIn';
 import CompanyLanding from '../pages/Landing/CompanyLanding';
@@ -11,11 +11,11 @@ import SettingsPage from '../pages/Settings/SettingsPage';
 import { useAuth } from '../Context/Auth';
 
 /**
- * Universal Route Guard for all ERP Sub-pages
+ * Universal Route Guard for all ERP Sub-pages (Single Business System)
  */
 const AppRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
 
   if (loading) {
     return <Loader />;
@@ -25,15 +25,37 @@ const AppRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return <Navigate to="/signin" replace />;
   }
 
-  // Auto-correct any corrupt nested prefixes (e.g. /purchase/Reports/Reports-Dashboard -> /Reports/Reports-Dashboard)
   const segments = pathname.split('/').filter(Boolean);
+
+  // 1. Single-business rule: Strip any legacy tenant prefix (e.g. /uzair/..., /tenant=...)
+  if (segments.length > 0) {
+    const first = segments[0].toLowerCase();
+    const isTenantSegment = first === 'uzair' || first.startsWith('tenant=') || first.startsWith('tenant-');
+    if (isTenantSegment) {
+      const rest = segments.slice(1).join('/');
+      const cleanPath = rest ? `/${rest}` : '/dashboard';
+      return <Navigate to={`${cleanPath}${search}${hash}`} replace />;
+    }
+  }
+
+  // 2. Auto-correct any corrupt nested prefixes (e.g. /purchase/Reports/Reports-Dashboard -> /Reports/Reports-Dashboard)
   const reservedPrefixes = ['purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'human-resources', 'human-resource', 'hr', 'crm'];
   if (segments.length >= 2 && reservedPrefixes.includes(segments[0].toLowerCase()) && reservedPrefixes.includes(segments[1].toLowerCase())) {
     const cleanPath = `/${segments.slice(1).join('/')}`;
-    return <Navigate to={cleanPath} replace />;
+    return <Navigate to={`${cleanPath}${search}${hash}`} replace />;
   }
 
   return <>{children}</>;
+};
+
+/**
+ * Strips legacy tenant prefixes from URLs and redirects to canonical paths
+ */
+const LegacyTenantRedirect: React.FC = () => {
+  const { pathname, search, hash } = useLocation();
+  const segments = pathname.split('/').filter(Boolean);
+  const cleanPath = segments.length > 1 ? `/${segments.slice(1).join('/')}` : '/dashboard';
+  return <Navigate to={`${cleanPath}${search}${hash}`} replace />;
 };
 
 function Navigation() {
@@ -55,9 +77,6 @@ function Navigation() {
       const flat: any[] = [];
 
       if (route.path && route.component) {
-        const cleanSub = route.path.replace(/^\//, '');
-
-        // 1. Direct standard ERP route
         flat.push(
           <Route
             key={`direct-${index}-${route.path}`}
@@ -69,21 +88,6 @@ function Navigation() {
             }
           />
         );
-
-        // 2. Legacy tenant-prefixed route fallback (e.g. /bashir/sales/invoice/list -> same component)
-        if (cleanSub) {
-          flat.push(
-            <Route
-              key={`tenant-${index}-${route.path}`}
-              path={`/:tenantPath/${cleanSub}`}
-              element={
-                <AppRouteGuard>
-                  <DefaultLayout>{route.component}</DefaultLayout>
-                </AppRouteGuard>
-              }
-            />
-          );
-        }
       }
 
       if (route.children) {
@@ -100,19 +104,9 @@ function Navigation() {
       <Route path="/" element={<CompanyLanding />} />
       <Route path="/landing" element={<CompanyLanding />} />
 
-      {/* 1.5. DASHBOARD ROUTES */}
+      {/* 1.5. DASHBOARD ROUTE */}
       <Route
         path="/dashboard"
-        element={
-          <AppRouteGuard>
-            <DefaultLayout>
-              <Dashboard />
-            </DefaultLayout>
-          </AppRouteGuard>
-        }
-      />
-      <Route
-        path="/:tenantPath/dashboard"
         element={
           <AppRouteGuard>
             <DefaultLayout>
@@ -148,16 +142,6 @@ function Navigation() {
           </AppRouteGuard>
         }
       />
-      <Route
-        path="/:tenantPath/settings"
-        element={
-          <AppRouteGuard>
-            <DefaultLayout>
-              <SettingsPage />
-            </DefaultLayout>
-          </AppRouteGuard>
-        }
-      />
 
       {/* 4. ALL DYNAMIC ROLE-BASED ERP MODULE ROUTES */}
       {renderRoutes(roleRoutes)}
@@ -169,21 +153,17 @@ function Navigation() {
       <Route path="/Sales/Invoice" element={<Navigate to="/Sales/Invoice/List" replace />} />
       <Route path="/sales/invoices" element={<Navigate to="/Sales/Invoice/List" replace />} />
 
-      {/* 5. LEGACY TENANT GATE REDIRECTS (Gracefully redirects any old links) */}
-      <Route path="/:tenantPath/signin" element={<Navigate to="/signin" replace />} />
-      <Route path="/:tenantPath/login" element={<Navigate to="/signin" replace />} />
-      <Route
-        path="/:tenantPath"
-        element={
-          isAuthenticated ? (
-            <DefaultLayout>
-              <Dashboard />
-            </DefaultLayout>
-          ) : (
-            <SignIn />
-          )
-        }
-      />
+      {/* 5. SINGLE BUSINESS REDIRECTS (Immediately strips /uzair or any tenant prefix) */}
+      <Route path="/uzair" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/uzair/dashboard" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/uzair/signin" element={<Navigate to="/signin" replace />} />
+      <Route path="/uzair/login" element={<Navigate to="/signin" replace />} />
+      <Route path="/uzair/settings" element={<Navigate to="/settings" replace />} />
+      <Route path="/uzair/*" element={<LegacyTenantRedirect />} />
+      <Route path="/tenant=:slug/*" element={<LegacyTenantRedirect />} />
+      <Route path="/tenant=:slug" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/tenant-:slug/*" element={<LegacyTenantRedirect />} />
+      <Route path="/tenant-:slug" element={<Navigate to="/dashboard" replace />} />
 
       {/* 6. 404 NOT FOUND */}
       <Route

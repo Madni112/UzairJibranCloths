@@ -773,8 +773,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           Icon={MdAssessment}
           bgGradient="bg-gradient-to-br from-emerald-700 to-teal-900"
           onClick={() => {
-            const dest = tenantId ? `/${tenantId}/Reports/Reports-Dashboard?category=inventory` : '/Reports/Reports-Dashboard?category=inventory';
-            navigate(dest, { state: { category: 'inventory' } });
+            navigate('/Reports/Reports-Dashboard?category=inventory', { state: { category: 'inventory' } });
           }}
         />
         <ActionCard title="Today's Sale" subtitle={`Rs. ${metrics.todaysSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} Icon={MdTrendingUp} bgGradient="bg-gradient-to-br from-teal-500 to-emerald-700" onClick={() => { }} />
@@ -1029,8 +1028,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-right mt-2">
             <button
               onClick={() => {
-                const dest = tenantId ? `/${tenantId}/Reports/Reports-Dashboard?category=inventory` : '/Reports/Reports-Dashboard?category=inventory';
-                navigate(dest, { state: { category: 'inventory' } });
+                navigate('/Reports/Reports-Dashboard?category=inventory', { state: { category: 'inventory' } });
               }}
               className="text-rose-600 dark:text-rose-400 font-bold hover:underline text-[11px] inline-flex items-center gap-1 cursor-pointer"
             >
@@ -1750,8 +1748,7 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
                           type="button"
                           onClick={() => {
                             setActiveBreakdownModal(null);
-                            const dest = tenantId ? `/${tenantId}/Reports/Reports-Dashboard?category=inventory` : '/Reports/Reports-Dashboard?category=inventory';
-                            navigate(dest, { state: { category: 'inventory' } });
+                            navigate('/Reports/Reports-Dashboard?category=inventory', { state: { category: 'inventory' } });
                           }}
                           className="text-[11px] font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
                         >

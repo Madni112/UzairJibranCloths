@@ -26,7 +26,7 @@ const SignIn: React.FC = () => {
 
   // If user is already authenticated, redirect immediately to dashboard
   if (currentUser?.id || isAuthenticated) {
-    return <Navigate to={currentTenant ? `/${currentTenant}` : '/'} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
 
@@ -51,7 +51,7 @@ const SignIn: React.FC = () => {
         setLoading(true);
         setAuthError(null);
         await login(values.email, values.password);
-        navigate(currentTenant ? `/${currentTenant}/dashboard` : '/dashboard', { replace: true });
+        navigate('/dashboard', { replace: true });
       } catch (error: any) {
         setAuthError(error.message || 'An error occurred during sign in');
       } finally {

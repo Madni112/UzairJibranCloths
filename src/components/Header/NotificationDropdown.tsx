@@ -179,7 +179,7 @@ const NotificationDropdown = () => {
               <li key={notif.id}>
                 <Link
                   className="flex flex-col gap-2.5 border-t border-stroke px-4.5 py-3 hover:bg-gray-2 dark:border-strokedark dark:hover:bg-meta-4 transition"
-                  to={`${tenantId ? `/${tenantId}` : ''}${notif.link}`}
+                  to={notif.link}
                   onClick={() => markAsRead(notif.id)}
                 >
                   <p className="text-sm">

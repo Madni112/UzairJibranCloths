@@ -16,11 +16,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { isAuthenticated, tenantId } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to={tenantId ? `/tenant=${tenantId}/signin` : '/'} replace />;
+    return <Navigate to="/signin" replace />;
   }
 
   if (!allowedRoles.includes(userRole)) {
-    return <Navigate to={tenantId ? `/tenant=${tenantId}/signin` : '/'} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{element}</>;
