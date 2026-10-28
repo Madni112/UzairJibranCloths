@@ -32,3 +32,4 @@ CREATE INDEX IF NOT EXISTS idx_user_devices_tenant_id ON public.user_devices(ten
 
 -- Notify PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';
+

@@ -312,7 +312,7 @@ const SoundToneCard: React.FC<SoundToneCardProps> = ({
 };
 
 const SettingsPage: React.FC = () => {
-  const { userEmail, role, businessName } = useAuth();
+  const { userEmail, role, businessName, tenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('profile');
   const [themeSubTab, setThemeSubTab] = useState<'navbar' | 'sidebar'>('navbar');
   const [colorMode, setColorMode] = useColorMode();
