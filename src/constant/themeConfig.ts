@@ -238,6 +238,12 @@ export function applyAccentColor(hexColor: string) {
         background-color: rgba(${r}, ${g}, ${b}, 0.1) !important;
       }
 
+      .bg-emerald-600\\/70,
+      .bg-emerald-600\\/80,
+      .bg-primary\\/70 {
+        background-color: rgba(${r}, ${g}, ${b}, 0.75) !important;
+      }
+
       /* Dark Mode Translucent Backgrounds */
       .dark .bg-emerald-500\\/15,
       .dark .bg-emerald-950\\/30,

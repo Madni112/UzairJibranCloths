@@ -158,7 +158,7 @@ const SignIn: React.FC = () => {
             <button
               type="submit"
               className={`w-full cursor-pointer rounded-xl p-3.5 text-xs font-extrabold text-white transition-all duration-200 shadow-md hover:shadow-lg mt-3 flex items-center justify-center ${
-                loading ? 'bg-emerald-600/70 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                loading ? 'opacity-75 cursor-not-allowed bg-emerald-600' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 hover:-translate-y-0.5'
               }`}
               disabled={loading}
             >

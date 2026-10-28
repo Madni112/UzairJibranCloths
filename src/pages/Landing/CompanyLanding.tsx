@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../Context/Auth';
 import IconDark from '../../images/logo/icon-dark.png';
+import IconLight from '../../images/logo/icon-light.png';
+import DarkModeSwitcher from '../../components/Header/DarkModeSwitcher';
 import {
   MdArrowForward,
   MdCheckCircle,
@@ -9,20 +11,14 @@ import {
   MdReceiptLong,
   MdAccountBalanceWallet,
   MdWarehouse,
-  MdSecurity,
-  MdLocalShipping,
   MdPhone,
-  MdLayers,
   MdStorefront
 } from 'react-icons/md';
 import {
   LuActivity,
-  LuTerminal,
   LuCpu,
-  LuShieldCheck,
   LuSparkles,
-  LuCheck,
-  LuLayers
+  LuCheck
 } from 'react-icons/lu';
 
 const CompanyLanding: React.FC = () => {
@@ -52,63 +48,68 @@ const CompanyLanding: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#030712] text-slate-800 dark:text-slate-100 font-sans flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-x-hidden transition-colors duration-200">
       
       {/* ── Ambient Background Glow Meshes ── */}
-      <div className="pointer-events-none absolute -top-40 left-1/4 w-[750px] h-[550px] bg-gradient-to-br from-emerald-600/12 via-teal-600/10 to-transparent rounded-full blur-[150px]" />
-      <div className="pointer-events-none absolute top-[35%] -right-40 w-[650px] h-[500px] bg-gradient-to-bl from-blue-600/10 via-emerald-600/10 to-transparent rounded-full blur-[140px]" />
-      <div className="pointer-events-none absolute bottom-10 left-10 w-[550px] h-[450px] bg-gradient-to-tr from-teal-600/8 to-transparent rounded-full blur-[160px]" />
+      <div className="pointer-events-none absolute -top-40 left-1/4 w-[750px] h-[550px] bg-gradient-to-br from-emerald-500/10 dark:from-emerald-600/12 via-teal-500/8 dark:via-teal-600/10 to-transparent rounded-full blur-[150px]" />
+      <div className="pointer-events-none absolute top-[35%] -right-40 w-[650px] h-[500px] bg-gradient-to-bl from-blue-500/8 dark:from-blue-600/10 via-emerald-500/8 dark:via-emerald-600/10 to-transparent rounded-full blur-[140px]" />
+      <div className="pointer-events-none absolute bottom-10 left-10 w-[550px] h-[450px] bg-gradient-to-tr from-teal-500/8 dark:from-teal-600/8 to-transparent rounded-full blur-[160px]" />
 
       {/* ── 1. GLASSMORPHIC HEADER COMPONENT ── */}
-      <header className="border-b border-slate-800/80 bg-[#060B17]/85 backdrop-blur-xl sticky top-0 z-50">
+      <header className="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-[#060B17]/85 backdrop-blur-xl sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex justify-between items-center">
           
           {/* Logo & Brand Architecture */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-900/90 border border-slate-700/80 p-1 flex items-center justify-center shadow-md shrink-0">
-              <img src={IconDark} alt="Logo" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 p-1 flex items-center justify-center shadow-md shrink-0">
+              <img src={IconDark} alt="Logo" className="w-full h-full object-contain hidden dark:block" />
+              <img src={IconLight} alt="Logo" className="w-full h-full object-contain block dark:hidden" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 font-black text-sm sm:text-base tracking-tight leading-tight">
-                <span className="text-emerald-400">UZAIR JIBRAN</span>
-                <span className="text-white">CLOTH</span>
+                <span className="text-emerald-600 dark:text-emerald-400">UZAIR JIBRAN</span>
+                <span className="text-slate-900 dark:text-white">CLOTH</span>
               </div>
-              <p className="text-[9px] text-slate-400 font-mono tracking-wider uppercase font-semibold">
+              <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono tracking-wider uppercase font-semibold">
                 Textile & Wholesale ERP System
               </p>
             </div>
           </div>
 
           {/* Smooth-Scroll Nav Links */}
-          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-400">
+          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600 dark:text-slate-400">
             <button
               type="button"
               onClick={() => scrollToSection('core-engine')}
-              className="hover:text-white transition duration-150 cursor-pointer"
+              className="hover:text-slate-950 dark:hover:text-white transition duration-150 cursor-pointer"
             >
               Core Engine
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('warehouse-topology')}
-              className="hover:text-white transition duration-150 cursor-pointer"
+              className="hover:text-slate-950 dark:hover:text-white transition duration-150 cursor-pointer"
             >
               Multi-Location
             </button>
             <button
               type="button"
               onClick={() => scrollToSection('security-protocol')}
-              className="hover:text-white transition duration-150 cursor-pointer"
+              className="hover:text-slate-950 dark:hover:text-white transition duration-150 cursor-pointer"
             >
               Security Protocol
             </button>
           </nav>
 
-          {/* Smart CTA Routing */}
+          {/* Theme Switcher & High-Contrast Button (White on dark, Black on light) */}
           <div className="flex items-center gap-3">
+            <ul className="flex items-center m-0 list-none">
+              <DarkModeSwitcher />
+            </ul>
+
             <NavLink
               to={isAuthenticated ? "/dashboard" : "/signin"}
-              className="inline-flex items-center gap-2 px-4.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-700/20 hover:shadow-emerald-600/35 transition duration-200 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4.5 py-2 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-100 font-bold text-xs shadow-md shadow-black/10 dark:shadow-white/10 hover:shadow-lg transition duration-200 cursor-pointer"
             >
               <span>{isAuthenticated ? "Enter Dashboard" : "Portal Access"}</span>
               <MdArrowForward className="text-sm" />
@@ -121,30 +122,30 @@ const CompanyLanding: React.FC = () => {
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
           
-          {/* Left Column: Typography & CTAs */}
+          {/* Left Column: Typography & High-Contrast CTAs */}
           <div className="lg:col-span-6 space-y-6 text-left">
             
             {/* Release Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-mono font-bold shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-[11px] font-mono font-bold shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
               <span>TEXTILE ERP ECOSYSTEM • RELEASE V2.4</span>
             </div>
 
             {/* H1 Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-[46px] font-black tracking-tight text-white leading-[1.15]">
+            <h1 className="text-3xl sm:text-5xl lg:text-[46px] font-black tracking-tight text-slate-950 dark:text-white leading-[1.15]">
               The Operating System for Modern Textile & Cloth Enterprise.
             </h1>
 
             {/* Subtitle Details */}
-            <p className="text-slate-400 text-sm sm:text-base leading-relaxed max-w-xl">
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed max-w-xl">
               Consolidate high-volume cloth distribution, multi-godown fabric inventory, computerized wholesale billing, and customer credit ledgers into a single, synchronized source of truth.
             </p>
 
-            {/* Dual Button Group */}
+            {/* Dual Button Group (High-contrast: White on dark theme, Black on light theme) */}
             <div className="flex flex-wrap items-center gap-3.5 pt-2">
               <NavLink
                 to={isAuthenticated ? "/dashboard" : "/signin"}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:-translate-y-0.5 transition duration-200 cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-100 font-extrabold text-xs sm:text-sm shadow-xl shadow-black/15 dark:shadow-white/15 hover:-translate-y-0.5 transition duration-200 cursor-pointer"
               >
                 <span>{isAuthenticated ? "Launch Executive Portal" : "Launch Client Portal"}</span>
                 <MdArrowForward size={16} />
@@ -153,30 +154,30 @@ const CompanyLanding: React.FC = () => {
               <button
                 type="button"
                 onClick={() => scrollToSection('core-engine')}
-                className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-bold text-xs sm:text-sm border border-slate-800 hover:border-slate-700 transition duration-200 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 shadow-sm transition duration-200 cursor-pointer"
               >
                 <span>Explore Capabilities</span>
-                <span className="text-emerald-400">↓</span>
+                <span className="text-emerald-600 dark:text-emerald-400">↓</span>
               </button>
             </div>
 
             {/* High-Reliability Metrics Banner */}
-            <div className="pt-6 grid grid-cols-3 gap-3 border-t border-slate-800/80 max-w-lg">
+            <div className="pt-6 grid grid-cols-3 gap-3 border-t border-slate-200 dark:border-slate-800/80 max-w-lg">
               <div>
-                <p className="text-lg sm:text-xl font-black text-white font-mono">100%</p>
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+                <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white font-mono">100%</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5">
                   Audit Precision
                 </p>
               </div>
               <div>
-                <p className="text-lg sm:text-xl font-black text-white font-mono">&lt; 1s</p>
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+                <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white font-mono">&lt; 1s</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5">
                   Invoice Generation
                 </p>
               </div>
               <div>
-                <p className="text-lg sm:text-xl font-black text-emerald-400 font-mono">Real-Time</p>
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+                <p className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">Real-Time</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mt-0.5">
                   Godown Sync
                 </p>
               </div>
@@ -186,17 +187,17 @@ const CompanyLanding: React.FC = () => {
           {/* Right Column: 3D-Layered Simulation Block */}
           <div className="lg:col-span-6 space-y-4">
             
-            {/* Top Interactive Glass Card: Distribution Velocity Preview */}
-            <div className="bg-[#0B101D]/90 border border-slate-800/90 rounded-2xl p-5 shadow-2xl backdrop-blur-md relative overflow-hidden group hover:border-emerald-500/30 transition duration-300">
+            {/* Top Glass Card: Distribution Velocity Preview */}
+            <div className="bg-white dark:bg-[#0B101D]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-5 shadow-xl dark:shadow-2xl backdrop-blur-md relative overflow-hidden group hover:border-emerald-500/30 transition duration-300">
               
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span className="text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Commercial Invoicing & Dispatch Engine
                   </span>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-bold">
                   LIVE SECURE ENCLAVE
                 </span>
               </div>
@@ -204,21 +205,21 @@ const CompanyLanding: React.FC = () => {
               {/* Sample Operational Metrics */}
               <div className="grid grid-cols-3 gap-2 py-4">
                 <div>
-                  <p className="text-[10px] text-slate-400 font-medium uppercase">Fiscal Velocity</p>
-                  <p className="text-base sm:text-lg font-black text-white font-mono mt-0.5">Verified</p>
-                  <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-0.5 mt-0.5">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase">Fiscal Velocity</p>
+                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">Verified</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-0.5 mt-0.5">
                     ↑ Dual-Entry Balanced
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 font-medium uppercase">Inventory Status</p>
-                  <p className="text-base sm:text-lg font-black text-white font-mono mt-0.5">Active</p>
-                  <p className="text-[10px] text-teal-400 font-mono mt-0.5">Shop + Godowns</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase">Inventory Status</p>
+                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">Active</p>
+                  <p className="text-[10px] text-teal-600 dark:text-teal-400 font-mono mt-0.5">Shop + Godowns</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400 font-medium uppercase">Pending Dispatch</p>
-                  <p className="text-base sm:text-lg font-black text-white font-mono mt-0.5">0 Queued</p>
-                  <p className="text-[10px] text-emerald-400 font-mono mt-0.5">All Challans Cleared</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase">Pending Dispatch</p>
+                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">0 Queued</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">All Challans Cleared</p>
                 </div>
               </div>
 
@@ -245,9 +246,9 @@ const CompanyLanding: React.FC = () => {
                     strokeLinecap="round"
                   />
                   {/* Telemetry Dots */}
-                  <circle cx="70" cy="50" r="3.5" fill="#34D399" className="animate-pulse" />
-                  <circle cx="210" cy="45" r="3.5" fill="#34D399" className="animate-pulse" />
-                  <circle cx="340" cy="27" r="3.5" fill="#34D399" className="animate-pulse" />
+                  <circle cx="70" cy="50" r="3.5" fill="#10B981" className="animate-pulse" />
+                  <circle cx="210" cy="45" r="3.5" fill="#10B981" className="animate-pulse" />
+                  <circle cx="340" cy="27" r="3.5" fill="#10B981" className="animate-pulse" />
                 </svg>
                 <div className="absolute bottom-1 right-2 text-[10px] font-mono text-slate-400">
                   Continuous Ledger Velocity Simulation
@@ -259,26 +260,26 @@ const CompanyLanding: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
               {/* Left Mini-Card: Stock Accuracy Index */}
-              <div className="bg-[#0B101D]/90 border border-slate-800/90 rounded-2xl p-4.5 shadow-lg backdrop-blur-md space-y-2">
+              <div className="bg-white dark:bg-[#0B101D]/90 border border-slate-200 dark:border-slate-800/90 rounded-2xl p-4.5 shadow-lg backdrop-blur-md space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 font-bold tracking-wider">
+                  <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
                     Ledger Consistency
                   </span>
-                  <LuActivity className="text-emerald-400 text-sm" />
+                  <LuActivity className="text-emerald-600 dark:text-emerald-400 text-sm" />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-white font-mono">100%</span>
-                  <span className="text-xs text-emerald-400 font-bold">Synchronized</span>
+                  <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">100%</span>
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">Synchronized</span>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-snug">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                   Automatic double-entry verification between physical yard and computer ledgers.
                 </p>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-2">
+                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-2">
                   <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full w-full" />
                 </div>
               </div>
 
-              {/* Right Mini-Card: Minimalist Daemon Console */}
+              {/* Right Mini-Card: Minimalist Daemon Console (Sleek Dark Enclave) */}
               <div className="bg-[#070B14] border border-slate-800/90 rounded-2xl p-4.5 shadow-lg space-y-2 font-mono">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 text-[10px]">
                   <div className="flex items-center gap-1.5 text-slate-400">
@@ -300,7 +301,7 @@ const CompanyLanding: React.FC = () => {
                     <span className="text-teal-400 font-bold">[DATABASE]</span> PostgreSQL Connection Pool :: Verified
                   </p>
                   <p className="text-slate-400">
-                    <span className="text-slate-400 font-bold">[BACKUP]</span> Hourly delta snapshots encrypted
+                    <span className="text-slate-500 font-bold">[BACKUP]</span> Hourly delta snapshots encrypted
                   </p>
                 </div>
               </div>
@@ -313,26 +314,26 @@ const CompanyLanding: React.FC = () => {
       </section>
 
       {/* ── 3. OPERATIONAL CAPABILITIES RIBBON ── */}
-      <section className="border-y border-slate-800/80 bg-[#060A14]/70 py-4.5 px-4 text-center">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs font-mono text-slate-400">
-          <span className="text-slate-400 uppercase tracking-wider font-bold">ERP ARCHITECTURE —</span>
-          <span className="flex items-center gap-1.5 hover:text-white transition">
-            <LuCheck className="text-emerald-400" /> Multi-Godown Stock
+      <section className="border-y border-slate-200 dark:border-slate-800/80 bg-white/70 dark:bg-[#060A14]/70 py-4.5 px-4 text-center transition-colors duration-200">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs font-mono text-slate-600 dark:text-slate-400">
+          <span className="text-slate-800 dark:text-slate-300 uppercase tracking-wider font-bold">ERP ARCHITECTURE —</span>
+          <span className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition">
+            <LuCheck className="text-emerald-600 dark:text-emerald-400" /> Multi-Godown Stock
           </span>
-          <span className="flex items-center gap-1.5 hover:text-white transition">
-            <LuCheck className="text-emerald-400" /> Wholesale Barcode Invoicing
+          <span className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition">
+            <LuCheck className="text-emerald-600 dark:text-emerald-400" /> Wholesale Barcode Invoicing
           </span>
-          <span className="flex items-center gap-1.5 hover:text-white transition">
-            <LuCheck className="text-emerald-400" /> Delivery Challan Queues
+          <span className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition">
+            <LuCheck className="text-emerald-600 dark:text-emerald-400" /> Delivery Challan Queues
           </span>
-          <span className="flex items-center gap-1.5 hover:text-white transition">
-            <LuCheck className="text-emerald-400" /> Customer Credit Controls
+          <span className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition">
+            <LuCheck className="text-emerald-600 dark:text-emerald-400" /> Customer Credit Controls
           </span>
-          <span className="flex items-center gap-1.5 hover:text-white transition">
-            <LuCheck className="text-emerald-400" /> City & Area Master Mapping
+          <span className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition">
+            <LuCheck className="text-emerald-600 dark:text-emerald-400" /> City & Area Master Mapping
           </span>
-          <span className="flex items-center gap-1.5 hover:text-white transition">
-            <LuCheck className="text-emerald-400" /> Instant Trial Balance
+          <span className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition">
+            <LuCheck className="text-emerald-600 dark:text-emerald-400" /> Instant Trial Balance
           </span>
         </div>
       </section>
@@ -340,83 +341,83 @@ const CompanyLanding: React.FC = () => {
       {/* ── 4. FEATURE MATRIX COMPONENT (3-COLUMN) ── */}
       <section id="core-engine" className="py-20 sm:py-24 max-w-7xl mx-auto px-4 sm:px-6 text-center">
         
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-4">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-4">
           <LuSparkles /> Precision Engineered Capabilities
         </div>
 
-        <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-white max-w-3xl mx-auto">
+        <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white max-w-3xl mx-auto">
           Built for High-Velocity Textile & Cloth Distribution
         </h2>
         
-        <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto mt-3">
+        <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base max-w-2xl mx-auto mt-3">
           Designed specifically for cloth merchants, wholesalers, and retail chains requiring uncompromising audit accuracy and zero operational latency.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12 text-left">
           
           {/* Card 1: Invoicing & Challans */}
-          <div className="bg-[#0B101D]/80 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 sm:p-7 shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
+          <div className="bg-white dark:bg-[#0B101D]/80 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 sm:p-7 shadow-lg dark:shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/25 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                 <MdReceiptLong />
               </div>
-              <span className="text-[10px] font-mono uppercase font-bold text-emerald-400 tracking-wider">
+              <span className="text-[10px] font-mono uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
                 Module 01 • Billing Core
               </span>
-              <h3 className="text-lg font-bold text-white">Smart Digital Invoicing</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Smart Digital Invoicing</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Automated sales bills with instant barcode lookup, multi-rate tiers, customer discounts, and integrated delivery challan gate passes.
               </p>
             </div>
 
-            <div className="pt-6 mt-6 border-t border-slate-800/80 flex flex-wrap gap-1.5 text-[10px] font-mono text-slate-400">
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Barcode Dispatch</span>
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Delivery Challan</span>
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Return Credits</span>
+            <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5 text-[10px] font-mono text-slate-600 dark:text-slate-400">
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Barcode Dispatch</span>
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Delivery Challan</span>
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Return Credits</span>
             </div>
           </div>
 
           {/* Card 2: Fabric & Thaan Inventory */}
-          <div className="bg-[#0B101D]/80 border border-slate-800 hover:border-teal-500/50 rounded-2xl p-6 sm:p-7 shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
+          <div className="bg-white dark:bg-[#0B101D]/80 border border-slate-200 dark:border-slate-800 hover:border-teal-500/50 rounded-2xl p-6 sm:p-7 shadow-lg dark:shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/25 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-500/25 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                 <MdInventory />
               </div>
-              <span className="text-[10px] font-mono uppercase font-bold text-teal-400 tracking-wider">
+              <span className="text-[10px] font-mono uppercase font-bold text-teal-600 dark:text-teal-400 tracking-wider">
                 Module 02 • Stock Lifecycle
               </span>
-              <h3 className="text-lg font-bold text-white">Fabric & Thaan Inventory</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Fabric & Thaan Inventory</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Detailed metre and thaan tracking across Shop Counters, Main Warehouse, and Godowns. Inter-location transfer orders with holding gatepass queue.
               </p>
             </div>
 
-            <div className="pt-6 mt-6 border-t border-slate-800/80 flex flex-wrap gap-1.5 text-[10px] font-mono text-slate-400">
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Thaan / Metre Units</span>
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Godown Transfers</span>
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Reorder Alerts</span>
+            <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5 text-[10px] font-mono text-slate-600 dark:text-slate-400">
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Thaan / Metre Units</span>
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Godown Transfers</span>
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Reorder Alerts</span>
             </div>
           </div>
 
           {/* Card 3: Financial Ledgers */}
-          <div className="bg-[#0B101D]/80 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 sm:p-7 shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
+          <div className="bg-white dark:bg-[#0B101D]/80 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 sm:p-7 shadow-lg dark:shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/25 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/25 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                 <MdAccountBalanceWallet />
               </div>
-              <span className="text-[10px] font-mono uppercase font-bold text-blue-400 tracking-wider">
+              <span className="text-[10px] font-mono uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
                 Module 03 • Fiscal Ledger
               </span>
-              <h3 className="text-lg font-bold text-white">Customer & Fiscal Ledgers</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Customer & Fiscal Ledgers</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Authoritative double-entry general ledger, daily cash daybook, vendor payables register, and 0–90+ day customer debt aging statements.
               </p>
             </div>
 
-            <div className="pt-6 mt-6 border-t border-slate-800/80 flex flex-wrap gap-1.5 text-[10px] font-mono text-slate-400">
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">General Ledger</span>
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Daily Cash Daybook</span>
-              <span className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-md">Trial Balance</span>
+            <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-1.5 text-[10px] font-mono text-slate-600 dark:text-slate-400">
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">General Ledger</span>
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Daily Cash Daybook</span>
+              <span className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md">Trial Balance</span>
             </div>
           </div>
 
@@ -424,79 +425,79 @@ const CompanyLanding: React.FC = () => {
       </section>
 
       {/* ── 5. MULTI-LOCATION DISTRIBUTION TOPOLOGY ── */}
-      <section id="warehouse-topology" className="py-16 sm:py-20 border-t border-slate-800/80 bg-[#060913]/60 relative z-10">
+      <section id="warehouse-topology" className="py-16 sm:py-20 border-t border-slate-200 dark:border-slate-800/80 bg-slate-100/60 dark:bg-[#060913]/60 relative z-10 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             
             {/* Left: Topology Description */}
             <div className="lg:col-span-5 space-y-4 text-left">
-              <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                 <MdWarehouse /> Multi-Location Synchronicity
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 dark:text-white">
                 Shop Counters & Central Godowns Merged in Real-Time
               </h2>
-              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">
                 Maintain seamless stock integrity between retail counters and distant storage godowns. Every inward purchase, transfer challan, and counter sale is synchronized across accounts instantly.
               </p>
               
-              <div className="pt-4 space-y-2.5 text-xs font-semibold text-slate-300">
+              <div className="pt-4 space-y-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <div className="flex items-center gap-2">
-                  <MdCheckCircle className="text-emerald-400 text-base shrink-0" />
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
                   <span>Immediate deduction upon counter invoice dispatch</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MdCheckCircle className="text-emerald-400 text-base shrink-0" />
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
                   <span>Holding gatepass queue prevents double-allocation of fabric</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MdCheckCircle className="text-emerald-400 text-base shrink-0" />
+                  <MdCheckCircle className="text-emerald-600 dark:text-emerald-400 text-base shrink-0" />
                   <span>Audited transfer statement per driver & vehicle</span>
                 </div>
               </div>
             </div>
 
             {/* Right: Interactive Node Diagram Visual */}
-            <div className="lg:col-span-7 bg-[#090E1A] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+            <div className="lg:col-span-7 bg-white dark:bg-[#090E1A] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl dark:shadow-2xl relative transition-colors duration-200">
               
-              <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 border-b border-slate-800/80 pb-3 mb-6">
+              <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-6">
                 <span>SYNCHRONIZATION TOPOLOGY • UJC FABRIC</span>
-                <span className="text-emerald-400 font-bold">STATE: SYNCHRONIZED</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">STATE: SYNCHRONIZED</span>
               </div>
 
               {/* Node Graph Container */}
               <div className="grid grid-cols-3 gap-4 text-center relative py-6">
                 
                 {/* Node 1: Shop Counter */}
-                <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3.5 space-y-1 shadow-md">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 mx-auto flex items-center justify-center text-base">
+                <div className="bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 space-y-1 shadow-md">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center text-base">
                     <MdStorefront />
                   </div>
-                  <p className="text-xs font-bold text-white mt-1">Shop Front Counter</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Retail Invoicing</p>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white mt-1">Shop Front Counter</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Retail Invoicing</p>
                 </div>
 
                 {/* Center: Central Engine */}
-                <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3.5 space-y-1 shadow-lg shadow-emerald-500/10 scale-105">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 mx-auto flex items-center justify-center text-base">
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-500/40 rounded-xl p-3.5 space-y-1 shadow-lg shadow-emerald-500/10 scale-105">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 mx-auto flex items-center justify-center text-base">
                     <LuCpu />
                   </div>
-                  <p className="text-xs font-bold text-emerald-300 mt-1">Central ERP Core</p>
-                  <p className="text-[10px] text-emerald-400/80 font-mono">Real-Time Ledger</p>
+                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 mt-1">Central ERP Core</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400/80 font-mono">Real-Time Ledger</p>
                 </div>
 
                 {/* Node 3: Godowns */}
-                <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3.5 space-y-1 shadow-md">
-                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 mx-auto flex items-center justify-center text-base">
+                <div className="bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 space-y-1 shadow-md">
+                  <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 mx-auto flex items-center justify-center text-base">
                     <MdWarehouse />
                   </div>
-                  <p className="text-xs font-bold text-white mt-1">Central Godowns</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Bulk Fabric Stocks</p>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white mt-1">Central Godowns</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Bulk Fabric Stocks</p>
                 </div>
 
               </div>
 
-              <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
                 <span>Latency Profile: &lt; 20ms</span>
                 <span>Zero Fabric Drift SLA</span>
               </div>
@@ -508,24 +509,25 @@ const CompanyLanding: React.FC = () => {
 
       {/* ── 6. CONVERSION CTA CARD COMPONENT ── */}
       <section className="py-16 sm:py-20 relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
-        <div className="bg-gradient-to-b from-[#0D1527] to-[#080D18] border border-slate-800 hover:border-emerald-500/30 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden transition duration-300">
+        <div className="bg-gradient-to-b from-white to-slate-100 dark:from-[#0D1527] dark:to-[#080D18] border border-slate-200 dark:border-slate-800 hover:border-emerald-500/30 rounded-3xl p-8 sm:p-12 shadow-xl dark:shadow-2xl relative overflow-hidden transition duration-300">
           
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 text-[11px] font-mono font-bold uppercase mb-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/25 text-[11px] font-mono font-bold uppercase mb-4">
             <LuSparkles /> High-Velocity Operational Modernization
           </div>
 
-          <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-white max-w-2xl mx-auto">
+          <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white max-w-2xl mx-auto">
             Ready to streamline your cloth wholesale & retail operations?
           </h2>
 
-          <p className="text-slate-400 text-xs sm:text-sm max-w-xl mx-auto mt-3 leading-relaxed">
+          <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm max-w-xl mx-auto mt-3 leading-relaxed">
             Consolidate your fabric inventory, wholesale customer bills, and accounting ledgers into a secure, computerized ERP designed for rapid commercial growth.
           </p>
 
+          {/* High-contrast CTA buttons: White on dark theme, Black on light theme */}
           <div className="flex flex-wrap items-center justify-center gap-3.5 pt-8">
             <NavLink
               to={isAuthenticated ? "/dashboard" : "/signin"}
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-600/30 hover:shadow-emerald-600/50 hover:-translate-y-0.5 transition duration-200 cursor-pointer"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 hover:bg-black dark:hover:bg-slate-100 font-extrabold text-xs sm:text-sm shadow-xl shadow-black/15 dark:shadow-white/15 hover:-translate-y-0.5 transition duration-200 cursor-pointer"
             >
               <span>{isAuthenticated ? "Enter Executive Dashboard" : "Access Portal Core"}</span>
               <MdArrowForward size={16} />
@@ -535,44 +537,44 @@ const CompanyLanding: React.FC = () => {
               href="https://wa.me/923128039911"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs sm:text-sm border border-slate-800 hover:border-emerald-500/40 transition duration-200 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm border border-slate-300 dark:border-slate-800 hover:border-emerald-500/40 shadow-sm transition duration-200 cursor-pointer"
             >
-              <MdPhone className="text-emerald-400" />
+              <MdPhone className="text-emerald-600 dark:text-emerald-400" />
               <span>Contact Business Hotline</span>
             </a>
           </div>
 
-          <div id="security-protocol" className="pt-8 mt-8 border-t border-slate-800/80 flex flex-wrap justify-center items-center gap-6 text-[11px] text-slate-400 font-medium">
-            <span className="flex items-center gap-1.5"><MdCheckCircle className="text-emerald-400" /> 100% Financial Reconciliation</span>
-            <span className="flex items-center gap-1.5"><MdCheckCircle className="text-emerald-400" /> Multi-Godown Audited</span>
-            <span className="flex items-center gap-1.5"><MdCheckCircle className="text-emerald-400" /> Direct WhatsApp Support</span>
+          <div id="security-protocol" className="pt-8 mt-8 border-t border-slate-200 dark:border-slate-800/80 flex flex-wrap justify-center items-center gap-6 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            <span className="flex items-center gap-1.5"><MdCheckCircle className="text-emerald-600 dark:text-emerald-400" /> 100% Financial Reconciliation</span>
+            <span className="flex items-center gap-1.5"><MdCheckCircle className="text-emerald-600 dark:text-emerald-400" /> Multi-Godown Audited</span>
+            <span className="flex items-center gap-1.5"><MdCheckCircle className="text-emerald-600 dark:text-emerald-400" /> Direct WhatsApp Support</span>
           </div>
         </div>
       </section>
 
       {/* ── 7. EXECUTIVE FOOTER COMPONENT ── */}
-      <footer className="border-t border-slate-900 bg-[#02050B] py-8 text-xs text-slate-400 relative z-10">
+      <footer className="border-t border-slate-200 dark:border-slate-900 bg-white dark:bg-[#02050B] py-8 text-xs text-slate-500 dark:text-slate-400 relative z-10 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono text-[11px] text-slate-400">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+            <span className="font-mono text-[11px]">
               SYSTEMS OPERATIONAL • POSTGRESQL ACTIVE • 256-BIT SSL ENCRYPTED
             </span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px]">
-            <NavLink to={isAuthenticated ? "/dashboard" : "/signin"} className="hover:text-emerald-400 transition">
+            <NavLink to={isAuthenticated ? "/dashboard" : "/signin"} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition">
               Client Portal
             </NavLink>
-            <span className="text-slate-700">•</span>
-            <a href="https://wa.me/923128039911" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition">
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <a href="https://wa.me/923128039911" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition">
               Hotline Support
             </a>
           </div>
 
-          <div className="text-center sm:text-right text-[11px] text-slate-400">
-            Engineered and maintained natively by <span className="text-slate-300 font-semibold">Noor Horizon Technologies</span> for <span className="text-emerald-400 font-semibold">Uzair Jibran Cloth</span>.
+          <div className="text-center sm:text-right text-[11px]">
+            Engineered and maintained natively by <span className="text-slate-700 dark:text-slate-300 font-semibold">Noor Horizon Technologies</span> for <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Uzair Jibran Cloth</span>.
           </div>
         </div>
       </footer>
