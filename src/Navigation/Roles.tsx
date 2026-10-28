@@ -6,12 +6,13 @@ import {
   MdLaptopChromebook, MdMan, MdRequestPage, MdOutlineRequestPage, MdPageview,
   MdSpaceDashboard, MdOutlineLaptop, MdTexture, MdPayment, MdAssignmentReturn,
   MdAssessment, MdDashboardCustomize, MdTrendingUp, MdBarChart, MdAccountBalanceWallet,
-  MdBalance, MdPauseCircleFilled, MdInbox, MdPointOfSale, MdWarehouse
+  MdBalance, MdPauseCircleFilled, MdInbox, MdPointOfSale, MdWarehouse, MdSecurity
 } from 'react-icons/md';
 import { Navigate } from 'react-router-dom';
 import HoldingReport from '../pages/Reports/Holding Report/HoldingReport';
 import HoldingReportPrint from '../pages/Reports/Holding Report/HoldingReportPrint';
 import Brands from '../pages/Administration/Brands';
+import DeveloperDashboard from '../pages/Developer/DeveloperDashboard';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import SalesmanDashboard from '../pages/Dashboard/SalesmanDashboard';
 import WarehouseDashboard from '../pages/Dashboard/WarehouseDashboard';
@@ -124,9 +125,15 @@ export const adminRoutes = [
     hideFromSidebar: true,
   },
   {
-    label: 'Administation',
+    label: 'Administration',
     icon: MdAdminPanelSettings,
     children: [
+      {
+        path: '/dev/master',
+        component: <DeveloperDashboard />,
+        label: 'Users & Roles (Dev/Master)',
+        icon: MdSecurity
+      },
       {
         path: '/Administration/Categories/List',
         component: <Categories />,

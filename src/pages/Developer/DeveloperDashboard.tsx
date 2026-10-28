@@ -720,8 +720,8 @@ const DeveloperDashboard: React.FC = () => {
       const roleModules = ROLE_PRESETS[assignLoginRole]?.modules || ROLE_PRESETS['Salesman'].modules;
 
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://zzjxukhrhvmuxxznjbos.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1rECaTLSxzwonvR12iOOKQ_XEI8wqCb',
+        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
@@ -734,7 +734,7 @@ const DeveloperDashboard: React.FC = () => {
             full_name: salesmanToAssignLogin.name.trim(),
             role: assignLoginRole,
             tenant_id: cleanSlug,
-            business_name: 'NHT ENTERPRISE',
+            business_name: 'UZAIR JIBRAN CLOTH',
             allowed_modules: roleModules,
           },
         },
@@ -749,7 +749,7 @@ const DeveloperDashboard: React.FC = () => {
           slug: cleanSlug,
           email: assignLoginEmail.trim(),
           business_activity: assignLoginRole,
-          seller_address: 'NHT ENTERPRISE Headquarters',
+          seller_address: 'Uzair Jibran Cloth',
           allowed_modules: roleModules,
         },
       ], { onConflict: 'slug' });
@@ -1021,8 +1021,8 @@ const DeveloperDashboard: React.FC = () => {
     try {
       setPwUpdating(true);
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://wpzwntbgpeiiclytuuht.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_IpW1ssWRf1_q6-J0hvXTzA_kVDyZcjy',
+        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
@@ -1153,8 +1153,8 @@ const DeveloperDashboard: React.FC = () => {
       // 1. Create User in Supabase Auth with allowed modules and role
       // Create a secondary client so we don't log out the active session
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://zzjxukhrhvmuxxznjbos.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1rECaTLSxzwonvR12iOOKQ_XEI8wqCb',
+        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
       
@@ -1167,7 +1167,7 @@ const DeveloperDashboard: React.FC = () => {
             full_name: newEmployee.name.trim(),
             role: newEmployee.role,
             tenant_id: cleanSlug,
-            business_name: 'NHT ENTERPRISE',
+            business_name: 'UZAIR JIBRAN CLOTH',
             allowed_modules: newEmployee.modules,
           },
         },
@@ -1183,7 +1183,7 @@ const DeveloperDashboard: React.FC = () => {
             slug: cleanSlug,
             email: newEmployee.email.trim(),
             business_activity: newEmployee.role,
-            seller_address: 'NHT ENTERPRISE Headquarters',
+            seller_address: 'Uzair Jibran Cloth',
             allowed_modules: newEmployee.modules,
             location_id: newEmployee.role === 'Warehouse Manager' && newEmployee.location_id ? Number(newEmployee.location_id) : null,
           },
@@ -1197,7 +1197,7 @@ const DeveloperDashboard: React.FC = () => {
               slug: cleanSlug,
               email: newEmployee.email.trim(),
               business_activity: newEmployee.role,
-              seller_address: 'NHT ENTERPRISE Headquarters',
+              seller_address: 'Uzair Jibran Cloth',
               allowed_modules: newEmployee.modules,
               location_id: newEmployee.role === 'Warehouse Manager' && newEmployee.location_id ? Number(newEmployee.location_id) : null,
             },
@@ -1727,7 +1727,7 @@ const DeveloperDashboard: React.FC = () => {
               <MdSecurity />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-black dark:text-white">Master Role & Dev Console</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Employee Access & Roles Control for NHT ENTERPRISE</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Employee Access & Roles Control for UZAIR JIBRAN CLOTH</p>
           </div>
 
           {authError && (
@@ -1790,7 +1790,7 @@ const DeveloperDashboard: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-black dark:text-white tracking-tight">NHT ENTERPRISE</h1>
+              <h1 className="text-xl font-black text-black dark:text-white tracking-tight">UZAIR JIBRAN CLOTH</h1>
               <span className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
                 Employee Role & Access Control
               </span>
@@ -2195,7 +2195,7 @@ const DeveloperDashboard: React.FC = () => {
                   </p>
                 </div>
                 <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs px-3 py-1 rounded-full border border-emerald-500/20 font-semibold flex items-center gap-1.5">
-                  <MdSecurity /> NHT ENTERPRISE RBAC
+                  <MdSecurity /> UZAIR JIBRAN CLOTH RBAC
                 </span>
               </div>
 
@@ -2261,7 +2261,7 @@ const DeveloperDashboard: React.FC = () => {
                       <input
                         type="email"
                         required
-                        placeholder={`e.g. warehouse@${getBrandConfig().isAlm ? 'almuhammadi.com' : 'zoaibalicompany.com'}`}
+                        placeholder="e.g. employee@uzairjibrancloth.com"
                         value={newEmployee.email}
                         onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })}
                         className="w-full bg-white dark:bg-form-input border border-stroke dark:border-form-strokedark rounded-lg p-2.5 text-black dark:text-white text-xs outline-none focus:border-emerald-500"
