@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../Context/Auth';
 import IconDark from '../../images/logo/icon-dark.png';
 import {
   MdSpeed,
@@ -13,6 +14,7 @@ import {
 } from 'react-icons/md';
 
 const CompanyLanding: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   return (
     <div className="min-h-screen bg-[#070A10] text-slate-100 font-sans flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-hidden">
       {/* Ambient background glow mesh - Emerald & Teal */}
@@ -44,10 +46,10 @@ const CompanyLanding: React.FC = () => {
               <span className="hover:text-white transition cursor-pointer">Support</span>
             </div>
             <NavLink
-              to="/signin"
+              to={isAuthenticated ? "/dashboard" : "/signin"}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition duration-200"
             >
-              <span>Client Portal</span>
+              <span>{isAuthenticated ? "Go to Dashboard" : "Client Portal"}</span>
               <MdArrowForward />
             </NavLink>
           </div>
@@ -72,10 +74,10 @@ const CompanyLanding: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
           <NavLink
-            to="/signin"
+            to={isAuthenticated ? "/dashboard" : "/signin"}
             className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/25 hover:shadow-emerald-600/45 hover:-translate-y-0.5 transition duration-200"
           >
-            <span>Access Portal</span>
+            <span>{isAuthenticated ? "Enter Dashboard" : "Access Portal"}</span>
             <MdArrowForward size={18} />
           </NavLink>
           <a

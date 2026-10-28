@@ -318,7 +318,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (_) {}
     }
 
-    navigate('/');
+    navigate('/dashboard');
   };
 
   const logout = async () => {

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Route, Routes, useLocation, Navigate, useParams } from 'react-router-dom';
 import Loader from '../common/Loader';
 import SignIn from '../pages/Authentication/SignIn';
+import CompanyLanding from '../pages/Landing/CompanyLanding';
 import DeveloperDashboard from '../pages/Developer/DeveloperDashboard';
 import DefaultLayout from '../layout/DefaultLayout';
 import Dashboard from '../pages/Dashboard/Dashboard';
@@ -95,19 +96,9 @@ function Navigation() {
 
   return (
     <Routes>
-      {/* 1. ROOT PORTAL URL: Authenticated -> Dashboard, Unauthenticated -> Single Universal SignIn */}
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? (
-            <DefaultLayout>
-              <Dashboard />
-            </DefaultLayout>
-          ) : (
-            <SignIn />
-          )
-        }
-      />
+      {/* 1. PUBLIC ENTERPRISE LANDING PAGE */}
+      <Route path="/" element={<CompanyLanding />} />
+      <Route path="/landing" element={<CompanyLanding />} />
 
       {/* 1.5. DASHBOARD ROUTES */}
       <Route
@@ -134,11 +125,11 @@ function Navigation() {
       {/* 2. UNIVERSAL SIGN-IN & LOGIN ROUTES */}
       <Route
         path="/signin"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignIn />}
       />
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignIn />}
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignIn />}
       />
 
       {/* 3. SUPER ADMIN & EMPLOYEE ROLE MANAGEMENT CONSOLE */}

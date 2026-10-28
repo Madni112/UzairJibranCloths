@@ -51,7 +51,7 @@ const SignIn: React.FC = () => {
         setLoading(true);
         setAuthError(null);
         await login(values.email, values.password);
-        navigate(currentTenant ? `/${currentTenant}` : '/', { replace: true });
+        navigate(currentTenant ? `/${currentTenant}/dashboard` : '/dashboard', { replace: true });
       } catch (error: any) {
         setAuthError(error.message || 'An error occurred during sign in');
       } finally {
