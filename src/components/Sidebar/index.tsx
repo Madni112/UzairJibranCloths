@@ -14,6 +14,8 @@ import {
   getSidebarLayoutMode,
 } from '../../constant/themeConfig';
 import { getBrandConfig } from '../../utils/brand';
+import IconDark from '../../images/logo/icon-dark.png';
+import IconLight from '../../images/logo/icon-light.png';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -474,11 +476,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               to={cleanPrefix || '/'}
               className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-90"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 shrink-0 border border-primary/30 relative overflow-hidden select-none">
-                <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-                <span className="relative z-10 font-cinzel font-black tracking-widest text-[13px] text-white leading-none pl-0.5">
-                  UJC
-                </span>
+              <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-100 p-1 flex items-center justify-center shadow-md shrink-0 border border-slate-800 dark:border-slate-200 overflow-hidden select-none">
+                <img src={IconDark} alt="Logo" className="w-full h-full object-contain block dark:hidden" />
+                <img src={IconLight} alt="Logo" className="w-full h-full object-contain hidden dark:block" />
               </div>
 
               <div className="flex flex-col min-w-0">
@@ -502,13 +502,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         ) : (
           <button
             onClick={() => setSidebarOpen(true)}
-            className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-200 border border-primary/30 relative overflow-hidden select-none cursor-pointer group"
+            className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-100 p-1 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all duration-200 border border-slate-800 dark:border-slate-200 overflow-hidden select-none cursor-pointer group"
             title="Click to Open / Expand Sidebar"
           >
-            <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20 pointer-events-none" />
-            <span className="relative z-10 font-cinzel font-black tracking-widest text-[13px] text-white leading-none pl-0.5 group-hover:scale-110 transition-transform">
-              UJC
-            </span>
+            <img src={IconDark} alt="Logo" className="w-full h-full object-contain block dark:hidden group-hover:scale-110 transition-transform" />
+            <img src={IconLight} alt="Logo" className="w-full h-full object-contain hidden dark:block group-hover:scale-110 transition-transform" />
           </button>
         )}
       </div>

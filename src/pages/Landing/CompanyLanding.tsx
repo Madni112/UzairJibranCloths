@@ -25,8 +25,8 @@ const CompanyLanding: React.FC = () => {
       <nav className="border-b border-slate-800/80 bg-[#0B0F17]/85 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-xl bg-emerald-600/10 border border-emerald-500/20 shadow-sm">
-              <img src={IconDark} alt="NHT Logo" className="h-8 sm:h-9 w-auto" />
+            <div className="p-1 rounded-xl bg-[#0F1622] border border-slate-800 shadow-sm flex items-center justify-center">
+              <img src={IconDark} alt="Logo" className="h-9 sm:h-10 w-auto object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 font-black text-base sm:text-lg tracking-tight">
