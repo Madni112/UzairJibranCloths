@@ -18,7 +18,8 @@ import {
   MdLanguage,
   MdCode,
   MdSupportAgent,
-  MdOpenInNew
+  MdOpenInNew,
+  MdPerson
 } from 'react-icons/md';
 import { FaWhatsapp } from 'react-icons/fa';
 import {
@@ -520,7 +521,7 @@ const CompanyLanding: React.FC = () => {
                 {/* Node 1: Top Left - Abdul Sattar */}
                 <div className="absolute top-3 left-3 sm:top-5 sm:left-5 z-10">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <MdPerson className="text-emerald-500 dark:text-emerald-400 text-sm" />
                     <span>Abdul Sattar</span>
                   </div>
                 </div>
@@ -533,7 +534,7 @@ const CompanyLanding: React.FC = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:border-emerald-500 transition cursor-pointer"
                   >
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <FaWhatsapp className="text-emerald-500 dark:text-emerald-400 text-sm" />
                     <span>WhatsApp: +92 312 8039911</span>
                   </a>
                 </div>
@@ -551,7 +552,7 @@ const CompanyLanding: React.FC = () => {
                 {/* Node 3: Bottom Left - Office Location */}
                 <div className="absolute bottom-3 left-3 sm:bottom-5 sm:left-5 z-10">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <MdLocationOn className="text-amber-500 dark:text-amber-400 text-sm" />
                     <span>Hyderabad, Sindh (Affandi Town)</span>
                   </div>
                 </div>
@@ -562,7 +563,7 @@ const CompanyLanding: React.FC = () => {
                     href="mailto:nht@noorhorizontechnologies.com"
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-blue-600 dark:text-blue-400 hover:border-blue-500 transition cursor-pointer"
                   >
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <MdEmail className="text-blue-500 dark:text-blue-400 text-sm" />
                     <span>nht@noorhorizontechnologies.com</span>
                   </a>
                 </div>
