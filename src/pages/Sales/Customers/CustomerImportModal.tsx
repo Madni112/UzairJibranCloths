@@ -231,7 +231,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
     const templateData = [
       ['Customer Name *', 'Customer Tier / Category', 'Primary Contact Phone', 'City *', 'Area', 'Opening Balance', 'Balance Nature'],
       ['Tariq Fabric Centre', 'Wholesaler / Dealer', '0300-9281734', 'Hyderabad', 'Resham Gali', 85000, 'Debit'],
-      ['Al-Madina Cloth House', 'Retail / General', '0312-7654321', 'Karachi', 'Jama Cloth Market', 0, 'Debit'],
+      ['Al-Madina Cloth House', '', '0312-7654321', 'Karachi', 'Jama Cloth Market', 0, 'Debit'],
       ['Ibrahim Textile Traders', 'Boutique / Tailor', '0333-8889991', 'Sukkur', 'Cloth Market', 25000, 'Credit'],
     ];
 
@@ -298,8 +298,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         setCol('name', r.name);
 
         // Tier / Registration Type
-        setCol('registrationType', r.tier || 'Retail / General');
-        setCol('registrationtype', r.tier || 'Retail / General');
+        setCol('registrationType', r.tier || '');
+        setCol('registrationtype', r.tier || '');
 
         // Phone
         setCol('primaryPhone', r.phone);
@@ -539,7 +539,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                           )}
                         </td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-300">
-                          {row.tier || <span className="text-slate-400">Retail / General</span>}
+                          {row.tier || '-'}
                         </td>
                         <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-300">
                           {row.phone || '-'}
