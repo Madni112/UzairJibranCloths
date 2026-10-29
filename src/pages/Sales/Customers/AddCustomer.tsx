@@ -335,6 +335,78 @@ const AddCustomer: React.FC = () => {
     fetchInitialMetadata();
   }, [isEditMode]);
 
+  // Safe city & area extractor for edit mode
+  const getInitialLocation = (data?: any) => {
+    if (!data) return { subArea: '', area: '' };
+
+    let subArea = data.sub_area || data.subArea || '';
+    let area = data.area || '';
+
+    // If subArea is not set, check data.city
+    if (!subArea && data.city) {
+      subArea = data.city;
+    }
+
+    // Check if Location was recorded in notes e.g. "Location: Hyderabad | Cloth Market"
+    if ((!subArea || !area) && data.notes && data.notes.includes('Location:')) {
+      const match = data.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
+      if (match) {
+        if (!subArea && match[1]) subArea = match[1].trim();
+        if (!area && match[2]) area = match[2].trim();
+      }
+    }
+
+    // Fallback: If city still empty, scan address for known cities
+    if (!subArea && data.address) {
+      const addr = String(data.address).toLowerCase();
+      for (const dCity of DEFAULT_SUB_AREAS) {
+        if (addr.includes(dCity.toLowerCase())) {
+          subArea = dCity;
+          break;
+        }
+      }
+    }
+
+    // Fallback: If area still empty, scan address for known areas
+    if (!area && data.address) {
+      const addr = String(data.address).toLowerCase();
+      for (const dArea of DEFAULT_AREAS) {
+        if (addr.includes(dArea.toLowerCase())) {
+          area = dArea;
+          break;
+        }
+      }
+    }
+
+    // In case area was erroneously set equal to city, clear it
+    if (area && subArea && area.toLowerCase() === subArea.toLowerCase()) {
+      area = '';
+    }
+
+    return { subArea, area };
+  };
+
+  const initialLoc = getInitialLocation(editData);
+
+  // Sync edit location into options and mapping so dropdown immediately shows them
+  useEffect(() => {
+    if (editData) {
+      const loc = getInitialLocation(editData);
+      if (loc.subArea) {
+        setSubAreaOptions((prev) => Array.from(new Set([...prev, loc.subArea])).sort());
+      }
+      if (loc.subArea && loc.area) {
+        setSubAreaToAreasMap((prev) => {
+          const existing = prev[loc.subArea] || DEFAULT_AREAS;
+          if (!existing.includes(loc.area)) {
+            return { ...prev, [loc.subArea]: [loc.area, ...existing] };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [editData]);
+
   const validationSchema = Yup.object().shape({
     customerName: Yup.string().trim().required('Customer / Business Name is required'),
     subArea: Yup.string().trim().required('City is required'),
@@ -631,8 +703,9 @@ const AddCustomer: React.FC = () => {
           customer_code: editData.customer_code || editData.customerCode || editData.coa_code || '',
           page_no: editData.page_no || editData.pageNo || editData.page_number || '',
           registrationType: editData.registrationType || 'Retail / General',
-          subArea: editData.sub_area || editData.subArea || '',
-          area: editData.area || editData.city || 'Hyderabad',
+          subArea: initialLoc.subArea,
+          city: initialLoc.subArea,
+          area: initialLoc.area,
           primaryPhone: editData.primaryPhone || editData.phone || '',
           secondaryPhone: editData.secondaryPhone || '',
           email: editData.email || '',

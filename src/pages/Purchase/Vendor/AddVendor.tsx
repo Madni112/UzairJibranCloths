@@ -167,10 +167,45 @@ const AddVendor = () => {
         }
       }
     }
+
+    // Fallback: If area not set directly, scan address for known areas
+    if (!area && editData?.address) {
+      const addr = String(editData.address).toLowerCase();
+      for (const a of DEFAULT_AREAS) {
+        if (addr.includes(a.toLowerCase())) {
+          area = a;
+          break;
+        }
+      }
+    }
+
+    if (area && subArea && area.toLowerCase() === subArea.toLowerCase()) {
+      area = '';
+    }
+
     return { subArea, area };
   };
 
   const initialLoc = getInitialLocation();
+
+  // Sync edit location into options and mapping so dropdown immediately shows them
+  useEffect(() => {
+    if (editData) {
+      const loc = getInitialLocation();
+      if (loc.subArea) {
+        setSubAreaOptions((prev) => Array.from(new Set([...prev, loc.subArea])).sort());
+      }
+      if (loc.subArea && loc.area) {
+        setSubAreaToAreasMap((prev) => {
+          const existing = prev[loc.subArea] || DEFAULT_AREAS;
+          if (!existing.includes(loc.area)) {
+            return { ...prev, [loc.subArea]: [loc.area, ...existing] };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [editData]);
 
   const validationSchema = Yup.object().shape({
     vendorName: Yup.string().trim().required('Vendor Name is required'),
