@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { TH_TRANSLATIONS, TOKEN_TRANSLATIONS } from './translationsData';
 
 export type Language = 'en' | 'ur';
 
@@ -423,16 +424,54 @@ export const getUrduText = (str: string): string => {
 
   if (quickMap[clean]) return quickMap[clean];
 
-  // Strip leading/trailing dots, hashes, colons, pluses, ellipsis
+  // Check 580+ TH master translations directly
+  if (TH_TRANSLATIONS[clean]) return TH_TRANSLATIONS[clean];
+
+  // Strip currency tags e.g. (PKR) or (Rs.)
+  const cleanNoPkr = clean.replace(/\s*\(pkr\)/g, '').replace(/\s*\(rs\.\)/g, '').trim();
+  if (TH_TRANSLATIONS[cleanNoPkr]) {
+    const suffix = (clean.includes('(pkr)') || clean.includes('(rs.)')) ? ' (روپے)' : '';
+    return `${TH_TRANSLATIONS[cleanNoPkr]}${suffix}`;
+  }
+
+  // Strip leading/trailing dots, hashes, colons, pluses, sort arrows, ellipsis
   const stripped = clean
-    .replace(/^[.\s#+:–—\->←]+/, '')
-    .replace(/[.\s#+:–—\->←]+$/, '')
+    .replace(/^[.\s#+:–—\->←⇅▲▼↑↓/]+/, '')
+    .replace(/[.\s#+:–—\->←⇅▲▼↑↓/]+$/, '')
     .trim();
 
   if (quickMap[stripped]) {
     if (clean.startsWith('#')) return `${quickMap[stripped]} #`;
     if (clean.startsWith('+') || clean.endsWith('+')) return `+ ${quickMap[stripped]}`;
     return quickMap[stripped];
+  }
+
+  if (TH_TRANSLATIONS[stripped]) {
+    if (clean.startsWith('#')) return `${TH_TRANSLATIONS[stripped]} #`;
+    if (clean.startsWith('+') || clean.endsWith('+')) return `+ ${TH_TRANSLATIONS[stripped]}`;
+    return TH_TRANSLATIONS[stripped];
+  }
+
+  // Multi-word Token Fallback (translates compound headers)
+  const words = clean.split(/[\s/]+/);
+  if (words.length > 1) {
+    let hasTranslated = false;
+    const translatedWords = words.map((w) => {
+      const wClean = w.replace(/^[.\s#+:–—\->←⇅▲▼↑↓()]+/, '').replace(/[.\s#+:–—\->←⇅▲▼↑↓()]+$/, '').toLowerCase();
+      if (TOKEN_TRANSLATIONS[wClean]) {
+        hasTranslated = true;
+        return TOKEN_TRANSLATIONS[wClean];
+      }
+      if (TH_TRANSLATIONS[wClean]) {
+        hasTranslated = true;
+        return TH_TRANSLATIONS[wClean];
+      }
+      return w;
+    });
+
+    if (hasTranslated) {
+      return translatedWords.join(' ');
+    }
   }
 
   return str;
@@ -474,20 +513,27 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     const translateElements = () => {
       if (language !== 'ur') return;
 
-      // 1. Table Headers (th)
+      // 1. Table Headers (th) - translates text nodes while preserving sort arrows, svgs, and buttons!
       const thElements = document.querySelectorAll('th');
       thElements.forEach((th) => {
-        if (th.querySelector('input, select')) return;
-        const currentText = th.textContent?.trim();
-        if (!currentText) return;
+        // Skip if th contains form inputs
+        if (th.querySelector('input[type="checkbox"], select')) return;
 
-        const urdu = getUrduText(currentText);
-        if (urdu && urdu !== currentText) {
-          if (!th.getAttribute('data-en-text')) {
-            th.setAttribute('data-en-text', currentText);
-          }
-          if (th.textContent?.trim() !== urdu) {
-            th.textContent = urdu;
+        const walker = document.createTreeWalker(th, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw || /^[⇅▲▼↑↓\s]+$/.test(raw)) continue;
+
+          const urdu = getUrduText(raw);
+          if (urdu && urdu !== raw) {
+            const parent = (node.parentElement as HTMLElement) || th;
+            if (!parent.getAttribute('data-en-text')) {
+              parent.setAttribute('data-en-text', raw);
+            }
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = node.textContent?.replace(raw, urdu) || urdu;
+            }
           }
         }
       });
