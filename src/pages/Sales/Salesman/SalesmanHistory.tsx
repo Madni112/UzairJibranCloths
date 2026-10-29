@@ -5,13 +5,15 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner'; 
 import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
+import { useLanguage } from '../../../Context/LanguageContext';
 import { MdAdd, MdClose, MdCheck, MdPersonAdd, MdReceiptLong, MdDelete, MdEdit } from 'react-icons/md';
 
 const SalesmanHistory = () => { 
   const [salesmen, setSalesmen] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true); 
   const navigate = useNavigate(); 
-  const { tenantId } = useAuth(); 
+  const { tenantId } = useAuth();
+  const { isRTL } = useLanguage(); 
 
   // Datatable search and page handlers
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,8 +176,8 @@ const SalesmanHistory = () => {
       {/* Top Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"> 
         <div>
-          <h4 className="text-xl font-semibold text-black dark:text-white">Sales Team Directory</h4> 
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage salesmen and their assigned invoice display names.</p>
+          <h4 className="text-xl font-semibold text-black dark:text-white">{isRTL ? "سیلز ٹیم ڈائریکٹری" : "Sales Team Directory"}</h4> 
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{isRTL ? "سیلزمین کھاتہ جات اور انوائس پر ظاہر ہونے والے ناموں کا انتظام کریں۔" : "Manage salesmen and their assigned invoice display names."}</p>
         </div>
         <button
           type="button"
@@ -189,14 +191,14 @@ const SalesmanHistory = () => {
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
         >
           <MdPersonAdd size={16} />
-          <span>Add New Salesman</span>
+          <span>{isRTL ? "نیا سیلزمین شامل کریں +" : "Add New Salesman"}</span>
         </button>
       </div> 
 
       {/* Filter and Input line controllers */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <span>Show</span>
+          <span>{isRTL ? "دکھائیں" : "Show"}</span>
           <select
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
@@ -206,16 +208,16 @@ const SalesmanHistory = () => {
               <option key={size} value={size} className="dark:bg-boxdark">{size}</option>
             ))}
           </select>
-          <span>entries</span>
+          <span>{isRTL ? "ریکارڈز" : "entries"}</span>
         </div>
 
         <div className="flex items-center gap-2 text-sm w-full sm:w-auto text-gray-500 dark:text-gray-400">
-          <span>Search:</span>
+          <span>{isRTL ? "تلاش:" : "Search:"}</span>
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search salesman, invoice name, area..."
+            placeholder={isRTL ? "سیلزمین، انوائس نام یا علاقہ سے تلاش کریں..." : "Search salesman, invoice name, area..."}
             className="w-full sm:w-72 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none focus:border-primary text-sm text-black dark:text-white"
           />
         </div>
@@ -226,19 +228,19 @@ const SalesmanHistory = () => {
         <table className="w-full table-auto border-collapse"> 
           <thead> 
             <tr className="bg-gray-2 text-left dark:bg-meta-4"> 
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm w-14">S#</th>
-              <th className="min-w-[180px] py-4 px-4 font-medium text-black dark:text-white text-sm">Salesman Name</th> 
-              <th className="min-w-[200px] py-4 px-4 font-medium text-black dark:text-white text-sm">Invoice Name</th> 
-              <th className="min-w-[140px] py-4 px-4 font-medium text-black dark:text-white text-sm">Phone</th> 
-              <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm">Area</th> 
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">Actions</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm w-14">{isRTL ? "نمبر شمار" : "S#"}</th>
+              <th className="min-w-[180px] py-4 px-4 font-medium text-black dark:text-white text-sm">{isRTL ? "سیلزمین کا نام" : "Salesman Name"}</th> 
+              <th className="min-w-[200px] py-4 px-4 font-medium text-black dark:text-white text-sm">{isRTL ? "انوائس نام" : "Invoice Name"}</th> 
+              <th className="min-w-[140px] py-4 px-4 font-medium text-black dark:text-white text-sm">{isRTL ? "فون نمبر" : "Phone"}</th> 
+              <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm">{isRTL ? "علاقہ / مارکیٹ" : "Area"}</th> 
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">{isRTL ? "کارروائی" : "Actions"}</th>
             </tr> 
           </thead> 
           <tbody> 
             {loading ? ( 
               <tr><td colSpan={6} className="py-12 text-center"><Spinner /></td></tr> 
             ) : paginatedSalesmen.length === 0 ? ( 
-              <tr><td colSpan={6} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No salesman records found.</td></tr> 
+              <tr><td colSpan={6} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">{isRTL ? "کوئی سیلزمین ریکارڈ نہیں ملا۔" : "No salesman records found."}</td></tr> 
             ) : ( 
               paginatedSalesmen.map((salesman, idx) => {
                 const serialNumber = startIndex + idx + 1;
@@ -368,7 +370,7 @@ const SalesmanHistory = () => {
       {/* Pagination control footer strip */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-stroke dark:border-strokedark">
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          Showing {startIndex + 1} to {endIndex} of {totalEntries} entries
+          {isRTL ? `کل ${totalEntries} میں سے ${totalEntries === 0 ? 0 : startIndex + 1} تا ${endIndex} ریکارڈز` : `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -376,19 +378,15 @@ const SalesmanHistory = () => {
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
-          >
-            Previous
-          </button>
+          >{isRTL ? 'پچھلا' : 'Previous'}</button>
           <span className="px-3 py-1.5 font-bold text-teal-600 text-xs">
-            Page {currentPage} of {totalPages || 1}
+            {isRTL ? `صفحہ ${currentPage} از ${totalPages || 1}` : `Page ${currentPage} of ${totalPages || 1}`}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages || totalPages === 0}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
-          >
-            Next
-          </button>
+          >{isRTL ? 'اگلا' : 'Next'}</button>
         </div>
       </div>
 

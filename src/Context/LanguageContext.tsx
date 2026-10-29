@@ -140,6 +140,7 @@ export const TRANSLATIONS: Record<string, { en: string; ur: string }> = {
 // Global direct string translation helper
 // Master Quick Map for Global UI Lookups
 export const QUICK_MAP: Record<string, string> = {
+  ...TH_TRANSLATIONS,
   // Registration & Accounts
   'chart of accounts ledger directory': 'چارٹ آف اکاؤنٹس لیجر ڈائریکٹری',
   'chart of accounts': 'چارٹ آف اکاؤنٹس',
@@ -512,8 +513,8 @@ export const getUrduText = (str: string): string => {
   // Extract and preserve sort arrows: ↑, ↓, ▲, ▼, ⇅, ↕
   const arrowMatch = str.match(/[↑↓▲▼⇅↕]+/);
   const arrow = arrowMatch ? arrowMatch[0] : '';
-  const cleanNoArrow = str.replace(/[↑↓▲▼⇅↕]/g, '').trim().toLowerCase();
-  const clean = str.trim().toLowerCase();
+  const cleanNoArrow = str.replace(/[↑↓▲▼⇅↕]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const clean = str.replace(/\s+/g, ' ').trim().toLowerCase();
 
   // Pattern: Page X of Y -> صفحہ X از Y
   const pageMatch = clean.match(/^page\s+(\d+)\s+of\s+(\d+)$/i);
