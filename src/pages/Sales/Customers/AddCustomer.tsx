@@ -465,7 +465,7 @@ const AddCustomer: React.FC = () => {
       const parsedOpeningBal = Number(values.openingBalance || 0);
       const computedBalance = values.balanceNature === 'Credit' ? -Math.abs(parsedOpeningBal) : Math.abs(parsedOpeningBal);
 
-      const regTypeVal = values.registrationType || 'Retail / General';
+      const regTypeVal = values.registrationType ? values.registrationType.trim() : '';
       const secPhoneVal = values.secondaryPhone ? values.secondaryPhone.trim() : '';
 
       const cityVal = (() => {
@@ -754,7 +754,7 @@ const AddCustomer: React.FC = () => {
           customerName: editData.customerName || editData.customername || editData.customer_name || editData.name || '',
           customer_code: editData.customer_code || editData.customerCode || editData.coa_code || '',
           page_no: editData.page_no || editData.pageNo || editData.page_number || '',
-          registrationType: editData.registrationType || 'Retail / General',
+          registrationType: editData.registrationType || editData.registrationtype || '',
           subArea: initialLoc.subArea,
           city: initialLoc.subArea,
           area: initialLoc.area,
@@ -775,7 +775,7 @@ const AddCustomer: React.FC = () => {
           area: '',
           customer_code: '',
           page_no: '',
-          registrationType: 'Retail / General',
+          registrationType: '',
           primaryPhone: '',
           secondaryPhone: '',
           email: '',
