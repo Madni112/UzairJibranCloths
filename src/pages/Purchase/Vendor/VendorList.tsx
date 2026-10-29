@@ -349,8 +349,7 @@ const VendorList = () => {
                                 <th className="py-4 px-4 font-semibold min-w-[170px]">Vendor / Business Name</th>
                                 <th className="py-4 px-4 font-semibold min-w-[130px]">Contact Person</th>
                                 <th className="py-4 px-4 font-semibold min-w-[120px]">Mobile / Phone</th>
-                                <th className="py-4 px-4 font-semibold min-w-[110px]">City</th>
-                                <th className="py-4 px-4 font-semibold min-w-[120px]">Area</th>
+                                <th className="py-4 px-4 font-semibold min-w-[130px]">City / Area</th>
                                 <th className="py-4 px-4 font-semibold min-w-[130px]">Address</th>
                                 <th className="py-4 px-4 font-semibold min-w-[150px]">Accounts</th>
                                 <th className="py-4 px-4 font-semibold w-24 text-center">Actions</th>
@@ -358,9 +357,9 @@ const VendorList = () => {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={10} className="text-center py-12 text-sm"><Spinner /></td></tr>
+                                <tr><td colSpan={9} className="text-center py-12 text-sm"><Spinner /></td></tr>
                             ) : paginatedVendors.length === 0 ? (
-                                <tr><td colSpan={10} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400 italic">No business merchant vendors registered yet.</td></tr>
+                                <tr><td colSpan={9} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400 italic">No business merchant vendors registered yet.</td></tr>
                             ) : (
                                 paginatedVendors.map((vendor) => {
                                     const coa = getVendorCOA(vendor);
@@ -411,25 +410,22 @@ const VendorList = () => {
                                                     {vendor.cell_no || vendor.phone_no || vendor.phone || '-'}
                                                 </span>
                                             </td>
-                                            {/* City */}
+                                            {/* City / Area */}
                                             <td className="py-3.5 px-4">
-                                                {loc.city ? (
-                                                    <span className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-meta-4/40 px-2 py-0.5 rounded border border-slate-200 dark:border-strokedark">
-                                                        {loc.city}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 font-mono text-xs">-</span>
-                                                )}
-                                            </td>
-                                            {/* Area */}
-                                            <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">
-                                                {loc.area ? (
-                                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                                                        {loc.area}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 font-mono text-xs">-</span>
-                                                )}
+                                                <div className="flex flex-col items-start gap-0.5">
+                                                    {loc.city ? (
+                                                        <span className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-meta-4/40 px-2 py-0.5 rounded border border-slate-200 dark:border-strokedark">
+                                                            {loc.city}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-400 font-mono text-xs">-</span>
+                                                    )}
+                                                    {loc.area ? (
+                                                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium pl-0.5">
+                                                            {loc.area}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                             <td className="py-3.5 px-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">
                                                 {vendor.address || '-'}

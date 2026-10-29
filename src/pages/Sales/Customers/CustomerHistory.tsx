@@ -419,8 +419,7 @@ const CustomerHistory = () => {
               <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">Code</th> 
               <th className="min-w-[170px] py-4 px-4 font-medium text-black dark:text-white text-sm">Name</th> 
               <th className="min-w-[110px] py-4 px-4 font-medium text-black dark:text-white text-sm">Phone</th> 
-              <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">City</th> 
-              <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm">Area</th> 
+              <th className="min-w-[130px] py-4 px-4 font-medium text-black dark:text-white text-sm">City / Area</th> 
               <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">Address</th> 
               <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white text-sm">Accounts</th> 
               <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">Actions</th> 
@@ -428,9 +427,9 @@ const CustomerHistory = () => {
           </thead> 
           <tbody> 
             {loading ? ( 
-              <tr><td colSpan={9} className="text-center py-12"><Spinner /></td></tr> 
+              <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr> 
             ) : paginatedCustomers.length === 0 ? ( 
-              <tr><td colSpan={9} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No matching customer entries found.</td></tr> 
+              <tr><td colSpan={8} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No matching customer entries found.</td></tr> 
             ) : ( 
               paginatedCustomers.map((c) => {
                 const coa = getCustomerCOA(c);
@@ -479,26 +478,22 @@ const CustomerHistory = () => {
                       <p className="font-mono text-xs">{c.primaryPhone || c.phone || 'N/A'}</p>
                     </td> 
 
-                    {/* 5. City */}
+                    {/* 5. City / Area */}
                     <td className="py-3.5 px-4 text-sm">
-                      {loc.city ? (
-                        <span className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-meta-4/40 px-2 py-0.5 rounded border border-slate-200 dark:border-strokedark">
-                          {loc.city}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-mono text-xs">-</span>
-                      )}
-                    </td>
-
-                    {/* 6. Area */}
-                    <td className="py-3.5 px-4 text-sm text-gray-600 dark:text-gray-300">
-                      {loc.area ? (
-                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                          {loc.area}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-mono text-xs">-</span>
-                      )}
+                      <div className="flex flex-col items-start gap-0.5">
+                        {loc.city ? (
+                          <span className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-meta-4/40 px-2 py-0.5 rounded border border-slate-200 dark:border-strokedark">
+                            {loc.city}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 font-mono text-xs">-</span>
+                        )}
+                        {loc.area ? (
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium pl-0.5">
+                            {loc.area}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
 
                     {/* 7. Address & Province */}
