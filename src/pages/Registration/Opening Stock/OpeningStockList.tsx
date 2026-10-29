@@ -5,9 +5,11 @@ import { useAuth } from '../../../Context/Auth';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
+import { useLanguage } from '../../../Context/LanguageContext';
 import { MdInventory } from 'react-icons/md';
 
 const OpeningStockList = () => {
+  const { isRTL } = useLanguage();
   const { userName, userEmail } = useAuth();
   const [stocks, setStocks] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -220,13 +222,13 @@ const OpeningStockList = () => {
     <div className="rounded-sm border border-stroke bg-white px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
       <div className="flex justify-between items-center mb-6 border-b border-stroke dark:border-strokedark pb-4">
         <h4 className="text-xl font-semibold text-black dark:text-white flex items-center gap-2">
-          <MdInventory className="text-primary text-2xl" /> Opening Stocks Directory
+          <MdInventory className="text-primary text-2xl" /> {isRTL ? "ابتدائی اسٹاک ڈائریکٹری" : "Opening Stocks Directory"}
         </h4>
         <button
           onClick={() => navigate('/Inventory/OpeningStock/Add')}
           className="bg-primary hover:bg-opacity-90 text-white font-medium py-2 px-4 rounded text-sm transition-all shadow-sm cursor-pointer"
         >
-          + Initialize Opening Stock
+          {isRTL ? "+ ابتدائی اسٹاک درج کریں" : "+ Initialize Opening Stock"}
         </button>
       </div>
 
@@ -234,21 +236,21 @@ const OpeningStockList = () => {
         <table className="w-full table-auto text-sm">
           <thead>
             <tr className="bg-gray-2 text-left dark:bg-meta-4">
-              <th className="py-4 px-4 font-medium text-black dark:text-white">Stock No</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white">Batch No</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white">Location</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">Opening Date</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">Expiry Date</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white">Items</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">Qty</th>
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">Actions</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white">{isRTL ? "اسٹاک نمبر" : "Stock No"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white">{isRTL ? "بیچ نمبر" : "Batch No"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white">{isRTL ? "مقام / گودام" : "Location"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">{isRTL ? "ابتدائی تاریخ" : "Opening Date"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">{isRTL ? "میعاد ختم تاریخ" : "Expiry Date"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white">{isRTL ? "اشیاء" : "Items"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">{isRTL ? "تعداد" : "Qty"}</th>
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-center">{isRTL ? "کارروائی" : "Actions"}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={8} className="text-center py-10"><Spinner /></td></tr>
             ) : paginatedGroups.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-10 text-gray-500 italic">No opening stock initialized yet.</td></tr>
+              <tr><td colSpan={8} className="text-center py-10 text-gray-500 italic">{isRTL ? "ابھی تک ابتدائی اسٹاک درج نہیں کیا گیا۔" : "No opening stock initialized yet."}</td></tr>
             ) : (
               paginatedGroups.map((group) => {
                 const stockNoLabel = String(firstValue(group, ['stockNo', 'stock_no']) || 'N/A');
@@ -333,7 +335,7 @@ const OpeningStockList = () => {
 
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
         <div>
-          Showing {totalEntries > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + entriesPerPage, totalEntries)} of {totalEntries} stock entries
+          {isRTL ? `کل ${totalEntries} میں سے ${totalEntries > 0 ? startIndex + 1 : 0} تا ${Math.min(startIndex + entriesPerPage, totalEntries)} اسٹاک ریکارڈز` : `Showing ${totalEntries > 0 ? startIndex + 1 : 0} to ${Math.min(startIndex + entriesPerPage, totalEntries)} of ${totalEntries} stock entries`}
           {stocks.length !== totalEntries && (
             <span className="text-slate-400"> ({stocks.length} product lines)</span>
           )}
@@ -344,17 +346,17 @@ const OpeningStockList = () => {
             disabled={currentPage === 1}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
           >
-            Previous
+            {isRTL ? "پچھلا" : "Previous"}
           </button>
           <span className="px-3 py-1.5 font-bold text-teal-600 text-xs">
-            Page {currentPage} of {totalPages || 1}
+            {isRTL ? `صفحہ ${currentPage} از ${totalPages || 1}` : `Page ${currentPage} of ${totalPages || 1}`}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages || totalEntries === 0}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
           >
-            Next
+            {isRTL ? "اگلا" : "Next"}
           </button>
         </div>
       </div>

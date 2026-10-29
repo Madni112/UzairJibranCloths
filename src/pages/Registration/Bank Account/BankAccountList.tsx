@@ -4,9 +4,11 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
+import { useLanguage } from '../../../Context/LanguageContext';
 import { MdAccountBalance } from 'react-icons/md';
 
 const BankAccountList = () => {
+  const { isRTL } = useLanguage();
   const [banks, setBanks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,15 +52,15 @@ const BankAccountList = () => {
       <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
         <div>
           <h4 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-            <MdAccountBalance className="text-emerald-600 dark:text-emerald-400 text-2xl" /> Bank Accounts Directory
+            <MdAccountBalance className="text-emerald-600 dark:text-emerald-400 text-2xl" /> {isRTL ? "بینک اکاؤنٹس ڈائریکٹری" : "Bank Accounts Directory"}
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage enterprise bank accounts, branches & IBAN ledgers</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{isRTL ? "بینک اکاؤنٹس، برانچز اور کھاتہ جات کا انتظام کریں" : "Manage enterprise bank accounts, branches & IBAN ledgers"}</p>
         </div>
         <button 
           onClick={() => navigate('/Registration/Bank-Account/AddBank')}
           className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm cursor-pointer"
         >
-          + Add Bank Account
+          {isRTL ? "+ نیا بینک اکاؤنٹ شامل کریں" : "+ Add Bank Account"}
         </button>
       </div>
 
@@ -77,7 +79,7 @@ const BankAccountList = () => {
             {loading ? (
               <tr><td colSpan={5} className="text-center py-10"><Spinner /></td></tr>
             ) : banks.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-10 text-slate-400 italic">No bank records found. Click "+ Add Bank Account" to begin.</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 text-slate-400 italic">{isRTL ? "کوئی بینک ریکارڈ نہیں ملا۔ نیا بینک اکاؤنٹ شامل کرنے کے لیے بٹن دبائیں۔" : "No bank records found. Click \"+ Add Bank Account\" to begin."}</td></tr>
             ) : (
               banks.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage).map((b) => (
                 <tr key={b.id} className="border-b border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
@@ -102,7 +104,7 @@ const BankAccountList = () => {
 
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
         <div>
-          Showing {banks.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0} to {Math.min(currentPage * entriesPerPage, banks.length)} of {banks.length} entries
+          {isRTL ? `کل ${banks.length} میں سے ${banks.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0} تا ${Math.min(currentPage * entriesPerPage, banks.length)} ریکارڈز` : `Showing ${banks.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0} to ${Math.min(currentPage * entriesPerPage, banks.length)} of ${banks.length} entries`}
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -110,17 +112,17 @@ const BankAccountList = () => {
             disabled={currentPage === 1}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
           >
-            Previous
+            {isRTL ? "پچھلا" : "Previous"}
           </button>
           <span className="px-3 py-1.5 font-bold text-teal-600 text-xs">
-            Page {currentPage} of {Math.ceil(banks.length / entriesPerPage) || 1}
+            {isRTL ? `صفحہ ${currentPage} از ${Math.ceil(banks.length / entriesPerPage) || 1}` : `Page ${currentPage} of ${Math.ceil(banks.length / entriesPerPage) || 1}`}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(Math.ceil(banks.length / entriesPerPage), p + 1))}
             disabled={currentPage === Math.ceil(banks.length / entriesPerPage) || banks.length === 0}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
           >
-            Next
+            {isRTL ? "اگلا" : "Next"}
           </button>
         </div>
       </div>

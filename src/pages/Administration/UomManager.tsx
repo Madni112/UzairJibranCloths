@@ -52,12 +52,12 @@ const UomManager = () => {
   const getCategoryLabel = (cat: string) => {
     if (!isRTL) return cat;
     const map: Record<string, string> = {
-      'Count & Units': 'شمار اور اکائیاں (Count & Units)',
-      'Packaging & Containers': 'پیکنگ اور کنٹینرز (Packaging & Containers)',
-      'Area & Surface': 'رقبہ اور سطح (Area & Surface)',
-      'Length & Distance': 'لمبائی اور فاصلہ (Length & Distance)',
-      'Weight & Mass': 'وزن اور کمیت (Weight & Mass)',
-      'Volume & Liquid': 'حجم اور مائع (Volume & Liquid)',
+      'Count & Units': 'شمار اور اکائیاں',
+      'Packaging & Containers': 'پیکنگ اور کنٹینرز',
+      'Area & Surface': 'رقبہ اور سطح',
+      'Length & Distance': 'لمبائی اور فاصلہ',
+      'Weight & Mass': 'وزن اور کمیت',
+      'Volume & Liquid': 'حجم اور مائع',
     };
     return map[cat] || cat;
   };
@@ -65,33 +65,33 @@ const UomManager = () => {
   const getUomLabel = (name: string) => {
     if (!isRTL || !name) return name;
     const map: Record<string, string> = {
-      'Box / Carton': 'ڈبہ / کارٹن (Box / Carton)',
-      'Pieces': 'تھان / پیس (Pieces)',
-      'Numbers': 'تعداد (Numbers)',
-      'Each': 'فی عدد (Each)',
-      'Sets': 'سیٹ (Sets)',
-      'Pairs': 'جوڑا (Pairs)',
-      'Dozen (12 Pcs)': 'درجن (12 Pcs)',
-      'Carton': 'کارٹن (Carton)',
-      'Packet / Pack': 'پیکٹ (Packet)',
-      'Bag / Sack': 'تھیلا / بوری (Bag / Sack)',
-      'Bundle': 'بنڈل (Bundle)',
-      'Roll': 'تھان / رول (Roll)',
-      'Square Feet (Sq. Ft)': 'مربع فٹ (Sq. Ft)',
-      'Square Meter (Sq. Mtr)': 'مربع میٹر (Sq. Mtr)',
-      'Square Yard (Guz)': 'مربع گز (Guz)',
-      'Meter (Linear Mtr)': 'میٹر (Meter)',
-      'Foot / Feet': 'فٹ (Feet)',
-      'Inches': 'انچ (Inches)',
-      'Millimeter': 'ملی میٹر (mm)',
-      'Yard (Guz)': 'گز (Guz)',
-      'Kilogram (Kg)': 'کلوگرام (Kg)',
-      'Gram (g)': 'گرام (g)',
+      'Box / Carton': 'ڈبہ / کارٹن',
+      'Pieces': 'تھان / پیس',
+      'Numbers': 'تعداد',
+      'Each': 'فی عدد',
+      'Sets': 'سیٹ',
+      'Pairs': 'جوڑا',
+      'Dozen (12 Pcs)': 'درجن (12 پیس)',
+      'Carton': 'کارٹن',
+      'Packet / Pack': 'پیکٹ',
+      'Bag / Sack': 'تھیلا / بوری',
+      'Bundle': 'بنڈل',
+      'Roll': 'تھان / رول',
+      'Square Feet (Sq. Ft)': 'مربع فٹ',
+      'Square Meter (Sq. Mtr)': 'مربع میٹر',
+      'Square Yard (Guz)': 'مربع گز',
+      'Meter (Linear Mtr)': 'میٹر',
+      'Foot / Feet': 'فٹ',
+      'Inches': 'انچ',
+      'Millimeter': 'ملی میٹر',
+      'Yard (Guz)': 'گز',
+      'Kilogram (Kg)': 'کلوگرام',
+      'Gram (g)': 'گرام',
       'Metric Ton': 'میٹرک ٹن',
-      'Pound (lb)': 'پاؤنڈ (lb)',
-      'Liter (Ltr)': 'لیٹر (Ltr)',
-      'Milliliter (ml)': 'ملی لیٹر (ml)',
-      'Gallon': 'گیلن (Gallon)'
+      'Pound (lb)': 'پاؤنڈ',
+      'Liter (Ltr)': 'لیٹر',
+      'Milliliter (ml)': 'ملی لیٹر',
+      'Gallon': 'گیلن'
     };
     return map[name] || name;
   };
@@ -342,7 +342,7 @@ const UomManager = () => {
         <div>
           <h2 className="text-xl font-bold text-black dark:text-white flex items-center gap-2">
             <MdLayers className="text-primary" size={24} />
-            {isRTL ? "پیمائش کی اکائیاں (UOM سوئچ بورڈ)" : "Units of Measurement (UOM) Switchboard"}
+            {isRTL ? "پیمائش کی اکائیاں (سوئچ بورڈ)" : "Units of Measurement (UOM) Switchboard"}
           </h2>
           <p className="text-gray-400 mt-0.5 text-xs">
             {isRTL ? "مختلف اکائیوں کو آن یا آف کریں، نام تبدیل کریں یا غیر ضروری کسٹم اکائیاں حذف کریں۔" : "Turn individual units On or Off, edit names, or delete unwanted custom units across active ERP forms."}

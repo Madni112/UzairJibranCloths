@@ -435,7 +435,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   useEffect(() => {
     const updateColors = () => {
       const raw = localStorage.getItem('uzair_jibran_sidebar_raw_color') || getSavedSidebarColor();
-      const res = applySidebarColor(raw);
+      const res = getSafeSidebarColor(raw);
       setCurrentSidebarColor(res.safeColor);
       setWasContrastAdjusted(res.wasAdjusted);
     };

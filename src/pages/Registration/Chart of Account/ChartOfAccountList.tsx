@@ -4,10 +4,23 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
+import { useLanguage } from '../../../Context/LanguageContext';
 import { MdAdd, MdAccountBalanceWallet, MdAutoAwesome, MdFolder, MdFolderOpen, MdInsertDriveFile, MdRemove } from 'react-icons/md';
 
 const ChartOfAccountList = () => {
     const navigate = useNavigate();
+    const { isRTL } = useLanguage();
+
+    const formatCategoryTitle = (cat: string) => {
+        if (!isRTL) return cat;
+        const lower = cat.toLowerCase();
+        if (lower.includes('asset')) return '1. اثاثہ جات (Assets)';
+        if (lower.includes('liabilit')) return '2. واجبات (Liabilities)';
+        if (lower.includes('equity')) return '3. سرمایہ / ایکویٹی (Equity)';
+        if (lower.includes('revenue') || lower.includes('income')) return '4. آمدن (Revenue)';
+        if (lower.includes('expense')) return '5. اخراجات (Expenses)';
+        return cat;
+    };
     const [accounts, setAccounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -112,7 +125,7 @@ const ChartOfAccountList = () => {
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <h2 className="text-xl font-bold text-black dark:text-white flex items-center gap-2">
-                    Chart of Accounts Ledger Directory
+                    {isRTL ? 'چارٹ آف اکاؤنٹس لیجر ڈائریکٹری' : 'Chart of Accounts Ledger Directory'}
                 </h2>
                 <div className="flex items-center gap-2">
                     <button
@@ -120,7 +133,7 @@ const ChartOfAccountList = () => {
                         onClick={() => navigate('/Registration/Chart-of-Account/Add')}
                         className="flex items-center justify-center rounded bg-primary py-2 px-4 text-xs font-bold text-white hover:bg-opacity-90 transition duration-150 shadow-sm cursor-pointer"
                     >
-                        + Add New Account
+                        {isRTL ? '+ نیا کھاتہ شامل کریں' : '+ Add New Account'}
                     </button>
                 </div>
             </div>
@@ -133,8 +146,8 @@ const ChartOfAccountList = () => {
                     </div>
 
                     <div className="flex items-center gap-2 text-xs w-full sm:w-auto text-gray-500 dark:text-gray-400">
-                        <span>Search:</span>
-                        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search code, titles, controls..." className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none text-xs text-black dark:text-white focus:border-primary" />
+                        <span>{isRTL ? "تلاش:" : "Search:"}</span>
+                        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={isRTL ? "کوڈ، عنوان یا کنٹرول تلاش کریں..." : "Search code, titles, controls..."} className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none text-xs text-black dark:text-white focus:border-primary" />
                     </div>
                 </div>
 
@@ -142,14 +155,14 @@ const ChartOfAccountList = () => {
                     {loading ? (
                         <div className="text-center py-12"><Spinner /></div>
                     ) : filteredAccounts.length === 0 ? (
-                        <div className="text-center py-10 text-gray-400 italic">No ledger financial accounts found.</div>
+                        <div className="text-center py-10 text-gray-400 italic">{isRTL ? 'کوئی کھاتہ ریکارڈ نہیں ملا۔' : 'No ledger financial accounts found.'}</div>
                     ) : (
                         <div className="flex flex-col gap-2 min-w-[600px]">
                             {/* Header row to align columns */}
                             <div className="flex items-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-2 pb-2 border-b border-stroke dark:border-strokedark">
-                                <div className="flex-1">Account Title / Group</div>
-                                <div className="w-24 text-right">Account Code</div>
-                                <div className="w-28 flex justify-center">Actions</div>
+                                <div className="flex-1">{isRTL ? "کھاتہ عنوان / گروپ" : "Account Title / Group"}</div>
+                                <div className="w-24 text-right">{isRTL ? "کھاتہ کوڈ" : "Account Code"}</div>
+                                <div className="w-28 flex justify-center">{isRTL ? "کارروائی" : "Actions"}</div>
                             </div>
 
                             {Object.entries(treeData).sort(([a], [b]) => a.localeCompare(b)).map(([category, subCategories]) => (
@@ -165,8 +178,8 @@ const ChartOfAccountList = () => {
                                             {isExpanded(`cat-${category}`) ? <MdRemove size={14} /> : <MdAdd size={14} />}
                                         </button>
                                         <MdFolder className="text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 transition" size={18} />
-                                        <span className="font-black text-[13px] text-slate-900 dark:text-white uppercase tracking-tight">{category}</span>
-                                        <span className="ml-2 text-[9px] font-black uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">Category</span>
+                                        <span className="font-black text-[13px] text-slate-900 dark:text-white uppercase tracking-tight">{formatCategoryTitle(category)}</span>
+                                        <span className="ml-2 text-[9px] font-black uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">{isRTL ? "کیٹیگری" : "Category"}</span>
                                     </div>
 
                                     {isExpanded(`cat-${category}`) && (
@@ -185,7 +198,7 @@ const ChartOfAccountList = () => {
                                                         </button>
                                                         <MdFolder className="text-slate-600 dark:text-slate-400 group-hover:text-emerald-600 transition" size={17} />
                                                         <span className="font-bold text-[12px] text-slate-800 dark:text-slate-200">{subCategory}</span>
-                                                        <span className="ml-2 text-[9px] font-bold uppercase bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">Class</span>
+                                                        <span className="ml-2 text-[9px] font-bold uppercase bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">{isRTL ? "کلاس" : "Class"}</span>
                                                     </div>
 
                                                     {isExpanded(`sub-${category}-${subCategory}`) && (
@@ -204,7 +217,7 @@ const ChartOfAccountList = () => {
                                                                         </button>
                                                                         <MdFolderOpen className="text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 transition" size={16} />
                                                                         <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{control}</span>
-                                                                        <span className="ml-2 text-[9px] font-bold uppercase bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded">Group</span>
+                                                                        <span className="ml-2 text-[9px] font-bold uppercase bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded">{isRTL ? "گروپ" : "Group"}</span>
                                                                     </div>
 
                                                                     {isExpanded(`ctrl-${category}-${subCategory}-${control}`) && (

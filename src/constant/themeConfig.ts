@@ -476,6 +476,8 @@ export function getSavedSidebarColor(isDarkMode?: boolean): string {
 
 export function applySidebarColor(hexColor: string, isDarkMode?: boolean): { safeColor: string; wasAdjusted: boolean } {
   if (!hexColor) return { safeColor: DEFAULT_SIDEBAR_COLOR, wasAdjusted: false };
+  const prevColor = typeof window !== 'undefined' ? localStorage.getItem('uzair_jibran_sidebar_color') : null;
+
   try {
     localStorage.setItem('uzair_jibran_sidebar_raw_color', hexColor);
   } catch (_) {}
@@ -483,7 +485,7 @@ export function applySidebarColor(hexColor: string, isDarkMode?: boolean): { saf
   const { safeColor, wasAdjusted } = getSafeSidebarColor(hexColor, isDarkMode);
   try {
     localStorage.setItem('uzair_jibran_sidebar_color', safeColor);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && prevColor !== safeColor) {
       window.dispatchEvent(new Event('uzair_jibran_sidebar_color_changed'));
     }
   } catch (_) {}

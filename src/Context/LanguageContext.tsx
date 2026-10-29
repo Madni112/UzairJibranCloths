@@ -138,20 +138,106 @@ export const TRANSLATIONS: Record<string, { en: string; ur: string }> = {
 };
 
 // Global direct string translation helper
-export const getUrduText = (str: string): string => {
-  if (!str) return str;
-  const clean = str.trim().toLowerCase();
-  
-  // Direct key lookup
-  for (const [key, val] of Object.entries(TRANSLATIONS)) {
-    if (key.toLowerCase() === clean || val.en.toLowerCase() === clean) {
-      return val.ur;
-    }
-  }
+// Master Quick Map for Global UI Lookups
+export const QUICK_MAP: Record<string, string> = {
+  // Registration & Accounts
+  'chart of accounts ledger directory': 'چارٹ آف اکاؤنٹس لیجر ڈائریکٹری',
+  'chart of accounts': 'چارٹ آف اکاؤنٹس',
+  'account title / group': 'کھاتہ عنوان / گروپ',
+  'account title': 'کھاتہ عنوان',
+  'account code': 'کھاتہ کوڈ',
+  '+ add new account': '+ نیا کھاتہ شامل کریں',
+  'add new account': 'نیا کھاتہ شامل کریں',
+  'no ledger financial accounts found.': 'کوئی کھاتہ ریکارڈ نہیں ملا۔',
+  'no ledger financial accounts found': 'کوئی کھاتہ ریکارڈ نہیں ملا۔',
+  'assets .1': '1. اثاثہ جات',
+  'liabilities .2': '2. واجبات',
+  'equity .3': '3. سرمایہ / ایکویٹی',
+  'expenses .5': '5. اخراجات',
+  'revenue .4': '4. آمدن',
+  '1. assets': '1. اثاثہ جات',
+  '2. liabilities': '2. واجبات',
+  '3. equity': '3. سرمایہ / ایکویٹی',
+  '4. revenue': '4. آمدن',
+  '5. expenses': '5. اخراجات',
+  'assets': 'اثاثہ جات',
+  'liabilities': 'واجبات',
+  'equity': 'سرمایہ / ایکویٹی',
+  'expenses': 'اخراجات',
+  'revenue': 'آمدن',
 
-  // Common quick replacements & master lookup
-  const quickMap: Record<string, string> = {
-    // Top Nav & Brand
+  // Bank Accounts
+  'bank accounts directory': 'بینک اکاؤنٹس ڈائریکٹری',
+  'manage enterprise bank accounts, branches & iban ledgers': 'بینک اکاؤنٹس، برانچز اور کھاتہ جات کا انتظام کریں',
+  '+ add bank account': '+ نیا بینک اکاؤنٹ شامل کریں',
+  'add bank account': 'نیا بینک اکاؤنٹ شامل کریں',
+  'account number': 'بینک اکاؤنٹ نمبر',
+  'branch name': 'برانچ کا نام',
+  'branch code': 'برانچ کوڈ',
+  'no bank records found. click "+ add bank account" to begin.': 'کوئی بینک ریکارڈ نہیں ملا۔ نیا بینک اکاؤنٹ شامل کرنے کے لیے بٹن دبائیں۔',
+  'no bank records found. click "+ add bank account" to begin': 'کوئی بینک ریکارڈ نہیں ملا۔ نیا بینک اکاؤنٹ شامل کرنے کے لیے بٹن دبائیں۔',
+  'no bank records found': 'کوئی بینک ریکارڈ نہیں ملا',
+
+  // Opening Stocks
+  'opening stocks directory': 'ابتدائی اسٹاک ڈائریکٹری',
+  '+ initialize opening stock': '+ ابتدائی اسٹاک درج کریں',
+  'initialize opening stock +': '+ ابتدائی اسٹاک درج کریں',
+  'initialize opening stock': 'ابتدائی اسٹاک درج کریں',
+  'stock no': 'اسٹاک نمبر',
+  'batch no': 'بیچ نمبر',
+  'opening date': 'ابتدائی تاریخ',
+  'expiry date': 'میعاد ختم تاریخ',
+  'no opening stock initialized yet.': 'ابھی تک ابتدائی اسٹاک درج نہیں کیا گیا۔',
+  'no opening stock initialized yet': 'ابھی تک ابتدائی اسٹاک درج نہیں کیا گیا۔',
+
+  // Invoice Receipts
+  'invoice receipts directory logs': 'انوائس وصولی رسیدیں لاگ',
+  '+ create receipt voucher': '+ نئی وصولی رسید بنائیں',
+  'create receipt voucher +': '+ نئی وصولی رسید بنائیں',
+  'create receipt voucher': 'نئی وصولی رسید بنائیں',
+  'receipt slip no': 'رسید سلپ نمبر',
+  'linked invoice': 'منسلک انوائس',
+  'settlement method': 'ادائیگی / سیٹلمنٹ طریقہ',
+  'client name': 'کسٹمر کا نام',
+  'amount collected': 'وصول شدہ رقم',
+  'received date': 'وصولی تاریخ',
+  'no client invoice payment receipts documented in active logs.': 'کوئی وصولی رسید ریکارڈ نہیں ملا۔',
+  'no client invoice payment receipts documented in active logs': 'کوئی وصولی رسید ریکارڈ نہیں ملا۔',
+
+  // Sales Returns
+  'sales returns & credit notes': 'سیلز واپسی اور کریڈٹ نوٹس',
+  'manage customer return debit notes, stock reversals and settlement vouchers': 'کسٹمر واپسی، اسٹاک واپسی اور کریڈٹ نوٹس کا انتظام کریں',
+  '+ add return note': '+ نئی واپسی درج کریں',
+  'add return note +': '+ نئی واپسی درج کریں',
+  'add return note': 'نئی واپسی درج کریں',
+  'return note #': 'واپسی نوٹ #',
+  'original invoice': 'اصل انوائس',
+  'gate pass #': 'گیٹ پاس #',
+  'return date': 'واپسی تاریخ',
+  'return status': 'واپسی صورتحال',
+  'total net amount': 'کل خالص رقم',
+  'no return records found.': 'کوئی سیلز واپسی ریکارڈ نہیں ملا۔',
+  'no return records found': 'کوئی سیلز واپسی ریکارڈ نہیں ملا۔',
+
+  // Search Placeholders
+  'search code, titles, controls...': 'کوڈ، عنوان یا کنٹرول تلاش کریں...',
+  'search code, titles, controls': 'کوڈ، عنوان یا کنٹرول تلاش کریں...',
+  'search by receipt no, customer...': 'رسید نمبر یا کسٹمر سے تلاش کریں...',
+  '...search by receipt no, customer': 'رسید نمبر یا کسٹمر سے تلاش کریں...',
+  'search return #, customer, invoice...': 'واپسی نمبر، کسٹمر یا انوائس سے تلاش کریں...',
+  '...search return #, customer, invoice': 'واپسی نمبر، کسٹمر یا انوائس سے تلاش کریں...',
+
+    'general ledger financial vouchers': 'جنرل لیجر مالیاتی واؤچرز',
+    'no matching employee records found.': 'کوئی ملازم ریکارڈ نہیں ملا۔',
+    'no matching employee records found': 'کوئی ملازم ریکارڈ نہیں ملا۔',
+    'no upload batches recorded under any catalog.': 'کوئی اپلوڈ بیچ ریکارڈ موجود نہیں ہے۔',
+    'no upload batches recorded under any catalog': 'کوئی اپلوڈ بیچ ریکارڈ موجود نہیں ہے۔',
+    'no invoice records found.': 'کوئی انوائس ریکارڈ نہیں ملا۔',
+    'no invoice records found': 'کوئی انوائس ریکارڈ نہیں ملا۔',
+    'no transaction voucher slips documented inside system history logs.': 'کوئی واؤچر ریکارڈ نہیں ملا۔',
+    'no transaction voucher slips documented inside system history logs': 'کوئی واؤچر ریکارڈ نہیں ملا۔',
+
+  // Top Nav & Brand
     'uzair jibran cloth': 'عزیر جبران کلوتھ',
     'uzair jibran': 'عزیر جبران',
     'cloth erp': 'کلوتھ ERP',
@@ -181,7 +267,6 @@ export const getUrduText = (str: string): string => {
 
     // Navigation Submenus
     'chart of account': 'چارٹ آف اکاؤنٹس',
-    'chart of accounts': 'چارٹ آف اکاؤنٹس',
     'vouchers': 'واؤچرز',
     'bank account': 'بینک اکاؤنٹس',
     'opening stock': 'ابتدائی اسٹاک',
@@ -277,7 +362,6 @@ export const getUrduText = (str: string): string => {
     'entry date': 'اندراج تاریخ',
     'purchase date': 'خریداری تاریخ',
     'invoice date': 'انوائس تاریخ',
-    'return date': 'واپسی تاریخ',
     'date': 'تاریخ',
     'payment term': 'ادائیگی کی شرط',
     'payment terms': 'ادائیگی کی شرائط',
@@ -303,7 +387,6 @@ export const getUrduText = (str: string): string => {
     'customer name': 'گاہک کا نام',
     'account': 'کھاتہ کوڈ',
     'accounts': 'کھاتہ جات',
-    'account code': 'کھاتہ کوڈ',
     'designation': 'عہدہ',
     'joined': 'شمولیت کی تاریخ',
     'joining date': 'شمولیت کی تاریخ',
@@ -420,12 +503,50 @@ export const getUrduText = (str: string): string => {
     'search by return #, vendor, warehouse': 'واپسی نمبر، وینڈر یا گودام سے تلاش کریں...',
     'employee #, name, designation, phone': 'ملازم کوڈ، نام، عہدہ، فون سے تلاش کریں...',
     'search name, phone, city, area, acc': 'نام، فون، شہر، علاقہ سے تلاش کریں...',
-  };
+}
 
-  if (quickMap[clean]) return quickMap[clean];
+// Global direct string translation helper
+export const getUrduText = (str: string): string => {
+  if (!str) return str;
+  
+  // Extract and preserve sort arrows: ↑, ↓, ▲, ▼, ⇅, ↕
+  const arrowMatch = str.match(/[↑↓▲▼⇅↕]+/);
+  const arrow = arrowMatch ? arrowMatch[0] : '';
+  const cleanNoArrow = str.replace(/[↑↓▲▼⇅↕]/g, '').trim().toLowerCase();
+  const clean = str.trim().toLowerCase();
+
+  // Pattern: Page X of Y -> صفحہ X از Y
+  const pageMatch = clean.match(/^page\s+(\d+)\s+of\s+(\d+)$/i);
+  if (pageMatch) {
+    return `صفحہ ${pageMatch[1]} از ${pageMatch[2]}`;
+  }
+
+  // Pattern: X Available -> X دستیاب
+  const availMatch = clean.match(/^(\d+)\s+available$/i);
+  if (availMatch) {
+    return `${availMatch[1]} دستیاب`;
+  }
+
+  // Preserve leading emojis e.g. 🧾
+  const emojiMatch = str.match(/^([^\w\s\u0600-\u06FF]+)\s*/);
+  const emojiPrefix = emojiMatch ? `${emojiMatch[1]} ` : '';
+  const cleanNoEmoji = emojiPrefix ? clean.substring(emojiMatch[0].length).trim() : clean;
+  
+  // Direct key lookup
+  for (const [key, val] of Object.entries(TRANSLATIONS)) {
+    if (key.toLowerCase() === clean || val.en.toLowerCase() === clean) {
+      return val.ur;
+    }
+  }
+
+  if (QUICK_MAP[clean]) return QUICK_MAP[clean];
+  if (emojiPrefix && QUICK_MAP[cleanNoEmoji]) return `${emojiPrefix}${QUICK_MAP[cleanNoEmoji]}`;
+  if (arrow && QUICK_MAP[cleanNoArrow]) return `${QUICK_MAP[cleanNoArrow]} ${arrow}`;
 
   // Check 580+ TH master translations directly
   if (TH_TRANSLATIONS[clean]) return TH_TRANSLATIONS[clean];
+  if (emojiPrefix && TH_TRANSLATIONS[cleanNoEmoji]) return `${emojiPrefix}${TH_TRANSLATIONS[cleanNoEmoji]}`;
+  if (arrow && TH_TRANSLATIONS[cleanNoArrow]) return `${TH_TRANSLATIONS[cleanNoArrow]} ${arrow}`;
 
   // Strip currency tags e.g. (PKR) or (Rs.)
   const cleanNoPkr = clean.replace(/\s*\(pkr\)/g, '').replace(/\s*\(rs\.\)/g, '').trim();
@@ -440,10 +561,10 @@ export const getUrduText = (str: string): string => {
     .replace(/[.\s#+:–—\->←⇅▲▼↑↓/]+$/, '')
     .trim();
 
-  if (quickMap[stripped]) {
-    if (clean.startsWith('#')) return `${quickMap[stripped]} #`;
-    if (clean.startsWith('+') || clean.endsWith('+')) return `+ ${quickMap[stripped]}`;
-    return quickMap[stripped];
+  if (QUICK_MAP[stripped]) {
+    if (clean.startsWith('#')) return `${QUICK_MAP[stripped]} #`;
+    if (clean.startsWith('+') || clean.endsWith('+')) return `+ ${QUICK_MAP[stripped]}`;
+    return QUICK_MAP[stripped];
   }
 
   if (TH_TRANSLATIONS[stripped]) {
@@ -457,13 +578,13 @@ export const getUrduText = (str: string): string => {
   if (words.length > 1 && words.length <= 3) {
     const allWordsRecognized = words.every((w) => {
       const wClean = w.replace(/^[.\s#+:–—\->←⇅▲▼↑↓()]+/, '').replace(/[.\s#+:–—\->←⇅▲▼↑↓()]+$/, '').toLowerCase();
-      return !!(TOKEN_TRANSLATIONS[wClean] || TH_TRANSLATIONS[wClean] || quickMap[wClean]);
+      return !!(TOKEN_TRANSLATIONS[wClean] || TH_TRANSLATIONS[wClean] || QUICK_MAP[wClean]);
     });
 
     if (allWordsRecognized) {
       const translatedWords = words.map((w) => {
         const wClean = w.replace(/^[.\s#+:–—\->←⇅▲▼↑↓()]+/, '').replace(/[.\s#+:–—\->←⇅▲▼↑↓()]+$/, '').toLowerCase();
-        return TOKEN_TRANSLATIONS[wClean] || TH_TRANSLATIONS[wClean] || quickMap[wClean] || w;
+        return TOKEN_TRANSLATIONS[wClean] || TH_TRANSLATIONS[wClean] || QUICK_MAP[wClean] || w;
       });
       return translatedWords.join(' ');
     }
@@ -607,47 +728,56 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
       });
 
-      // 5. Descriptive Subtitles (p)
+      // 5. Descriptive Subtitles (p) - Safe TreeWalker
       const descParas = document.querySelectorAll('p.text-xs, p.text-sm, p.text-gray-400, p.text-slate-400, p.text-gray-500');
       descParas.forEach((p) => {
-        const raw = p.textContent?.trim();
-        if (!raw || isBusinessData(raw)) return;
+        const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw || isBusinessData(raw)) continue;
 
-        const urdu = getUrduText(raw);
-        if (urdu && urdu !== raw) {
-          if (!p.getAttribute('data-en-text')) {
-            p.setAttribute('data-en-text', raw);
-          }
-          if (p.textContent?.trim() !== urdu) {
-            p.textContent = urdu;
+          const urdu = getUrduText(raw);
+          if (urdu && urdu !== raw) {
+            const parent = (node.parentElement as HTMLElement) || p;
+            if (!parent.getAttribute('data-en-text')) {
+              parent.setAttribute('data-en-text', raw);
+            }
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = node.textContent?.replace(raw, urdu) || urdu;
+            }
           }
         }
       });
 
-      // 6. UI Badges, Filter Controls & Status Spans (NEVER touches td business data)
+      // 6. UI Badges, Filter Controls & Status Spans (NEVER touches td business data) - Safe TreeWalker
       const spans = document.querySelectorAll('span');
       spans.forEach((sp) => {
-        // Strict data check: Never touch normal table data cells or mono codes
         if (sp.closest('td:not([colspan])') || sp.classList.contains('font-mono') || sp.hasAttribute('data-no-translate')) return;
 
-        const raw = sp.textContent?.trim();
-        if (!raw || isBusinessData(raw)) return;
+        const walker = document.createTreeWalker(sp, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw || isBusinessData(raw)) continue;
 
-        const lower = raw.toLowerCase();
-        if (
-          lower === 'show' || lower === 'entries' || lower === 'search:' || lower === ':search' ||
-          lower === 'active' || lower === 'inactive' || lower === 'paid' || lower === 'unpaid' ||
-          lower === 'partially paid' || lower === 'pending' || lower === 'completed' || lower === 'draft' ||
-          lower === 'on credit' || lower === 'cash' || lower === 'previous' || lower === 'next' ||
-          TH_TRANSLATIONS[lower] || quickMap[lower]
-        ) {
-          const urdu = getUrduText(raw);
-          if (urdu && urdu !== raw) {
-            if (!sp.getAttribute('data-en-text')) {
-              sp.setAttribute('data-en-text', raw);
-            }
-            if (sp.textContent?.trim() !== urdu) {
-              sp.textContent = urdu;
+          const lower = raw.toLowerCase();
+          if (
+            lower === 'show' || lower === 'entries' || lower === 'search:' || lower === ':search' ||
+            lower === 'active' || lower === 'inactive' || lower === 'paid' || lower === 'unpaid' ||
+            lower === 'partially paid' || lower === 'pending' || lower === 'completed' || lower === 'draft' ||
+            lower === 'on credit' || lower === 'cash' || lower === 'previous' || lower === 'next' ||
+            TH_TRANSLATIONS[lower] || QUICK_MAP[lower]
+          ) {
+            const urdu = getUrduText(raw);
+            if (urdu && urdu !== raw) {
+              const parent = (node.parentElement as HTMLElement) || sp;
+              if (!parent.getAttribute('data-en-text')) {
+                parent.setAttribute('data-en-text', raw);
+              }
+              if (node.textContent?.trim() !== urdu) {
+                node.textContent = node.textContent?.replace(raw, urdu) || urdu;
+              }
             }
           }
         }
@@ -670,42 +800,73 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
       });
 
-      // 8. Empty Table Notices (td with colSpan or italic)
-      const emptyTds = document.querySelectorAll('td[colspan], td.italic');
+      // 8. Empty Table Notices (td with colSpan or italic or empty-state) - Safe TreeWalker
+      const emptyTds = document.querySelectorAll('td[colspan], td.italic, .empty-state');
       emptyTds.forEach((el) => {
-        const raw = el.textContent?.trim();
-        if (!raw) return;
-        const clean = raw.replace(/^[.\s]+/, '').replace(/[.\s]+$/, '');
-        if (
-          clean.toLowerCase().includes('no supply restock') ||
-          clean.toLowerCase().includes('no outbound supply') ||
-          clean.toLowerCase().includes('no records found') ||
-          clean.toLowerCase().includes('no data')
-        ) {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw || isBusinessData(raw)) continue;
+          const clean = raw.replace(/^[.\s]+/, '').replace(/[.\s]+$/, '');
           const urdu = getUrduText(raw) || getUrduText(clean);
           if (urdu && urdu !== raw) {
-            if (!el.getAttribute('data-en-text')) {
-              el.setAttribute('data-en-text', raw);
+            const parent = (node.parentElement as HTMLElement) || (el as HTMLElement);
+            if (!parent.getAttribute('data-en-text')) {
+              parent.setAttribute('data-en-text', raw);
             }
-            if (el.textContent?.trim() !== urdu) {
-              el.textContent = urdu;
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = node.textContent?.replace(raw, urdu) || urdu;
             }
           }
         }
       });
 
       // 9. Search Input Placeholders
-      const inputs = document.querySelectorAll('input[type="text"]');
+      const inputs = document.querySelectorAll('input[type="text"], input[type="search"]');
       inputs.forEach((input) => {
         const ph = (input as HTMLInputElement).placeholder?.trim();
         if (!ph) return;
-        const urdu = getUrduText(ph);
+        const cleanPh = ph.replace(/^[.\s]+/, '').replace(/[.\s]+$/, '');
+        const urdu = getUrduText(ph) || getUrduText(cleanPh);
         if (urdu && urdu !== ph) {
           if (!input.getAttribute('data-en-placeholder')) {
             input.setAttribute('data-en-placeholder', ph);
           }
           if ((input as HTMLInputElement).placeholder !== urdu) {
             (input as HTMLInputElement).placeholder = urdu;
+          }
+        }
+      });
+
+      // 10. Universal Pagination Pattern Interceptor (Safe TreeWalker)
+      const paginationNodes = document.querySelectorAll('div, span, p');
+      paginationNodes.forEach((el) => {
+        if (el.closest('table tbody, form, input, select')) return;
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw) continue;
+
+          // Pattern: Showing X to Y of Z entries
+          const showingMatch = raw.match(/Showing\s+(\d+)\s+to\s+(\d+)\s+of\s+(\d+)\s*(?:stock\s*)?entries?/i);
+          if (showingMatch) {
+            const urdu = `کل ${showingMatch[3]} میں سے ${showingMatch[1]} تا ${showingMatch[2]} ریکارڈز`;
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = urdu;
+            }
+            continue;
+          }
+
+          // Pattern: Page X of Y
+          const pageMatch = raw.match(/^Page\s+(\d+)\s+of\s+(\d+)$/i);
+          if (pageMatch) {
+            const urdu = `صفحہ ${pageMatch[1]} از ${pageMatch[2]}`;
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = urdu;
+            }
+            continue;
           }
         }
       });

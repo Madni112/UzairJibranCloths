@@ -6,10 +6,11 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
+import { useLanguage } from '../../../Context/LanguageContext';
 import { recalculateInvoiceSettlementStatus } from '../../../service/financialCalculations';
 
 function InvoiceReceiptList() {
-
+  const { isRTL } = useLanguage();
   const { tenantId } = useAuth();
   const navigate = useNavigate();
   const [receipts, setReceipts] = useState<any[]>([]);
@@ -113,7 +114,7 @@ function InvoiceReceiptList() {
     <div className="mx-auto max-w-7xl flex flex-col gap-6 relative text-xs text-textColor">
       <div className="flex flex-col sm:flex-row justify-between items-center pb-4 border-b border-stroke dark:border-strokedark gap-4">
         <h2 className="text-xl font-bold text-black dark:text-white flex items-center gap-2">
-          Invoice Receipts Directory Logs
+          {isRTL ? "انوائس وصولی رسیدیں لاگ" : "Invoice Receipts Directory Logs"}
         </h2>
         <div className="flex items-center gap-3">
           <button
@@ -121,7 +122,7 @@ function InvoiceReceiptList() {
             onClick={() => navigate(`${tenantId ? `/${tenantId}` : ''}/Sales/InvoiceReceipt/Add`)}
             className="flex items-center justify-center rounded-lg bg-primary py-2.5 px-5 text-xs font-bold text-white hover:bg-opacity-90 transition duration-150 shadow-sm cursor-pointer gap-2"
           >
-            + Create Receipt Voucher
+            {isRTL ? "+ نئی وصولی رسید بنائیں" : "+ Create Receipt Voucher"}
           </button>
         </div>
 
@@ -140,7 +141,7 @@ function InvoiceReceiptList() {
 
           <div className="flex items-center gap-2 text-xs w-full sm:w-auto text-gray-500 dark:text-gray-400">
             <span>Search:</span>
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by receipt no, customer..." className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none text-xs text-black dark:text-white" />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={isRTL ? "رسید نمبر یا کسٹمر سے تلاش کریں..." : "Search by receipt no, customer..."} className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none text-xs text-black dark:text-white" />
           </div>
         </div>
 
@@ -148,21 +149,21 @@ function InvoiceReceiptList() {
           <table className="w-full table-auto border-collapse">
             <thead>
               <tr className="bg-gray-2 text-left dark:bg-meta-4 text-xs font-bold uppercase tracking-wider text-black dark:text-white border-b border-stroke dark:border-strokedark">
-                <th className="py-4 px-4 font-semibold w-16">S#</th>
-                <th className="py-4 px-4 font-semibold w-32">Receipt Slip No</th>
-                <th className="py-4 px-4 font-semibold w-28">Linked Invoice</th>
-                <th className="py-4 px-4 font-semibold w-40">Settlement Method</th>
-                <th className="py-4 px-4 font-semibold">Client Name</th>
-                <th className="py-4 px-4 font-semibold text-right w-36">Amount Collected</th>
-                <th className="py-4 px-4 font-semibold text-center w-32">Received Date</th>
-                <th className="py-4 px-4 font-semibold text-center w-24">Actions</th>
+                <th className="py-4 px-4 font-semibold w-16">{isRTL ? "نمبر شمار" : "S#"}</th>
+                <th className="py-4 px-4 font-semibold w-32">{isRTL ? "رسید سلپ نمبر" : "Receipt Slip No"}</th>
+                <th className="py-4 px-4 font-semibold w-28">{isRTL ? "منسلک انوائس" : "Linked Invoice"}</th>
+                <th className="py-4 px-4 font-semibold w-40">{isRTL ? "ادائیگی / سیٹلمنٹ طریقہ" : "Settlement Method"}</th>
+                <th className="py-4 px-4 font-semibold">{isRTL ? "کسٹمر کا نام" : "Client Name"}</th>
+                <th className="py-4 px-4 font-semibold text-right w-36">{isRTL ? "وصول شدہ رقم" : "Amount Collected"}</th>
+                <th className="py-4 px-4 font-semibold text-center w-32">{isRTL ? "وصولی تاریخ" : "Received Date"}</th>
+                <th className="py-4 px-4 font-semibold text-center w-24">{isRTL ? "کارروائی" : "Actions"}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr>
               ) : paginatedReceipts.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-10 text-gray-400 select-none">No client invoice payment receipts documented in active logs.</td></tr>
+                <tr><td colSpan={8} className="text-center py-10 text-gray-400 select-none">{isRTL ? "کوئی وصولی رسید ریکارڈ نہیں ملا۔" : "No client invoice payment receipts documented in active logs."}</td></tr>
               ) : (
                 paginatedReceipts.map((r, idx) => {
                   const serialNumber = startIndex + idx + 1;

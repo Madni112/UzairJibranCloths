@@ -504,8 +504,8 @@ const Header = (props: {
               }`}
               title={isRTL ? 'Switch to English layout (LTR)' : 'اردو لے آؤٹ میں تبدیل کریں (RTL)'}
             >
-              <span className="text-sm leading-none">{isRTL ? '🇬🇧' : '🇵🇰'}</span>
-              <span className="tracking-wide font-medium">{isRTL ? 'English' : 'اردو'}</span>
+              <span className="text-sm leading-none">{isRTL ? '🇵🇰' : '🇬🇧'}</span>
+              <span className="tracking-wide font-medium">{isRTL ? 'اردو' : 'English'}</span>
             </button>
 
             {/* Subtle Divider */}

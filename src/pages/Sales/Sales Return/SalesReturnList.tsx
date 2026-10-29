@@ -6,9 +6,11 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
+import { useLanguage } from '../../../Context/LanguageContext';
 
 const SalesReturnList = () => {
   const navigate = useNavigate();
+  const { isRTL } = useLanguage();
   const { tenantId } = useAuth();
   const [returns, setReturns] = useState<any[]>([]);
 
@@ -122,14 +124,14 @@ const SalesReturnList = () => {
     <div className="mx-auto max-w-7xl flex flex-col gap-6 relative text-slate-800 dark:text-slate-100 text-xs">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Sales Returns & Credit Notes</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage customer return debit notes, stock reversals and settlement vouchers</p>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{isRTL ? "سیلز واپسی اور کریڈٹ نوٹس" : "Sales Returns & Credit Notes"}</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{isRTL ? "کسٹمر واپسی، اسٹاک واپسی اور کریڈٹ نوٹس کا انتظام کریں" : "Manage customer return debit notes, stock reversals and settlement vouchers"}</p>
         </div>
         <button
           onClick={() => navigate('/Sales-Return/Debit-Notes/Add')}
           className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 px-4 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm hover:shadow-md cursor-pointer"
         >
-          <span>+ Add Return Note</span>
+          <span>{isRTL ? "+ نئی واپسی درج کریں" : "+ Add Return Note"}</span>
         </button>
       </div>
 
@@ -167,22 +169,22 @@ const SalesReturnList = () => {
           <table className="w-full border-collapse text-xs text-left">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-800">
-                <th className="py-3.5 px-4 w-12 text-center">S#</th>
-                <th className="py-3.5 px-4 font-mono">Return Note #</th>
-                <th className="py-3.5 px-4 font-mono">Original Invoice</th>
-                <th className="py-3.5 px-4 font-mono">Gate Pass #</th>
-                <th className="py-3.5 px-4">Return Date</th>
-                <th className="py-3.5 px-4">Customer</th>
-                <th className="py-3.5 px-4 w-36 text-center">Return Status</th>
-                <th className="py-3.5 px-4 text-right pr-3 font-mono">Total Net Amount</th>
-                <th className="py-3.5 px-4 w-14 text-center">Action</th>
+                <th className="py-3.5 px-4 w-12 text-center">{isRTL ? "نمبر شمار" : "S#"}</th>
+                <th className="py-3.5 px-4 font-mono">{isRTL ? "واپسی نوٹ #" : "Return Note #"}</th>
+                <th className="py-3.5 px-4 font-mono">{isRTL ? "اصل انوائس" : "Original Invoice"}</th>
+                <th className="py-3.5 px-4 font-mono">{isRTL ? "گیٹ پاس #" : "Gate Pass #"}</th>
+                <th className="py-3.5 px-4">{isRTL ? "واپسی تاریخ" : "Return Date"}</th>
+                <th className="py-3.5 px-4">{isRTL ? "کسٹمر" : "Customer"}</th>
+                <th className="py-3.5 px-4 w-36 text-center">{isRTL ? "واپسی صورتحال" : "Return Status"}</th>
+                <th className="py-3.5 px-4 text-right pr-3 font-mono">{isRTL ? "کل خالص رقم" : "Total Net Amount"}</th>
+                <th className="py-3.5 px-4 w-14 text-center">{isRTL ? "کارروائی" : "Action"}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan={9} className="text-center py-12"><Spinner /></td></tr>
               ) : filteredReturns.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-10 text-xs text-slate-400 italic">No return records found.</td></tr>
+                <tr><td colSpan={9} className="text-center py-10 text-xs text-slate-400 italic">{isRTL ? "کوئی سیلز واپسی ریکارڈ نہیں ملا۔" : "No return records found."}</td></tr>
               ) : (
                 paginatedReturns.map((ret, idx) => {
                   const serialNumber = startIndex + idx + 1;
