@@ -6,7 +6,8 @@ import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
 import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
-import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
+import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward, MdCloudUpload } from 'react-icons/md';
+import CustomerImportModal from './CustomerImportModal';
 
 const getCustomerDisplayName = (c: any): string => {
   if (!c) return '';
@@ -22,6 +23,7 @@ const CustomerHistory = () => {
 
   // Modal State
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [accountCodeInput, setAccountCodeInput] = useState('');
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
@@ -386,12 +388,22 @@ const CustomerHistory = () => {
           <h4 className="text-xl font-semibold text-black dark:text-white">Customer Database</h4> 
           <p className="text-xs text-gray-500 mt-0.5">Manage customer directory and assign Chart of Account ledger codes</p>
         </div>
-        <button 
-          onClick={() => navigate('/Sales/Customers/Add')} 
-          className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-xl text-sm font-semibold transition cursor-pointer shadow-sm flex items-center gap-1.5" 
-        > 
-          + Add New Customer
-        </button> 
+        <div className="flex items-center gap-2.5">
+          <button 
+            type="button"
+            onClick={() => setShowImportModal(true)} 
+            className="border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 px-3.5 rounded-xl text-sm font-semibold transition cursor-pointer shadow-xs flex items-center gap-1.5" 
+          > 
+            <MdCloudUpload size={18} className="text-primary" />
+            <span>Upload Excel</span>
+          </button>
+          <button 
+            onClick={() => navigate('/Sales/Customers/Add')} 
+            className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-xl text-sm font-semibold transition cursor-pointer shadow-sm flex items-center gap-1.5" 
+          > 
+            + Add New Customer
+          </button> 
+        </div> 
       </div> 
       
       {/* Datatable Filter Control Header Line */}
@@ -723,6 +735,13 @@ const CustomerHistory = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Customer Excel Import Modal */}
+      <CustomerImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => fetchCustomersAndCOA()}
+      />
 
     </div> 
   ); 
