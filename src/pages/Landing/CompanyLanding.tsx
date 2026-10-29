@@ -549,11 +549,27 @@ const CompanyLanding: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Node 3: Bottom Left - Office Location */}
-                <div className="absolute bottom-3 left-3 sm:bottom-5 sm:left-5 z-10">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
+                {/* Node 3: Bottom Left - Office Location with Interactive Hover Tooltip */}
+                <div className="absolute bottom-3 left-3 sm:bottom-5 sm:left-5 z-20 group">
+                  <div
+                    title="Office Near Chohan Kanta, Faizan E Madina Road, Affandi Town, Hyderabad, Sindh, Pakistan"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200 hover:border-amber-400 dark:hover:border-amber-500/60 transition duration-150 cursor-pointer relative"
+                  >
                     <MdLocationOn className="text-amber-500 dark:text-amber-400 text-sm" />
                     <span>Hyderabad, Sindh (Affandi Town)</span>
+
+                    {/* Floating Rich Hover Tooltip */}
+                    <div className="pointer-events-none absolute bottom-full left-0 mb-2 w-64 p-2.5 rounded-xl bg-slate-950 dark:bg-slate-800 text-slate-100 text-[11px] font-sans font-normal shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:-translate-y-1 transition-all duration-200 z-50 border border-slate-700/80">
+                      <div className="flex items-start gap-1.5 leading-snug">
+                        <MdLocationOn className="text-amber-400 text-sm shrink-0 mt-0.5" />
+                        <span>
+                          <strong className="text-white font-semibold">Engineering Office:</strong><br />
+                          Office Near Chohan Kanta, Faizan E Madina Road, Affandi Town, Hyderabad, Sindh, Pakistan
+                        </span>
+                      </div>
+                      {/* Tooltip Arrow */}
+                      <div className="absolute top-full left-5 -mt-[1px] border-4 border-transparent border-t-slate-950 dark:border-t-slate-800" />
+                    </div>
                   </div>
                 </div>
 
