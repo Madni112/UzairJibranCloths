@@ -439,16 +439,16 @@ const CompanyLanding: React.FC = () => {
             {/* Left: NHT Enterprises & Abdul Sattar Profile */}
             <div className="lg:col-span-5 space-y-5 text-left">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/25 text-[11px] font-mono font-bold uppercase tracking-wider">
-                SYSTEM ARCHITECT & DEVELOPER
+                SOFTWARE ENGINEERING &amp; DEVELOPMENT
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
                 NHT ENTERPRISES
               </h2>
               <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 font-mono -mt-2">
-                Lead Systems Architect: Abdul Sattar
+                Abdul Sattar — NHT ENTERPRISES
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">
-                Architected and maintained natively by <strong className="text-slate-900 dark:text-white font-semibold">Abdul Sattar</strong>. Specialized in bespoke textile ERP solutions, high-velocity wholesale invoicing, multi-godown fabric inventory, and encrypted double-entry financial engines.
+                Developed and maintained natively by <strong className="text-slate-900 dark:text-white font-semibold">Abdul Sattar</strong>. Specialized in bespoke textile ERP solutions, high-velocity wholesale invoicing, multi-godown fabric inventory, and encrypted double-entry financial engines.
               </p>
               
               {/* Stat Callouts matching Stitch mockup */}
@@ -499,7 +499,7 @@ const CompanyLanding: React.FC = () => {
               <div className="flex flex-wrap justify-between items-center text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-6 gap-2">
                 <div className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
                   <span className="text-blue-600 dark:text-blue-400">🌐</span>
-                  <span>SYSTEM ARCHITECT &amp; DEVELOPER NETWORK</span>
+                  <span>NHT ENTERPRISES • DEVELOPER NETWORK</span>
                 </div>
                 <span className="text-slate-500 dark:text-slate-400 font-semibold">
                   HYDERABAD, SINDH, PAKISTAN
@@ -521,7 +521,7 @@ const CompanyLanding: React.FC = () => {
                 <div className="absolute top-3 left-3 sm:top-5 sm:left-5 z-10">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-sm text-[11px] font-mono text-slate-800 dark:text-slate-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Abdul Sattar (Lead Architect)</span>
+                    <span>Abdul Sattar</span>
                   </div>
                 </div>
 
@@ -573,7 +573,7 @@ const CompanyLanding: React.FC = () => {
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 gap-2">
                 <span>PORTAL: noorhorizontechnologies.com (COMING SOON)</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-bold tracking-wider">
-                  ARCHITECT STATUS: ONLINE &amp; ACTIVE
+                  DEVELOPER STATUS: ONLINE &amp; ACTIVE
                 </span>
               </div>
 
