@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../Context/supabaseClient';
 import { useAuth } from '../../../Context/Auth';
+import { useLanguage, getUrduText } from '../../../Context/LanguageContext';
 import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import Spinner from '../../../ui/Spinner';
@@ -100,6 +101,7 @@ const MasterBadge = ({ exists }: { exists: boolean }) => {
 
 const BulkProductUpload = () => {
   const { userName, userEmail, tenantId } = useAuth();
+  const { isRTL } = useLanguage();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1532,10 +1534,10 @@ const BulkProductUpload = () => {
         <div>
           <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <MdCloudUpload className="text-emerald-600 text-2xl" />
-            Bulk Product Upload with Smart Duplicate Protection
+            {isRTL ? "بلک پروڈکٹ اپلوڈ مع ڈپلیکیٹ پروٹیکشن" : "Bulk Product Upload with Smart Duplicate Protection"}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Imports Excel/CSV files with auto-detection of tiles vs standard products and full duplicate protection.
+            {isRTL ? "ایکسل یا CSV فائل سے پروڈکٹس اور ٹائلز اپلوڈ کریں مع مکمل ڈپلیکیٹ پروٹیکشن۔" : "Imports Excel/CSV files with auto-detection of tiles vs standard products and full duplicate protection."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1544,14 +1546,14 @@ const BulkProductUpload = () => {
               onClick={handleReset}
               className="px-3.5 py-2 text-xs font-bold rounded-xl border border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-meta-4 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 cursor-pointer"
             >
-              <MdRefresh className="text-sm" /> Choose Another File
+              <MdRefresh className="text-sm" /> {isRTL ? "دوسری فائل منتخب کریں" : "Choose Another File"}
             </button>
           )}
           <button
             onClick={() => navigate('/Administration/Products/List')}
             className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition flex items-center gap-1.5 cursor-pointer"
           >
-            <MdArrowBack /> Products List
+            {isRTL ? "پروڈکٹس لسٹ" : "Products List"} <MdArrowBack className={isRTL ? "rotate-180" : ""} />
           </button>
         </div>
       </div>
@@ -1568,12 +1570,12 @@ const BulkProductUpload = () => {
           }`}
         >
           <MdLayers className="text-base" />
-          <span>Upload Other Products</span>
+          <span>{isRTL ? "دیگر پروڈکٹس اپلوڈ کریں" : "Upload Other Products"}</span>
           {otherRows.length > 0 && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
               activeTab === 'OTHER' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
             }`}>
-              {otherRows.length} items
+              {otherRows.length} {isRTL ? "آئٹمز" : "items"}
             </span>
           )}
         </button>
@@ -1588,12 +1590,12 @@ const BulkProductUpload = () => {
           }`}
         >
           <MdSquareFoot className="text-base" />
-          <span>Upload Tile Products</span>
+          <span>{isRTL ? "ٹائل پروڈکٹس اپلوڈ کریں" : "Upload Tile Products"}</span>
           {tileRows.length > 0 && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
               activeTab === 'TILES' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
             }`}>
-              {tileRows.length} items
+              {tileRows.length} {isRTL ? "آئٹمز" : "items"}
             </span>
           )}
         </button>
@@ -1614,12 +1616,14 @@ const BulkProductUpload = () => {
 
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-base font-bold text-black dark:text-white">
-              {activeTab === 'TILES'
-                ? 'Upload Tile Products Excel or CSV Sheet'
-                : 'Upload General Products Excel or CSV Sheet'}
+              {isRTL
+                ? (activeTab === 'TILES' ? 'ٹائل پروڈکٹس کی ایکسل یا CSV فائل اپلوڈ کریں' : 'جنرل پروڈکٹس کی ایکسل یا CSV فائل اپلوڈ کریں')
+                : (activeTab === 'TILES' ? 'Upload Tile Products Excel or CSV Sheet' : 'Upload General Products Excel or CSV Sheet')}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Smart auto-routing: If you upload tiles under Other Products (or non-tiles under Tiles), the system will automatically redirect and separate them across both tabs!
+              {isRTL
+                ? 'اسمارٹ آٹو راؤٹنگ: اگر آپ ایک ہی فائل میں ٹائلز اور دیگر پروڈکٹس دونوں اپلوڈ کریں گے تو سسٹم خودکار طور پر الگ الگ کر دے گا۔'
+                : 'Smart auto-routing: If you upload tiles under Other Products (or non-tiles under Tiles), the system will automatically redirect and separate them across both tabs!'}
             </p>
           </div>
 
@@ -1627,14 +1631,14 @@ const BulkProductUpload = () => {
           <div className="max-w-2xl mx-auto bg-slate-50 dark:bg-meta-4/20 p-5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Supported Columns in {activeTab === 'TILES' ? 'Tile' : 'Standard'} Excel:
+                {isRTL ? `ایکسل فائل کے کالمز (${activeTab === 'TILES' ? 'ٹائلز' : 'معیاری'}):` : `Supported Columns in ${activeTab === 'TILES' ? 'Tile' : 'Standard'} Excel:`}
               </span>
               <button
                 type="button"
                 onClick={activeTab === 'TILES' ? handleDownloadTileTemplate : handleDownloadOtherTemplate}
                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <MdFileDownload className="text-sm" /> Download Sample Template
+                <MdFileDownload className="text-sm" /> {isRTL ? "سیمپل ٹیمپلیٹ ڈاؤنلوڈ کریں" : "Download Sample Template"}
               </button>
             </div>
 
@@ -1660,7 +1664,7 @@ const BulkProductUpload = () => {
                     key={col}
                     className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark px-2.5 py-1 rounded-lg font-mono font-semibold text-slate-700 dark:text-slate-300"
                   >
-                    {col}
+                    {isRTL ? getUrduText(col) : col}
                   </span>
                 ))
               ) : (
@@ -1669,26 +1673,26 @@ const BulkProductUpload = () => {
                     key={col}
                     className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark px-2.5 py-1 rounded-lg font-mono font-semibold text-slate-700 dark:text-slate-300"
                   >
-                    {col}
+                    {isRTL ? getUrduText(col) : col}
                   </span>
                 ))
               )}
             </div>
 
-            <div className="text-[11px] text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-950/40 p-2.5 rounded-xl border border-teal-200 dark:border-teal-800/50 text-left space-y-1">
+            <div className={`text-[11px] text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-950/40 p-2.5 rounded-xl border border-teal-200 dark:border-teal-800/50 space-y-1 ${isRTL ? 'text-right' : 'text-left'}`}>
               <div className="font-bold flex items-center gap-1">
-                <span>⚡</span> Intelligent Auto-Routing & Mixed Lists:
+                <span>⚡</span> {isRTL ? "اسمارٹ آٹو راؤٹنگ اور پروڈکٹ کلاسیفکیشن:" : "Intelligent Auto-Routing & Mixed Lists:"}
               </div>
-              <ul className="list-disc list-inside space-y-0.5 text-[10px] text-slate-600 dark:text-slate-300 pl-1">
-                <li>If you mistakenly upload a <strong>Tile file</strong> in the Other Products tab, it will automatically redirect to the <strong>Tile Products</strong> tab.</li>
-                <li>If a file contains <strong>both tiles and other products</strong> (e.g. 5 others & 5 tiles), it automatically places each in its respective tab!</li>
-                <li>2-Layer Duplicate Protection: Duplicate is triggered only if <strong>both Code AND Description match</strong>.</li>
+              <ul className={`list-disc list-inside space-y-0.5 text-[10px] text-slate-600 dark:text-slate-300 ${isRTL ? 'pr-1' : 'pl-1'}`}>
+                <li>{isRTL ? <>اگر آپ غلطی سے <strong>ٹائل فائل</strong> دوسرے ٹیب میں اپلوڈ کریں گے تو سسٹم خودکار طور پر درست ٹیب پر بھیج دے گا۔</> : <>If you mistakenly upload a <strong>Tile file</strong> in the Other Products tab, it will automatically redirect to the <strong>Tile Products</strong> tab.</>}</li>
+                <li>{isRTL ? <>اگر فائل میں <strong>ٹائلز اور دیگر پروڈکٹس دونوں</strong> ہوں تو دونوں خودکار طور پر الگ الگ ہو جائیں گی۔</> : <>If a file contains <strong>both tiles and other products</strong> (e.g. 5 others & 5 tiles), it automatically places each in its respective tab!</>}</li>
+                <li>{isRTL ? <>ڈپلیکیٹ پروٹیکشن: ڈپلیکیٹ تب متحرک ہوتا ہے جب <strong>کوڈ اور نام دونوں ایک جیسے ہوں</strong>۔</> : <>2-Layer Duplicate Protection: Duplicate is triggered only if <strong>both Code AND Description match</strong>.</>}</li>
               </ul>
             </div>
 
             <div className="pt-2 flex items-center justify-center gap-3">
               <label className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-md">
-                <MdCloudUpload className="text-base" /> Browse Excel File (.xlsx, .csv)
+                <MdCloudUpload className="text-base" /> {isRTL ? "ایکسل فائل منتخب کریں (.xlsx, .csv)" : "Browse Excel File (.xlsx, .csv)"}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1703,7 +1707,7 @@ const BulkProductUpload = () => {
                 onClick={activeTab === 'TILES' ? handleDownloadTileTemplate : handleDownloadOtherTemplate}
                 className="inline-flex items-center gap-1.5 px-4 py-3 bg-white dark:bg-boxdark hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-stroke dark:border-strokedark text-xs font-bold rounded-xl transition cursor-pointer shadow-2xs"
               >
-                <MdFileDownload className="text-base text-emerald-600" /> Download Template
+                <MdFileDownload className="text-base text-emerald-600" /> {isRTL ? "ٹیمپلیٹ ڈاؤنلوڈ کریں" : "Download Template"}
               </button>
             </div>
           </div>
