@@ -398,3 +398,40 @@ span.flatpickr-weekday,
   }
 }
 
+/* ============================================================
+   RTL & URDU LOCALIZATION SUPPORT
+   ============================================================ */
+html[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+html[dir="rtl"] body {
+  font-family: 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Segoe UI', Tahoma, system-ui, sans-serif;
+}
+
+/* Ensure code, account numbers, and phone numbers remain properly oriented LTR */
+html[dir="rtl"] .font-mono,
+html[dir="rtl"] input[type="tel"],
+html[dir="rtl"] input[type="number"],
+html[dir="rtl"] .font-code {
+  direction: ltr !important;
+  text-align: left;
+}
+
+/* Align inputs to start according to direction */
+html[dir="rtl"] input,
+html[dir="rtl"] select,
+html[dir="rtl"] textarea {
+  text-align: right;
+}
+
+html[dir="rtl"] input.text-center {
+  text-align: center;
+}
+
+/* RTL Scrollbars */
+html[dir="rtl"] .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+

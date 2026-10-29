@@ -1,6 +1,7 @@
 import { Toaster, useToasterStore } from 'react-hot-toast';
 import Navigation from './Navigation/Routing';
 import { ModalProvider } from './Context/Modal';
+import { LanguageProvider } from './Context/LanguageContext';
 import { useEffect, useRef } from 'react';
 import { initializeSocket } from './service/socket';
 import { AuthProvider, useAuth } from './Context/Auth';
@@ -45,22 +46,24 @@ function App() {
 
   return (
     <AuthProvider>
-      <ModalProvider>
-        <Navigation />
-        <Toaster
-          position="top-right"
-          reverseOrder={false}
-          containerClassName="overflow-auto"
-          toastOptions={{
-            style: {
-              background: '#333',
-              color: '#fff',
-            },
-          }}
-        />
-        <ToastSoundHandler />
-        <Alert />
-      </ModalProvider>
+      <LanguageProvider>
+        <ModalProvider>
+          <Navigation />
+          <Toaster
+            position="top-right"
+            reverseOrder={false}
+            containerClassName="overflow-auto"
+            toastOptions={{
+              style: {
+                background: '#333',
+                color: '#fff',
+              },
+            }}
+          />
+          <ToastSoundHandler />
+          <Alert />
+        </ModalProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 }

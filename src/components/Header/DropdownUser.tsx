@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ClickOutside from '../ClickOutside';
-import { LuLogOut, LuBuilding2, LuMail, LuSettings } from 'react-icons/lu';
+import { LuLogOut, LuBuilding2, LuMail, LuSettings, LuLanguages } from 'react-icons/lu';
 import { MdPerson } from 'react-icons/md';
 import { useAuth, detectPortalTenant } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 import { getBrandConfig } from '../../utils/brand';
 import { supabase } from '../../Context/supabaseClient';
 import {
@@ -15,6 +16,7 @@ import {
 
 const DropdownUser = () => {
   const { logout, businessName: authBusinessName, userEmail, role, currentUser } = useAuth();
+  const { language, isRTL, toggleLanguage, t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profile, setProfile] = useState<any>();
   const [imageError, setImageError] = useState(false);
@@ -145,8 +147,25 @@ const DropdownUser = () => {
             </div>
           </div>
 
-          {/* Action List: Settings & Log Out */}
+          {/* Action List: Settings, Language & Log Out */}
           <div className="p-2 space-y-1">
+            {/* Quick Language Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                toggleLanguage();
+              }}
+              className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-meta-4/40 transition duration-150 ease-in-out cursor-pointer group"
+            >
+              <div className="flex items-center gap-3">
+                <LuLanguages size={17} className="text-primary shrink-0" />
+                <span>{isRTL ? 'زبان تبدیل کریں' : 'Switch Language'}</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                {isRTL ? '🇬🇧 English' : '🇵🇰 اردو'}
+              </span>
+            </button>
+
             <Link
               to="/settings"
               onClick={() => setDropdownOpen(false)}

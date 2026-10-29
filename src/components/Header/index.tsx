@@ -25,6 +25,7 @@ import {
   LuSparkles,
 } from 'react-icons/lu';
 import { useAuth } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 import { getBrandConfig } from '../../utils/brand';
 import { supabase } from '../../Context/supabaseClient';
 import {
@@ -84,6 +85,7 @@ const Header = (props: {
 }) => {
   const navigate = useNavigate();
   const { userEmail, userLocationName } = useAuth();
+  const { language, isRTL, toggleLanguage, t } = useLanguage();
 
   // 1. Live Digital Clock State
   const [timeString, setTimeString] = useState<string>('');
@@ -490,6 +492,21 @@ const Header = (props: {
 
             {/* Dark Mode Switcher */}
             <DarkModeSwitcher />
+
+            {/* Language Switcher (Urdu / English) */}
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className={`px-2.5 py-1 sm:px-3 sm:py-1 rounded-full border text-xs font-bold transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 select-none ${
+                isRTL
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 hover:border-emerald-400'
+                  : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+              title={isRTL ? 'Switch to English layout (LTR)' : 'اردو لے آؤٹ میں تبدیل کریں (RTL)'}
+            >
+              <span className="text-sm leading-none">{isRTL ? '🇬🇧' : '🇵🇰'}</span>
+              <span className="tracking-wide font-medium">{isRTL ? 'English' : 'اردو'}</span>
+            </button>
 
             {/* Subtle Divider */}
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block shrink-0" />

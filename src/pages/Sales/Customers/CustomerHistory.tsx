@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner'; 
 import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
+import { useLanguage } from '../../../Context/LanguageContext';
 import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
 import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward, MdCloudUpload } from 'react-icons/md';
 import CustomerImportModal from './CustomerImportModal';
@@ -16,6 +17,7 @@ const getCustomerDisplayName = (c: any): string => {
 
 const CustomerHistory = () => { 
   const { tenantId } = useAuth();
+  const { t, isRTL } = useLanguage();
   const [customers, setCustomers] = useState<any[]>([]); 
   const [coaAccounts, setCoaAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true); 
@@ -385,8 +387,12 @@ const CustomerHistory = () => {
       {/* Dynamic Header Layout */}
       <div className="flex justify-between items-center mb-6"> 
         <div>
-          <h4 className="text-xl font-semibold text-black dark:text-white">Customer Database</h4> 
-          <p className="text-xs text-gray-500 mt-0.5">Manage customer directory and assign Chart of Account ledger codes</p>
+          <h4 className="text-xl font-semibold text-black dark:text-white">
+            {t('customer_database', 'Customer Database')}
+          </h4> 
+          <p className="text-xs text-gray-500 mt-0.5">
+            {t('manage_customers', 'Manage customer directory and assign Chart of Account ledger codes')}
+          </p>
         </div>
         <div className="flex items-center gap-2.5">
           <button 
@@ -395,13 +401,13 @@ const CustomerHistory = () => {
             className="border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 px-3.5 rounded-xl text-sm font-semibold transition cursor-pointer shadow-xs flex items-center gap-1.5" 
           > 
             <MdCloudUpload size={18} className="text-primary" />
-            <span>Upload Excel</span>
+            <span>{t('upload_excel', 'Upload Excel')}</span>
           </button>
           <button 
             onClick={() => navigate('/Sales/Customers/Add')} 
             className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-xl text-sm font-semibold transition cursor-pointer shadow-sm flex items-center gap-1.5" 
           > 
-            + Add New Customer
+            {t('add_new_customer', '+ Add New Customer')}
           </button> 
         </div> 
       </div> 
@@ -409,7 +415,7 @@ const CustomerHistory = () => {
       {/* Datatable Filter Control Header Line */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <span>Show</span>
+          <span>{isRTL ? 'دکھائیں' : 'Show'}</span>
           <select
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
@@ -419,16 +425,16 @@ const CustomerHistory = () => {
               <option key={size} value={size} className="dark:bg-boxdark">{size}</option>
             ))}
           </select>
-          <span>entries</span>
+          <span>{isRTL ? 'ریکارڈز' : 'entries'}</span>
         </div>
 
         <div className="flex items-center gap-2 text-sm w-full sm:w-auto text-gray-500 dark:text-gray-400">
-          <span>Search:</span>
+          <span>{isRTL ? 'تلاش:' : 'Search:'}</span>
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search name, phone, city, area, account, page #..."
+            placeholder={t('search_customers_placeholder', 'Search name, phone, city, area, account, page #...')}
             className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none focus:border-primary text-sm text-black dark:text-white"
           />
         </div>
@@ -438,26 +444,26 @@ const CustomerHistory = () => {
       <div className="max-w-full overflow-x-auto"> 
         <table className="w-full table-auto border-collapse"> 
           <thead> 
-            <tr className="bg-gray-2 text-left dark:bg-meta-4"> 
+            <tr className={`bg-gray-2 dark:bg-meta-4 ${isRTL ? 'text-right' : 'text-left'}`}> 
               <th 
                 onClick={() => setPageSortOrder(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
                 className="min-w-[95px] py-4 px-4 font-medium text-black dark:text-white text-sm cursor-pointer select-none hover:text-primary transition"
                 title="Click to toggle Page # sorting"
               >
                 <div className="flex items-center gap-1">
-                  <span>Page #</span>
+                  <span>{t('page_hash', 'Page #')}</span>
                   {pageSortOrder === 'asc' && <MdArrowUpward size={14} className="text-primary font-bold" />}
                   {pageSortOrder === 'desc' && <MdArrowDownward size={14} className="text-primary font-bold" />}
                   {!pageSortOrder && <span className="text-[10px] text-gray-400 font-normal">⇅</span>}
                 </div>
               </th>
-              <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">Code</th> 
-              <th className="min-w-[170px] py-4 px-4 font-medium text-black dark:text-white text-sm">Name</th> 
-              <th className="min-w-[110px] py-4 px-4 font-medium text-black dark:text-white text-sm">Phone</th> 
-              <th className="min-w-[130px] py-4 px-4 font-medium text-black dark:text-white text-sm">City / Area</th> 
-              <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">Address</th> 
-              <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white text-sm">Accounts</th> 
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">Actions</th> 
+              <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('code', 'Code')}</th> 
+              <th className="min-w-[170px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('name', 'Name')}</th> 
+              <th className="min-w-[110px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('phone', 'Phone')}</th> 
+              <th className="min-w-[130px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('city_area', 'City / Area')}</th> 
+              <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('address', 'Address')}</th> 
+              <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('accounts', 'Accounts')}</th> 
+              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">{t('actions', 'Actions')}</th> 
             </tr> 
           </thead> 
           <tbody> 

@@ -6,6 +6,7 @@ import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LuLogOut, LuSlidersHorizontal } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 import {
   PRESET_THEME_COLORS,
   applySidebarColor,
@@ -18,6 +19,43 @@ import { getBrandConfig } from '../../utils/brand';
 import IconDark from '../../images/logo/icon-dark.png';
 import IconLight from '../../images/logo/icon-light.png';
 
+const SIDEBAR_URDU_MAP: Record<string, string> = {
+  'Dashboard': 'ڈیش بورڈ',
+  'Administration': 'انتظامیہ',
+  'Registration': 'رجسٹریشن',
+  'Sales': 'سیلز',
+  'Purchase': 'خریداری',
+  'Human Resource': 'ہیومن ریسورس (HR)',
+  'Reports': 'رپورٹس',
+  'Quotations': 'کوٹیشنز',
+  'Invoice': 'انوائس',
+  'Invoice Receipt': 'انوائس وصولی رسید',
+  'Sales Return': 'سیلز واپسی',
+  'Sales Return Receipt': 'سیلز واپسی رسید',
+  'Customers': 'کسٹمرز',
+  'Salesman': 'سیلزمین',
+  'Purchases': 'پرچیز آرڈرز',
+  'Purchase Receipt': 'پرچیز رسید',
+  'Purchase Return': 'پرچیز واپسی',
+  'Vendor': 'وینڈرز',
+  'Products': 'پروڈکٹس',
+  'Bulk Products Upload': 'بلک پروڈکٹ اپلوڈ',
+  'Categories': 'کیٹیگریز',
+  'Brands': 'برانڈز',
+  'Vouchers': 'واؤچرز',
+  'Accounts': 'کھاتہ جات',
+  'Chart of Accounts': 'چارٹ آف اکاؤنٹس',
+  'Settings': 'سیٹنگز',
+  'Log Out': 'لاگ آؤٹ',
+};
+
+const getSidebarLabel = (label: string, isRTL: boolean) => {
+  if (isRTL && SIDEBAR_URDU_MAP[label]) {
+    return SIDEBAR_URDU_MAP[label];
+  }
+  return label;
+};
+
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean | ((prev: boolean) => boolean)) => void;
@@ -25,6 +63,7 @@ interface SidebarProps {
 
 // Collapsed hover nested flyout component
 const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebarColor }: any) => {
+  const { isRTL } = useLanguage();
   const [showSubFlyout, setShowSubFlyout] = useState(false);
   const destination = (item.path && getTenantPath ? getTenantPath(item.path) : item.path) || '#';
   const isActive = item.path && (pathname === destination || pathname === item.path);
@@ -40,7 +79,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
           className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-800/80 dark:hover:bg-slate-100 cursor-pointer"
           style={{ color: sidebarColor }}
         >
-          <span>{item.label}</span>
+          <span>{getSidebarLabel(item.label, isRTL)}</span>
           <AiOutlineRight size={10} style={{ color: sidebarColor, opacity: 0.7 }} />
         </div>
 
@@ -81,7 +120,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
           backgroundColor: isActive ? `${sidebarColor}20` : undefined,
         }}
       >
-        <span>{item.label}</span>
+        <span>{getSidebarLabel(item.label, isRTL)}</span>
       </NavLink>
     </li>
   );
@@ -103,6 +142,7 @@ const SidebarItem = ({
   sidebarColor,
   layoutMode,
 }: any) => {
+  const { isRTL } = useLanguage();
   const itemRef = useRef<HTMLDivElement>(null);
   const menuUniqueKey = `${parentKey}-${item.label}`;
   const [open, setOpen] = useState(false);
@@ -215,7 +255,7 @@ const SidebarItem = ({
                       className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis flex flex-col gap-1 tracking-wide"
                       style={{ color: sidebarColor }}
                     >
-                      {item.label}
+                      {getSidebarLabel(item.label, isRTL)}
                     </span>
                     <span
                       className="ml-auto transition-transform duration-200"
@@ -287,7 +327,7 @@ const SidebarItem = ({
               className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-b border-slate-800 dark:border-slate-200/60 mb-1"
               style={{ color: sidebarColor, opacity: 0.7 }}
             >
-              {item.label}
+              {getSidebarLabel(item.label, isRTL)}
             </div>
             <ul className="flex flex-col gap-1">
               {item.children.filter((child: any) => child && !child.hideFromSidebar).map((child: any, idx: number) => (
@@ -326,7 +366,7 @@ const SidebarItem = ({
       ref={itemRef}
       onClick={handleLinkClick}
       className="w-full relative"
-      title={!shouldShowLabels ? item.label : undefined}
+      title={!shouldShowLabels ? getSidebarLabel(item.label, isRTL) : undefined}
       onMouseEnter={handleSingleMouseEnter}
       onMouseLeave={() => !sidebarOpen && !isMobile && setShowFlyout(false)}
     >
@@ -352,7 +392,7 @@ const SidebarItem = ({
             className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide"
             style={{ color: sidebarColor }}
           >
-            {item.label}
+            {getSidebarLabel(item.label, isRTL)}
           </span>
         )}
       </NavLink>
@@ -367,7 +407,7 @@ const SidebarItem = ({
             animation: 'sidebarFlyoutFadeIn 0.18s ease-out forwards',
           }}
         >
-          {item.label}
+          {getSidebarLabel(item.label, isRTL)}
         </div>
       )}
     </li>
@@ -376,6 +416,7 @@ const SidebarItem = ({
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const { getRoleBasedRoutes, logout, tenantId } = useAuth();
+  const { isRTL } = useLanguage();
   const roleRoutes = getRoleBasedRoutes();
   const location = useLocation();
   const { hideModal } = useModal();
@@ -502,17 +543,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         )}
       </div>
 
-      {/* Floating Border Edge Toggle Tab (Half-circle protruding on right border center) */}
+      {/* Floating Border Edge Toggle Tab (Half-circle protruding on border center) */}
       <button
         type="button"
         onClick={() => setSidebarOpen((prev) => !prev)}
-        className="absolute top-1/2 -translate-y-1/2 -right-3.5 z-40 flex items-center justify-center w-5 h-10 rounded-r-full bg-[#0B0F17] dark:bg-white text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black border-y border-r border-slate-700/80 dark:border-slate-300 shadow-md cursor-pointer transition-all duration-200 hover:w-6 hover:text-primary dark:hover:text-primary group"
-        title={sidebarOpen ? "Collapse Sidebar (<)" : "Expand Sidebar (>)"}
+        className={`absolute top-1/2 -translate-y-1/2 z-40 flex items-center justify-center w-5 h-10 bg-[#0B0F17] dark:bg-white text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black shadow-md cursor-pointer transition-all duration-200 hover:w-6 hover:text-primary dark:hover:text-primary group ${
+          isRTL
+            ? '-left-3.5 rounded-l-full border-y border-l border-slate-700/80 dark:border-slate-300'
+            : '-right-3.5 rounded-r-full border-y border-r border-slate-700/80 dark:border-slate-300'
+        }`}
+        title={sidebarOpen ? (isRTL ? 'سائیڈبار بند کریں' : 'Collapse Sidebar (<)') : (isRTL ? 'سائیڈبار کھولیں' : 'Expand Sidebar (>)')}
       >
         {sidebarOpen ? (
-          <FiChevronLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
+          isRTL ? (
+            <FiChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+          ) : (
+            <FiChevronLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
+          )
         ) : (
-          <FiChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+          isRTL ? (
+            <FiChevronLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
+          ) : (
+            <FiChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+          )
         )}
       </button>
 
@@ -547,12 +600,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 color: currentSidebarColor,
                 backgroundColor: pathname === getTenantPath('/settings') || pathname === '/settings' ? `${currentSidebarColor}20` : undefined,
               }}
-              title={!sidebarOpen ? 'Settings' : undefined}
+              title={!sidebarOpen ? (isRTL ? 'سیٹنگز' : 'Settings') : undefined}
             >
               <LuSlidersHorizontal className="text-lg shrink-0 transition-colors" />
               {sidebarOpen && (
                 <span className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide">
-                  Settings
+                  {isRTL ? 'سیٹنگز' : 'Settings'}
                 </span>
               )}
             </NavLink>
@@ -565,12 +618,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             }`}
             style={{ color: currentSidebarColor }}
             onClick={() => logout()}
-            title={!sidebarOpen ? 'LogOut' : undefined}
+            title={!sidebarOpen ? (isRTL ? 'لاگ آؤٹ' : 'Log Out') : undefined}
           >
             <LuLogOut className="text-lg shrink-0 transition-colors" />
             {sidebarOpen && (
               <span className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis tracking-wide">
-                Log Out
+                {isRTL ? 'لاگ آؤٹ' : 'Log Out'}
               </span>
             )}
           </li>
