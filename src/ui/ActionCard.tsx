@@ -1,6 +1,7 @@
 import React from 'react';
 import { IconType } from 'react-icons';
 import { LuArrowUpRight } from 'react-icons/lu';
+import { useLanguage, getUrduText } from '../Context/LanguageContext';
 
 interface ActionCardProps {
   title: string;
@@ -100,12 +101,16 @@ const CARD_THEMES: Record<string, CardTheme> = {
 };
 
 const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, Icon, onClick }) => {
+  const { isRTL } = useLanguage();
   const key = title.toLowerCase().trim();
   const theme = CARD_THEMES[key] || {
     accentHex: '#059669',
     indicatorBg: 'bg-emerald-500',
     iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
   };
+
+  const displayTitle = isRTL ? getUrduText(title) : title;
+  const displaySubtitle = isRTL && subtitle.startsWith('Rs.') ? subtitle : (isRTL ? getUrduText(subtitle) : subtitle);
 
   return (
     <div
@@ -114,14 +119,16 @@ const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, Icon, onClick 
     >
       {/* Concept 2: Linear Accent Indicator Notch */}
       <span
-        className={`absolute left-0 top-3 bottom-3 w-1.25 rounded-r-full ${theme.indicatorBg} shadow-xs transition-all duration-200 group-hover:w-2`}
+        className={`absolute top-3 bottom-3 w-1.25 ${theme.indicatorBg} shadow-xs transition-all duration-200 group-hover:w-2 ${
+          isRTL ? 'right-0 rounded-l-full' : 'left-0 rounded-r-full'
+        }`}
       />
 
       {/* Content */}
-      <div className="flex flex-col min-w-0 pl-2.5">
+      <div className={`flex flex-col min-w-0 ${isRTL ? 'pr-2.5' : 'pl-2.5'}`}>
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 group-hover:text-primary transition-colors">
-            {title}
+            {displayTitle}
           </span>
           <LuArrowUpRight
             size={13}
@@ -130,9 +137,9 @@ const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, Icon, onClick 
         </div>
         <span 
           className="text-[11.5px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-full"
-          title={subtitle}
+          title={displaySubtitle}
         >
-          {subtitle}
+          {displaySubtitle}
         </span>
       </div>
 

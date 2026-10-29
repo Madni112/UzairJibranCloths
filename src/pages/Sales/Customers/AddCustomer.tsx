@@ -6,6 +6,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { useLanguage, getUrduText } from '../../../Context/LanguageContext';
 import Breadcrumb from '../../../components/Breadcrumbs/Breadcrumb';
 import {
   MdArrowBack,
@@ -228,6 +229,7 @@ const AddCustomer: React.FC = () => {
     toast.success(`Saved Area "${cleanArea}" under "${cleanSub}"`);
   };
   const { tenantId } = useAuth();
+  const { isRTL, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -825,7 +827,7 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 1 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>1</span>
-                <span className="truncate">Identity</span>
+                <span className="truncate">{isRTL ? 'شناخت اور درجہ' : 'Identity'}</span>
               </button>
 
               <button
@@ -840,7 +842,7 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 2 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>2</span>
-                <span className="truncate">Contact & Address</span>
+                <span className="truncate">{isRTL ? 'پتہ اور رابطہ' : 'Contact & Address'}</span>
               </button>
 
               <button
@@ -855,7 +857,7 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 3 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>3</span>
-                <span className="truncate">Tax & Ledger</span>
+                <span className="truncate">{isRTL ? 'کھاتہ اور لیجر' : 'Tax & Ledger'}</span>
               </button>
 
               <button
@@ -870,7 +872,7 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 4 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>4</span>
-                <span className="truncate">Follow-up Notes</span>
+                <span className="truncate">{isRTL ? 'فالو اپ نوٹس' : 'Follow-up Notes'}</span>
               </button>
             </div>
             
@@ -1346,7 +1348,7 @@ const AddCustomer: React.FC = () => {
                     onClick={handleNavigateToList}
                     className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition shadow-xs cursor-pointer"
                   >
-                    Cancel
+                    {isRTL ? 'منسوخ' : 'Cancel'}
                   </button>
                 )}
               </div>
@@ -1357,19 +1359,19 @@ const AddCustomer: React.FC = () => {
                     type="button"
                     onClick={() => {
                       if (activeTab === 1 && !values.customerName?.trim()) {
-                        toast.error('Customer / Business Name is required (Step 1)');
+                        toast.error(isRTL ? 'کسٹمر کا نام درج کرنا ضروری ہے (مرحلہ 1)' : 'Customer / Business Name is required (Step 1)');
                         return;
                       }
                       if (activeTab === 2 && !values.primaryPhone?.trim()) {
-                        toast.error('Primary Contact Phone is required (Step 2)');
+                        toast.error(isRTL ? 'فون نمبر درج کرنا ضروری ہے (مرحلہ 2)' : 'Primary Contact Phone is required (Step 2)');
                         return;
                       }
                       setActiveTab(prev => Math.min(4, prev + 1));
                     }}
                     className="px-6 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white font-bold text-xs transition shadow-md cursor-pointer flex items-center gap-1.5"
                   >
-                    <span>Next Step</span>
-                    <MdArrowForward size={16} />
+                    <span>{isRTL ? 'اگلا مرحلہ' : 'Next Step'}</span>
+                    <MdArrowForward size={16} className={isRTL ? 'rotate-180' : ''} />
                   </button>
                 ) : (
                   <button
@@ -1385,12 +1387,12 @@ const AddCustomer: React.FC = () => {
                     {loading ? (
                       <>
                         <Spinner color="border-white" size="w-4 h-4" />
-                        <span>Saving Profile...</span>
+                        <span>{isRTL ? 'محفوظ ہو رہا ہے...' : 'Saving Profile...'}</span>
                       </>
                     ) : (
                       <>
                         <MdSave size={16} />
-                        <span>{isEditMode ? 'Update Customer Profile' : 'Save Customer Profile'}</span>
+                        <span>{isRTL ? (isEditMode ? 'کسٹمر میں ترمیم محفوظ کریں' : 'کسٹمر محفوظ کریں') : (isEditMode ? 'Update Customer Profile' : 'Save Customer Profile')}</span>
                       </>
                     )}
                   </button>

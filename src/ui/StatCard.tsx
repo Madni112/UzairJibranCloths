@@ -1,6 +1,7 @@
 import React from 'react';
 import { IconType } from 'react-icons';
 import { LuArrowUpRight } from 'react-icons/lu';
+import { useLanguage, getUrduText } from '../Context/LanguageContext';
 
 interface StatCardProps {
   title: string;
@@ -117,6 +118,9 @@ const StatCard: React.FC<StatCardProps> = ({
   thisMonthLabel = 'This Month',
   onClick,
 }) => {
+  const { isRTL } = useLanguage();
+  const displayTitle = isRTL ? getUrduText(title) : title;
+  const displayMonthLabel = isRTL ? getUrduText(thisMonthLabel) : thisMonthLabel;
   const formattedValue =
     typeof value === 'number'
       ? value.toLocaleString(undefined, {
@@ -166,14 +170,16 @@ const StatCard: React.FC<StatCardProps> = ({
     >
       {/* Concept 2: Linear Accent Indicator Notch */}
       <span
-        className={`absolute left-0 top-3.5 bottom-3.5 w-1.25 rounded-r-full ${theme.indicatorBg} shadow-xs transition-all duration-200 group-hover:w-2`}
+        className={`absolute top-3.5 bottom-3.5 w-1.25 ${theme.indicatorBg} shadow-xs transition-all duration-200 group-hover:w-2 ${
+          isRTL ? 'right-0 rounded-l-full' : 'left-0 rounded-r-full'
+        }`}
       />
 
-      <div className="flex items-start justify-between gap-2.5 pl-2.5">
+      <div className={`flex items-start justify-between gap-2.5 ${isRTL ? 'pr-2.5' : 'pl-2.5'}`}>
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide uppercase truncate">
-              {title}
+              {displayTitle}
             </span>
             {onClick && (
               <LuArrowUpRight
@@ -187,7 +193,7 @@ const StatCard: React.FC<StatCardProps> = ({
             title={String(formattedValue)}
           >
             {currencyPrefix && (
-              <span className="text-xs sm:text-sm font-bold text-slate-400 dark:text-slate-500 mr-1 shrink-0 select-none">
+              <span className={`text-xs sm:text-sm font-bold text-slate-400 dark:text-slate-500 shrink-0 select-none ${isRTL ? 'ml-1' : 'mr-1'}`}>
                 {currencyPrefix}
               </span>
             )}
@@ -207,8 +213,8 @@ const StatCard: React.FC<StatCardProps> = ({
       </div>
 
       {thisMonthValue !== undefined && (
-        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11.5px] pl-2.5">
-          <span className="text-slate-400 dark:text-slate-500 font-medium">{thisMonthLabel}:</span>
+        <div className={`mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11.5px] ${isRTL ? 'pr-2.5' : 'pl-2.5'}`}>
+          <span className="text-slate-400 dark:text-slate-500 font-medium">{displayMonthLabel}:</span>
           <span
             className={`font-bold font-mono px-2 py-0.5 rounded-md ${
               isNegative

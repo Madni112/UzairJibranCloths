@@ -412,7 +412,7 @@ const Header = (props: {
               </span>
               <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
               <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 truncate max-w-[90px] xl:max-w-[130px]">
-                {branchLabel}
+                {branchLabel === 'Portal Active' && isRTL ? 'پورٹل فعال' : branchLabel}
               </span>
             </div>
 
@@ -424,10 +424,10 @@ const Header = (props: {
                 backgroundColor: sidebarColor,
                 color: getContrastTextColor(sidebarColor),
               }}
-              title="Create a New Sales Invoice"
+              title={isRTL ? 'نئی سیل انوائس بنائیں' : 'Create a New Sales Invoice'}
             >
               <LuPlus className="text-sm stroke-[3]" />
-              <span className="hidden md:inline">New Sale</span>
+              <span className="hidden md:inline">{isRTL ? 'نئی سیل' : 'New Sale'}</span>
             </Link>
           </div>
 
@@ -440,7 +440,7 @@ const Header = (props: {
             >
               <div className="flex items-center gap-2 min-w-0">
                 <LuSearch className="text-sm text-slate-400 shrink-0" />
-                <span className="truncate">Search invoices, customers, products...</span>
+                <span className="truncate">{t('search_placeholder', 'Search invoices, customers, products...')}</span>
               </div>
               <kbd className="hidden 2xl:inline-flex items-center gap-0.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 shadow-2xs shrink-0">
                 <span>Ctrl</span>

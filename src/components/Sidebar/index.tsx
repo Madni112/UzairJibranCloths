@@ -6,7 +6,7 @@ import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LuLogOut, LuSlidersHorizontal } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
-import { useLanguage } from '../../Context/LanguageContext';
+import { useLanguage, getUrduText } from '../../Context/LanguageContext';
 import {
   PRESET_THEME_COLORS,
   applySidebarColor,
@@ -19,39 +19,9 @@ import { getBrandConfig } from '../../utils/brand';
 import IconDark from '../../images/logo/icon-dark.png';
 import IconLight from '../../images/logo/icon-light.png';
 
-const SIDEBAR_URDU_MAP: Record<string, string> = {
-  'Dashboard': 'ڈیش بورڈ',
-  'Administration': 'انتظامیہ',
-  'Registration': 'رجسٹریشن',
-  'Sales': 'سیلز',
-  'Purchase': 'خریداری',
-  'Human Resource': 'ہیومن ریسورس (HR)',
-  'Reports': 'رپورٹس',
-  'Quotations': 'کوٹیشنز',
-  'Invoice': 'انوائس',
-  'Invoice Receipt': 'انوائس وصولی رسید',
-  'Sales Return': 'سیلز واپسی',
-  'Sales Return Receipt': 'سیلز واپسی رسید',
-  'Customers': 'کسٹمرز',
-  'Salesman': 'سیلزمین',
-  'Purchases': 'پرچیز آرڈرز',
-  'Purchase Receipt': 'پرچیز رسید',
-  'Purchase Return': 'پرچیز واپسی',
-  'Vendor': 'وینڈرز',
-  'Products': 'پروڈکٹس',
-  'Bulk Products Upload': 'بلک پروڈکٹ اپلوڈ',
-  'Categories': 'کیٹیگریز',
-  'Brands': 'برانڈز',
-  'Vouchers': 'واؤچرز',
-  'Accounts': 'کھاتہ جات',
-  'Chart of Accounts': 'چارٹ آف اکاؤنٹس',
-  'Settings': 'سیٹنگز',
-  'Log Out': 'لاگ آؤٹ',
-};
-
 const getSidebarLabel = (label: string, isRTL: boolean) => {
-  if (isRTL && SIDEBAR_URDU_MAP[label]) {
-    return SIDEBAR_URDU_MAP[label];
+  if (isRTL) {
+    return getUrduText(label);
   }
   return label;
 };

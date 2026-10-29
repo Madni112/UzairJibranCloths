@@ -39,6 +39,7 @@ import StatCard from '../../ui/StatCard';
 import ActionCard from '../../ui/ActionCard';
 import { QtyBadge } from '../../utils/QtyBadge';
 import { useAuth } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 import SalesmanDashboard from './SalesmanDashboard';
 import WarehouseDashboard from './WarehouseDashboard';
 
@@ -46,11 +47,12 @@ const AdminRoleSwitcher: React.FC<{
   activeView: 'executive' | 'salesman' | 'warehouse';
   onChangeView: (v: 'executive' | 'salesman' | 'warehouse') => void;
 }> = ({ activeView, onChangeView }) => {
+  const { isRTL, t } = useLanguage();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
       <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 px-2">
         <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-        Role Dashboard Preview:
+        {t('role_dashboard_preview', 'Role Dashboard Preview:')}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <button
@@ -60,7 +62,7 @@ const AdminRoleSwitcher: React.FC<{
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60'
             }`}
         >
-          👑 Executive Overview
+          👑 {isRTL ? 'مرکزی جائزہ' : 'Executive Overview'}
         </button>
         <button
           onClick={() => onChangeView('salesman')}
@@ -69,7 +71,7 @@ const AdminRoleSwitcher: React.FC<{
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60'
             }`}
         >
-          🛒 Salesman View
+          🛒 {isRTL ? 'سیلزمین ویو' : 'Salesman View'}
         </button>
         <button
           onClick={() => onChangeView('warehouse')}
@@ -78,7 +80,7 @@ const AdminRoleSwitcher: React.FC<{
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60'
             }`}
         >
-          📦 Warehouse
+          📦 {isRTL ? 'گودام' : 'Warehouse'}
         </button>
       </div>
     </div>
@@ -154,6 +156,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
   const navigate = useNavigate();
   const { role, tenantId } = useAuth();
+  const { isRTL, t } = useLanguage();
   const [adminView, setAdminView] = useState<'executive' | 'salesman' | 'warehouse'>(initialView);
 
   const userRoleLower = (role || '').toLowerCase();
@@ -750,8 +753,12 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Executive Management Dashboard</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Real-time fiscal monitoring, procurement velocity & operational intelligence</p>
+          <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            {t('executive_dashboard_title', 'Executive Management Dashboard')}
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {t('executive_dashboard_subtitle', 'Real-time fiscal monitoring, procurement velocity & operational intelligence')}
+          </p>
         </div>
         <div className="flex items-center gap-3 font-mono text-xs">
           <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 px-3.5 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-300 shadow-sm flex items-center gap-1.5">
@@ -831,10 +838,12 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-              {showOperationalDetails ? 'Hide Operational Ledgers & Analytics' : 'Show Operational Ledgers & Analytics'}
+              {showOperationalDetails
+                ? (isRTL ? 'آپریشنل لیجرز اور تجزیات چھپائیں' : 'Hide Operational Ledgers & Analytics')
+                : (isRTL ? 'آپریشنل لیجرز اور تجزیات دکھائیں' : 'Show Operational Ledgers & Analytics')}
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-bold border border-slate-200/70 dark:border-slate-700/60">
-              8 Live Modules
+              {isRTL ? '8 فعال ماڈیولز' : '8 Live Modules'}
             </span>
           </div>
           <div className="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-transform duration-200 group-hover:bg-slate-200/70 dark:group-hover:bg-slate-700">
