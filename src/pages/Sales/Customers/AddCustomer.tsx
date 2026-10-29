@@ -468,95 +468,114 @@ const AddCustomer: React.FC = () => {
       const regTypeVal = values.registrationType || 'Retail / General';
       const secPhoneVal = values.secondaryPhone ? values.secondaryPhone.trim() : '';
 
-      const payload: any = {
-        customerName: trimmedName,
-        sub_area: values.subArea ? values.subArea.trim() : '',
-        subArea: values.subArea ? values.subArea.trim() : '',
-        area: values.area ? values.area.trim() : '',
-        city: (() => {
-          const s = (values.subArea || '').trim();
-          const a = (values.area || '').trim();
-          const PAK_CITIES = ['hyderabad', 'karachi', 'sukkur', 'lahore', 'faisalabad', 'rawalpindi', 'multan', 'peshawar', 'quetta', 'nawabshah', 'mirpurkhas', 'larkana', 'islamabad'];
-          if (PAK_CITIES.includes(s.toLowerCase())) return s;
-          if (PAK_CITIES.includes(a.toLowerCase())) return a;
-          return s || a || values.city || 'Hyderabad';
-        })(),
-        customer_code: cleanCode,
-        customerCode: cleanCode,
-        coa_code: cleanCode,
-        page_no: values.page_no ? String(values.page_no).trim() : '',
-        pageNo: values.page_no ? String(values.page_no).trim() : '',
-        registrationType: regTypeVal,
-        primaryPhone: values.primaryPhone ? values.primaryPhone.trim() : '',
-        phone: values.primaryPhone ? values.primaryPhone.trim() : '',
-        secondaryPhone: secPhoneVal,
-        email: values.email ? values.email.trim() : '',
-        website: values.website ? values.website.trim() : '',
-        province: values.province || 'Sindh',
-        company: companyVal,
-        address: values.address ? values.address.trim() : '',
-        ntnNo: values.ntnNo ? values.ntnNo.trim() : '',
-        cnicNo: values.cnicNo ? values.cnicNo.trim() : '',
-        stRegNo: values.stRegNo ? values.stRegNo.trim() : '',
-        notes: values.notes ? values.notes.trim() : '',
-        followUpDate: values.followUpDate || null,
-      };
-
-      if (!isEditMode && parsedOpeningBal !== 0) {
-        payload.balance = computedBalance;
-      }
-
-      let customerRecordId = editData?.id;
+      const cityVal = (() => {
+        const s = (values.subArea || '').trim();
+        const a = (values.area || '').trim();
+        const PAK_CITIES = ['hyderabad', 'karachi', 'sukkur', 'lahore', 'faisalabad', 'rawalpindi', 'multan', 'peshawar', 'quetta', 'nawabshah', 'mirpurkhas', 'larkana', 'islamabad'];
+        if (PAK_CITIES.includes(s.toLowerCase())) return s;
+        if (PAK_CITIES.includes(a.toLowerCase())) return a;
+        return s || a || values.city || 'Hyderabad';
+      })();
 
       // --- SMART SCHEMA-ADAPTIVE COLUMN MAPPER ---
-      // Dynamically probe existing database columns to prevent 'column not found in schema cache' (e.g. registrationType vs registrationtype)
-      const colMap = new Map<string, string>();
+      // Dynamically probe existing database columns to populate all matching column variants
+      const dbColumns: string[] = [];
       try {
         const { data: probeData } = await supabase.from('customers').select('*').limit(1);
         if (probeData && probeData.length > 0) {
-          Object.keys(probeData[0]).forEach((c) => colMap.set(c.toLowerCase(), c));
+          dbColumns.push(...Object.keys(probeData[0]));
         }
       } catch (probeErr) {
         console.warn('Schema probe notice:', probeErr);
       }
 
-      // Build sanitized payload using exact database column names
+      const hasCol = (colName: string) => dbColumns.some(c => c.toLowerCase() === colName.toLowerCase());
+      const getExactCols = (colName: string) => dbColumns.filter(c => c.toLowerCase() === colName.toLowerCase());
+
       const sanitizedPayload: any = {};
-      for (const [key, val] of Object.entries(payload)) {
-        if (colMap.size > 0) {
-          const exactCol = colMap.get(key.toLowerCase());
-          if (exactCol) {
-            sanitizedPayload[exactCol] = val;
-          }
-        } else {
-          sanitizedPayload[key] = val;
+      const setCol = (fieldKey: string, val: any) => {
+        const matchingCols = getExactCols(fieldKey);
+        if (matchingCols.length > 0) {
+          matchingCols.forEach(col => { sanitizedPayload[col] = val; });
+        } else if (dbColumns.length === 0) {
+          sanitizedPayload[fieldKey] = val;
         }
+      };
+
+      // Set customer name across all existing database name columns (customerName, customername, customer_name, name)
+      setCol('customerName', trimmedName);
+      setCol('customername', trimmedName);
+      setCol('customer_name', trimmedName);
+      setCol('name', trimmedName);
+
+      // Customer Code / Ledger Code
+      setCol('customer_code', cleanCode);
+      setCol('customerCode', cleanCode);
+      setCol('coa_code', cleanCode);
+
+      // Page Number
+      setCol('page_no', values.page_no ? String(values.page_no).trim() : '');
+      setCol('pageNo', values.page_no ? String(values.page_no).trim() : '');
+
+      // Registration Type / Customer Tier
+      setCol('registrationType', regTypeVal);
+      setCol('registrationtype', regTypeVal);
+
+      // Phone
+      setCol('primaryPhone', values.primaryPhone ? values.primaryPhone.trim() : '');
+      setCol('primaryphone', values.primaryPhone ? values.primaryPhone.trim() : '');
+      setCol('phone', values.primaryPhone ? values.primaryPhone.trim() : '');
+
+      // Secondary Phone
+      setCol('secondaryPhone', secPhoneVal);
+      setCol('secondaryphone', secPhoneVal);
+
+      // Location / City / Area / Address / Province / Business info
+      setCol('sub_area', values.subArea ? values.subArea.trim() : '');
+      setCol('subArea', values.subArea ? values.subArea.trim() : '');
+      setCol('area', values.area ? values.area.trim() : '');
+      setCol('city', cityVal);
+      setCol('address', values.address ? values.address.trim() : '');
+      setCol('province', values.province || 'Sindh');
+      setCol('company', companyVal);
+      setCol('email', values.email ? values.email.trim() : '');
+      setCol('website', values.website ? values.website.trim() : '');
+      setCol('ntnNo', values.ntnNo ? values.ntnNo.trim() : '');
+      setCol('ntn_strn', values.ntnNo ? values.ntnNo.trim() : '');
+      setCol('cnicNo', values.cnicNo ? values.cnicNo.trim() : '');
+      setCol('stRegNo', values.stRegNo ? values.stRegNo.trim() : '');
+      setCol('notes', values.notes ? values.notes.trim() : '');
+      setCol('followUpDate', values.followUpDate || null);
+
+      if (!isEditMode && parsedOpeningBal !== 0) {
+        setCol('balance', computedBalance);
+        setCol('currentBalance', computedBalance);
       }
 
       // If Sub Area or Area was entered but DB has no dedicated columns, preserve in notes
       const sVal = values.subArea ? values.subArea.trim() : '';
       const aVal = values.area ? values.area.trim() : '';
-      if ((sVal || aVal) && !colMap.has('sub_area') && !colMap.has('subarea')) {
-        const notesKey = colMap.get('notes') || 'notes';
+      if ((sVal || aVal) && !hasCol('sub_area') && !hasCol('subarea')) {
+        const exactNotes = getExactCols('notes')[0] || 'notes';
         const areaNote = `Location: ${[sVal, aVal].filter(Boolean).join(' | ')}`;
-        if (sanitizedPayload[notesKey]) {
-          if (!sanitizedPayload[notesKey].includes(areaNote)) {
-            sanitizedPayload[notesKey] += ` | ${areaNote}`;
+        if (sanitizedPayload[exactNotes]) {
+          if (!sanitizedPayload[exactNotes].includes(areaNote)) {
+            sanitizedPayload[exactNotes] += ` | ${areaNote}`;
           }
-        } else if (colMap.has('notes')) {
-          sanitizedPayload[notesKey] = areaNote;
+        } else {
+          sanitizedPayload[exactNotes] = areaNote;
         }
       }
 
       // If secondary phone was entered but DB has no secondary phone column, preserve in notes
-      if (secPhoneVal && !colMap.has('secondaryphone')) {
-        const notesKey = colMap.get('notes') || 'notes';
-        if (sanitizedPayload[notesKey]) {
-          if (!sanitizedPayload[notesKey].includes(secPhoneVal)) {
-            sanitizedPayload[notesKey] += ` | Alt Phone: ${secPhoneVal}`;
+      if (secPhoneVal && !hasCol('secondaryphone') && !hasCol('secondaryPhone')) {
+        const exactNotes = getExactCols('notes')[0] || 'notes';
+        if (sanitizedPayload[exactNotes]) {
+          if (!sanitizedPayload[exactNotes].includes(secPhoneVal)) {
+            sanitizedPayload[exactNotes] += ` | Alt Phone: ${secPhoneVal}`;
           }
-        } else if (colMap.has('notes')) {
-          sanitizedPayload[notesKey] = `Alt Phone: ${secPhoneVal}`;
+        } else {
+          sanitizedPayload[exactNotes] = `Alt Phone: ${secPhoneVal}`;
         }
       }
 
@@ -700,7 +719,7 @@ const AddCustomer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                {isEditMode ? `Edit Profile: ${editData?.customerName || ''}` : 'Add New Customer'}
+                {isEditMode ? `Edit Profile: ${editData?.customerName || editData?.customername || editData?.customer_name || editData?.name || 'Customer'}` : 'Add New Customer'}
               </h3>
               <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                 isEditMode 
@@ -732,6 +751,7 @@ const AddCustomer: React.FC = () => {
       <Formik
         initialValues={editData ? {
           ...editData,
+          customerName: editData.customerName || editData.customername || editData.customer_name || editData.name || '',
           customer_code: editData.customer_code || editData.customerCode || editData.coa_code || '',
           page_no: editData.page_no || editData.pageNo || editData.page_number || '',
           registrationType: editData.registrationType || 'Retail / General',

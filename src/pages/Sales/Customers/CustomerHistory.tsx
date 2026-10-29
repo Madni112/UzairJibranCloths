@@ -8,6 +8,11 @@ import { useAuth } from '../../../Context/Auth';
 import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
 import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
 
+const getCustomerDisplayName = (c: any): string => {
+  if (!c) return '';
+  return c.customerName || c.customername || c.customer_name || c.name || '';
+};
+
 const CustomerHistory = () => { 
   const { tenantId } = useAuth();
   const [customers, setCustomers] = useState<any[]>([]); 
@@ -52,7 +57,7 @@ const CustomerHistory = () => {
   }; 
 
   const getCustomerCOA = (cust: any) => {
-    const cName = (cust.customerName || '').trim().toLowerCase();
+    const cName = getCustomerDisplayName(cust).trim().toLowerCase();
     // Match by customer_code / account_code or exact account_title
     return coaAccounts.find(a => 
       (cust.account_code && String(a.account_code).trim() === String(cust.account_code).trim()) ||
@@ -136,7 +141,7 @@ const CustomerHistory = () => {
         return;
       }
 
-      const customerName = (selectedCustomer.customerName || '').trim();
+      const customerName = getCustomerDisplayName(selectedCustomer).trim();
 
       // 1. Create or Update Asset Receivable Account (1020-xxx)
       const coaPayload: any = {
@@ -226,7 +231,7 @@ const CustomerHistory = () => {
         console.warn('Customer record sync note:', err);
       }
 
-      toast.success(`Asset (${cleanCode}) & Freight Liability (${liabilityCode}) accounts assigned for "${selectedCustomer.customerName}"!`);
+      toast.success(`Asset (${cleanCode}) & Freight Liability (${liabilityCode}) accounts assigned for "${getCustomerDisplayName(selectedCustomer)}"!`);
       setShowAccountModal(false);
       await fetchCustomersAndCOA();
     } catch (err: any) {
@@ -286,7 +291,7 @@ const CustomerHistory = () => {
   // Live filter and natural page # sort
   const filteredCustomers = customers
     .filter(c => 
-      c.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getCustomerDisplayName(c).toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.customer_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.customerCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.page_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -305,7 +310,7 @@ const CustomerHistory = () => {
     )
     .sort((a, b) => {
       if (!pageSortOrder) {
-        return (a.customerName || '').localeCompare(b.customerName || '');
+        return getCustomerDisplayName(a).localeCompare(getCustomerDisplayName(b));
       }
 
       const pageA = a.page_no || a.pageNo;
@@ -335,7 +340,7 @@ const CustomerHistory = () => {
       if (!pageA && pageB) return pageSortOrder === 'asc' ? 1 : -1;
 
       // Fallback secondary sort: alphabetical by customer name
-      return (a.customerName || '').localeCompare(b.customerName || '');
+      return getCustomerDisplayName(a).localeCompare(getCustomerDisplayName(b));
     });
 
   // Pagination calculation vectors
@@ -459,8 +464,14 @@ const CustomerHistory = () => {
 
                     {/* 3. Name */}
                     <td className="py-3.5 px-4 text-sm"> 
-                      <span className="font-medium text-black dark:text-white">{c.customerName}</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{c.company || 'Private Customer'}</p> 
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-black dark:text-white">
+                          {getCustomerDisplayName(c) || 'Private Customer'}
+                        </span>
+                        {c.company ? (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{c.company}</p>
+                        ) : null}
+                      </div>
                     </td> 
 
                     {/* 4. Phone */}
@@ -607,7 +618,7 @@ const CustomerHistory = () => {
                 <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Customer Name:</label>
                 <input
                   type="text"
-                  value={selectedCustomer.customerName || ''}
+                  value={getCustomerDisplayName(selectedCustomer)}
                   disabled
                   className="w-full rounded border border-stroke dark:border-strokedark px-3 h-9 bg-gray-100 dark:bg-meta-4/30 font-bold text-black dark:text-white text-xs cursor-not-allowed"
                 />
