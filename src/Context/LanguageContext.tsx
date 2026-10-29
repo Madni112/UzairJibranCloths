@@ -508,10 +508,18 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     const translateElements = () => {
       if (language !== 'ur') return;
 
+      const isBusinessData = (text: string) => {
+        if (!text) return true;
+        // Pure numbers, currencies, phone numbers, codes, dates
+        if (/^[\d,.\-+/()#\s:]+$/.test(text) && !/[a-zA-Z]/.test(text)) return true;
+        if (/^Rs\.?\s*[\d,.]+/i.test(text)) return true;
+        if (/^\+?92[\d\s-]+/.test(text)) return true;
+        return false;
+      };
+
       // 1. Table Headers (th) - translates text nodes while preserving sort arrows, svgs, and buttons!
       const thElements = document.querySelectorAll('th');
       thElements.forEach((th) => {
-        // Skip if th contains form inputs
         if (th.querySelector('input[type="checkbox"], select')) return;
 
         const walker = document.createTreeWalker(th, NodeFilter.SHOW_TEXT, null);
@@ -533,61 +541,136 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
       });
 
-      // 2. Action Buttons
-      const buttons = document.querySelectorAll('button, a.btn');
-      buttons.forEach((btn) => {
-        const textNodes = Array.from(btn.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE);
-        textNodes.forEach((node) => {
+      // 2. Form Labels (label) - translates field labels while preserving inputs/checkboxes inside label
+      const labels = document.querySelectorAll('label');
+      labels.forEach((lbl) => {
+        const walker = document.createTreeWalker(lbl, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
           const raw = node.textContent?.trim();
-          if (!raw) return;
+          if (!raw || isBusinessData(raw)) continue;
+
           const urdu = getUrduText(raw);
           if (urdu && urdu !== raw) {
-            if (!(btn as HTMLElement).getAttribute('data-en-text')) {
-              (btn as HTMLElement).setAttribute('data-en-text', raw);
+            const parent = (node.parentElement as HTMLElement) || lbl;
+            if (!parent.getAttribute('data-en-text')) {
+              parent.setAttribute('data-en-text', raw);
             }
             if (node.textContent?.trim() !== urdu) {
               node.textContent = node.textContent?.replace(raw, urdu) || urdu;
             }
           }
-        });
+        }
       });
 
-      // 3. Search and pagination labels (e.g. "Show", "entries", "Search:")
-      const labels = document.querySelectorAll('span, label');
-      labels.forEach((el) => {
-        const raw = el.textContent?.trim();
-        if (!raw) return;
-        const lower = raw.toLowerCase();
-        if (lower === 'show' || lower === 'entries' || lower === 'search:' || lower === ':search') {
+      // 3. Action Buttons & Button Links
+      const buttons = document.querySelectorAll('button, a.btn, a[role="button"]');
+      buttons.forEach((btn) => {
+        const walker = document.createTreeWalker(btn, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw || isBusinessData(raw)) continue;
+
           const urdu = getUrduText(raw);
           if (urdu && urdu !== raw) {
-            if (!el.getAttribute('data-en-text')) {
-              el.setAttribute('data-en-text', raw);
+            const parent = (node.parentElement as HTMLElement) || (btn as HTMLElement);
+            if (!parent.getAttribute('data-en-text')) {
+              parent.setAttribute('data-en-text', raw);
             }
-            if (el.textContent?.trim() !== urdu) {
-              el.textContent = urdu;
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = node.textContent?.replace(raw, urdu) || urdu;
             }
           }
         }
       });
 
-      // 4. Page Titles & Subtitles (h2, h3, h1, descriptions)
-      const headings = document.querySelectorAll('h2, h3, h1, p.text-gray-400, p.text-gray-500, p.text-slate-400, p.text-slate-500');
-      headings.forEach((el) => {
-        const raw = el.textContent?.trim();
-        if (!raw) return;
+      // 4. Page Titles, Section Headings & Card Titles (h1 to h6)
+      const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      headings.forEach((h) => {
+        const walker = document.createTreeWalker(h, NodeFilter.SHOW_TEXT, null);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const raw = node.textContent?.trim();
+          if (!raw || isBusinessData(raw)) continue;
+
+          const urdu = getUrduText(raw);
+          if (urdu && urdu !== raw) {
+            const parent = (node.parentElement as HTMLElement) || h;
+            if (!parent.getAttribute('data-en-text')) {
+              parent.setAttribute('data-en-text', raw);
+            }
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = node.textContent?.replace(raw, urdu) || urdu;
+            }
+          }
+        }
+      });
+
+      // 5. Descriptive Subtitles (p)
+      const descParas = document.querySelectorAll('p.text-xs, p.text-sm, p.text-gray-400, p.text-slate-400, p.text-gray-500');
+      descParas.forEach((p) => {
+        const raw = p.textContent?.trim();
+        if (!raw || isBusinessData(raw)) return;
+
         const urdu = getUrduText(raw);
         if (urdu && urdu !== raw) {
-          if (!el.getAttribute('data-en-text')) {
-            el.setAttribute('data-en-text', raw);
+          if (!p.getAttribute('data-en-text')) {
+            p.setAttribute('data-en-text', raw);
           }
-          if (el.textContent?.trim() !== urdu) {
-            el.textContent = urdu;
+          if (p.textContent?.trim() !== urdu) {
+            p.textContent = urdu;
           }
         }
       });
 
-      // 5. Empty Table Notices (td with colSpan or italic)
+      // 6. UI Badges, Filter Controls & Status Spans (NEVER touches td business data)
+      const spans = document.querySelectorAll('span');
+      spans.forEach((sp) => {
+        // Strict data check: Never touch normal table data cells or mono codes
+        if (sp.closest('td:not([colspan])') || sp.classList.contains('font-mono') || sp.hasAttribute('data-no-translate')) return;
+
+        const raw = sp.textContent?.trim();
+        if (!raw || isBusinessData(raw)) return;
+
+        const lower = raw.toLowerCase();
+        if (
+          lower === 'show' || lower === 'entries' || lower === 'search:' || lower === ':search' ||
+          lower === 'active' || lower === 'inactive' || lower === 'paid' || lower === 'unpaid' ||
+          lower === 'partially paid' || lower === 'pending' || lower === 'completed' || lower === 'draft' ||
+          lower === 'on credit' || lower === 'cash' || lower === 'previous' || lower === 'next' ||
+          TH_TRANSLATIONS[lower] || quickMap[lower]
+        ) {
+          const urdu = getUrduText(raw);
+          if (urdu && urdu !== raw) {
+            if (!sp.getAttribute('data-en-text')) {
+              sp.setAttribute('data-en-text', raw);
+            }
+            if (sp.textContent?.trim() !== urdu) {
+              sp.textContent = urdu;
+            }
+          }
+        }
+      });
+
+      // 7. Select Dropdown Placeholder Options
+      const options = document.querySelectorAll('select option');
+      options.forEach((opt) => {
+        const raw = opt.textContent?.trim();
+        if (!raw || isBusinessData(raw)) return;
+
+        const urdu = getUrduText(raw);
+        if (urdu && urdu !== raw) {
+          if (!opt.getAttribute('data-en-text')) {
+            opt.setAttribute('data-en-text', raw);
+          }
+          if (opt.textContent?.trim() !== urdu) {
+            opt.textContent = urdu;
+          }
+        }
+      });
+
+      // 8. Empty Table Notices (td with colSpan or italic)
       const emptyTds = document.querySelectorAll('td[colspan], td.italic');
       emptyTds.forEach((el) => {
         const raw = el.textContent?.trim();
@@ -611,7 +694,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
       });
 
-      // 6. Common Search Input Placeholders
+      // 9. Search Input Placeholders
       const inputs = document.querySelectorAll('input[type="text"]');
       inputs.forEach((input) => {
         const ph = (input as HTMLInputElement).placeholder?.trim();
