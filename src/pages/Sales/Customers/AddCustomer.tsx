@@ -971,8 +971,8 @@ const AddCustomer: React.FC = () => {
                       label="Customer Tier / Category"
                       placeholder="Customer Tier / Category"
                       icon={<MdTag className="text-primary text-sm" />}
-                      value={values.registrationType || 'Retail / General'}
-                      onChange={(val) => setFieldValue('registrationType', val || 'Retail / General')}
+                      value={values.registrationType || ''}
+                      onChange={(val) => setFieldValue('registrationType', val || '')}
                       onAddNew={(newTier) => {
                         handleAddCustomTier(newTier);
                         setFieldValue('registrationType', newTier);
