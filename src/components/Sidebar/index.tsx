@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import SidebarLinkGroup from './SidebarLinkGroup';
 import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from 'react-icons/ai';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LuLogOut, LuSlidersHorizontal } from 'react-icons/lu';
 import { useModal } from '../../Context/Modal';
 import { useAuth } from '../../Context/Auth';
@@ -468,37 +469,27 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     >
       {/* Brand Header */}
       <div className={`flex items-center shrink-0 border-b border-slate-800/80 dark:border-slate-200/80 ${
-        sidebarOpen ? 'justify-between gap-2 px-5 py-4' : 'justify-center p-3'
+        sidebarOpen ? 'px-5 py-4' : 'justify-center p-3'
       }`}>
         {sidebarOpen ? (
-          <>
-            <NavLink
-              to="/dashboard"
-              className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-90"
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-100 p-1 flex items-center justify-center shadow-md shrink-0 border border-slate-800 dark:border-slate-200 overflow-hidden select-none">
-                <img src={IconDark} alt="Logo" className="w-full h-full object-contain block dark:hidden" />
-                <img src={IconLight} alt="Logo" className="w-full h-full object-contain hidden dark:block" />
-              </div>
+          <NavLink
+            to="/dashboard"
+            className="flex items-center gap-3 transition-opacity duration-200 hover:opacity-90 min-w-0"
+          >
+            <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-100 p-1 flex items-center justify-center shadow-md shrink-0 border border-slate-800 dark:border-slate-200 overflow-hidden select-none">
+              <img src={IconDark} alt="Logo" className="w-full h-full object-contain block dark:hidden" />
+              <img src={IconLight} alt="Logo" className="w-full h-full object-contain hidden dark:block" />
+            </div>
 
-              <div className="flex flex-col min-w-0">
-                <span className="font-cinzel font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate">
-                  {brand.fullName || 'UZAIR JIBRAN CLOTH'}
-                </span>
-                <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
-                  CLOTH ERP
-                </span>
-              </div>
-            </NavLink>
-
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-1.5 hover:bg-slate-800/80 dark:hover:bg-slate-100 rounded-lg text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black transition-colors"
-              title="Collapse Sidebar"
-            >
-              <AiOutlineArrowLeft size={16} />
-            </button>
-          </>
+            <div className="flex flex-col min-w-0">
+              <span className="font-cinzel font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate">
+                {brand.fullName || 'UZAIR JIBRAN CLOTH'}
+              </span>
+              <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
+                CLOTH ERP
+              </span>
+            </div>
+          </NavLink>
         ) : (
           <button
             onClick={() => setSidebarOpen(true)}
@@ -510,6 +501,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           </button>
         )}
       </div>
+
+      {/* Floating Border Edge Toggle Tab (Half-circle protruding on right border center) */}
+      <button
+        type="button"
+        onClick={() => setSidebarOpen((prev) => !prev)}
+        className="absolute top-1/2 -translate-y-1/2 -right-3.5 z-40 flex items-center justify-center w-5 h-10 rounded-r-full bg-[#0B0F17] dark:bg-white text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black border-y border-r border-slate-700/80 dark:border-slate-300 shadow-md cursor-pointer transition-all duration-200 hover:w-6 hover:text-primary dark:hover:text-primary group"
+        title={sidebarOpen ? "Collapse Sidebar (<)" : "Expand Sidebar (>)"}
+      >
+        {sidebarOpen ? (
+          <FiChevronLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
+        ) : (
+          <FiChevronRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+        )}
+      </button>
 
       {/* Navigation List */}
       <div className="flex-1 overflow-y-auto no-scrollbar py-3 px-3">
