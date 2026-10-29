@@ -547,10 +547,11 @@ const AddCustomer: React.FC = () => {
       setCol('notes', values.notes ? values.notes.trim() : '');
       setCol('followUpDate', values.followUpDate || null);
 
-      if (!isEditMode && parsedOpeningBal !== 0) {
-        setCol('balance', computedBalance);
-        setCol('currentBalance', computedBalance);
-      }
+      setCol('opening_balance', Math.abs(parsedOpeningBal));
+      setCol('balance', computedBalance);
+      setCol('currentBalance', computedBalance);
+      setCol('balance_nature', values.balanceNature || 'Debit');
+      setCol('balanceNature', values.balanceNature || 'Debit');
 
       // If Sub Area or Area was entered but DB has no dedicated columns, preserve in notes
       const sVal = values.subArea ? values.subArea.trim() : '';
@@ -767,8 +768,12 @@ const AddCustomer: React.FC = () => {
           website: editData.website || '',
           notes: editData.notes || '',
           followUpDate: editData.followUpDate || '',
-          openingBalance: editData.opening_balance || editData.openingBalance || editData.currentBalance || '',
-          balanceNature: (editData.currentBalance && editData.currentBalance < 0) ? 'Credit' : 'Debit'
+          openingBalance: editData.opening_balance !== undefined && editData.opening_balance !== null && editData.opening_balance !== ''
+            ? Math.abs(Number(editData.opening_balance))
+            : (editData.currentBalance !== undefined && editData.currentBalance !== null && editData.currentBalance !== ''
+                ? Math.abs(Number(editData.currentBalance))
+                : (editData.balance !== undefined && editData.balance !== null && editData.balance !== '' ? Math.abs(Number(editData.balance)) : '')),
+          balanceNature: editData.balance_nature || editData.balanceNature || ((editData.currentBalance && Number(editData.currentBalance) < 0) || (editData.balance && Number(editData.balance) < 0) ? 'Credit' : 'Debit')
         } : {
           customerName: '',
           subArea: '',
@@ -981,6 +986,70 @@ const AddCustomer: React.FC = () => {
                       helperText="Select or type a new Customer Tier / Category (navigate with ↑ ↓ and Enter ↵)"
                     />
                   </div>
+
+                  {/* Opening Balance & Balance Nature Pills */}
+                  <div className="md:col-span-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                      <div>
+                        <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                          <span className="flex items-center gap-1.5">
+                            <MdAccountBalance className="text-primary text-sm" />
+                            <span>Opening Balance (PKR)</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="openingBalance"
+                          onChange={handleChange}
+                          value={values.openingBalance || ''}
+                          placeholder="0.00"
+                          className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Initial balance owed by customer or advance held
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                          Balance Nature:
+                        </label>
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setFieldValue('balanceNature', 'Debit')}
+                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                              (values.balanceNature || 'Debit') === 'Debit'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            {(values.balanceNature || 'Debit') === 'Debit' && <MdCheckCircle size={14} />}
+                            <span>Debit (Dr - Receivable)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setFieldValue('balanceNature', 'Credit')}
+                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                              values.balanceNature === 'Credit'
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            {values.balanceNature === 'Credit' && <MdCheckCircle size={14} />}
+                            <span>Credit (Cr - Advance)</span>
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          {(values.balanceNature || 'Debit') === 'Debit'
+                            ? 'Customer owes this amount (Receivable)'
+                            : 'Customer paid advance / excess credit (Payable)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1178,17 +1247,35 @@ const AddCustomer: React.FC = () => {
                   {/* Balance Nature */}
                   <div>
                     <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Balance Nature
+                      Balance Nature:
                     </label>
-                    <select
-                      name="balanceNature"
-                      onChange={handleChange}
-                      value={values.balanceNature || 'Debit'}
-                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="Debit">Debit (Receivable from Customer)</option>
-                      <option value="Credit">Credit (Advance / Liability to Customer)</option>
-                    </select>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setFieldValue('balanceNature', 'Debit')}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          (values.balanceNature || 'Debit') === 'Debit'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {(values.balanceNature || 'Debit') === 'Debit' && <MdCheckCircle size={14} />}
+                        <span>Debit (Dr - Receivable)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFieldValue('balanceNature', 'Credit')}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          values.balanceNature === 'Credit'
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {values.balanceNature === 'Credit' && <MdCheckCircle size={14} />}
+                        <span>Credit (Cr - Advance)</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

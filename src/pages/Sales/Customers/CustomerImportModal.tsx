@@ -26,6 +26,8 @@ interface ParsedCustomer {
   phone: string;
   city: string;
   area: string;
+  balance: number;
+  balanceNature: 'Debit' | 'Credit';
   isValid: boolean;
   validationError?: string;
 }
@@ -135,6 +137,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
     let phoneIdx = -1;
     let cityIdx = -1;
     let areaIdx = -1;
+    let balIdx = -1;
+    let natureIdx = -1;
 
     headerRow.forEach((col, idx) => {
       if (col.includes('customer name') || col.includes('client name') || col === 'name') {
@@ -147,6 +151,10 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         cityIdx = idx;
       } else if (col.includes('area') || col.includes('market') || col.includes('location')) {
         areaIdx = idx;
+      } else if (col.includes('balance') || col.includes('opening') || col === 'bal' || col === 'op bal') {
+        balIdx = idx;
+      } else if (col.includes('nature') || col.includes('dr/cr') || col.includes('debit/credit') || col === 'dr') {
+        natureIdx = idx;
       }
     });
 
@@ -156,6 +164,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
     if (phoneIdx === -1 && matrix[0].length > 2) phoneIdx = 2;
     if (cityIdx === -1 && matrix[0].length > 3) cityIdx = 3;
     if (areaIdx === -1 && matrix[0].length > 4) areaIdx = 4;
+    if (balIdx === -1 && matrix[0].length > 5) balIdx = 5;
+    if (natureIdx === -1 && matrix[0].length > 6) natureIdx = 6;
 
     const list: ParsedCustomer[] = [];
 
@@ -168,6 +178,19 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       const phone = phoneIdx !== -1 && row[phoneIdx] !== undefined ? String(row[phoneIdx]).trim() : '';
       let city = cityIdx !== -1 && row[cityIdx] !== undefined ? String(row[cityIdx]).trim() : '';
       const area = areaIdx !== -1 && row[areaIdx] !== undefined ? String(row[areaIdx]).trim() : '';
+
+      // Opening Balance & Balance Nature
+      const rawBal = balIdx !== -1 && row[balIdx] !== undefined ? String(row[balIdx]).trim() : '';
+      const parsedBalNum = rawBal ? parseFloat(rawBal.replace(/[^0-9.-]/g, '')) || 0 : 0;
+      const balance = Math.abs(parsedBalNum);
+
+      const rawNature = natureIdx !== -1 && row[natureIdx] !== undefined ? String(row[natureIdx]).trim().toLowerCase() : '';
+      let balanceNature: 'Debit' | 'Credit' = 'Debit';
+      if (rawNature.startsWith('cr') || rawNature.includes('credit') || parsedBalNum < 0) {
+        balanceNature = 'Credit';
+      } else {
+        balanceNature = 'Debit';
+      }
 
       // City validation: City is required. If missing, default to Hyderabad and mark warning
       let isValid = true;
@@ -188,6 +211,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         phone,
         city,
         area,
+        balance,
+        balanceNature,
         isValid,
         validationError,
       });
@@ -204,10 +229,10 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
   // Download official Excel format template
   const handleDownloadTemplate = () => {
     const templateData = [
-      ['Customer Name *', 'Customer Tier / Category', 'Primary Contact Phone', 'City *', 'Area'],
-      ['Tariq Fabric Centre', 'Wholesaler / Dealer', '0300-9281734', 'Hyderabad', 'Resham Gali'],
-      ['Al-Madina Cloth House', 'Retail / General', '0312-7654321', 'Karachi', 'Jama Cloth Market'],
-      ['Ibrahim Textile Traders', 'Boutique / Tailor', '0333-8889991', 'Sukkur', 'Cloth Market'],
+      ['Customer Name *', 'Customer Tier / Category', 'Primary Contact Phone', 'City *', 'Area', 'Opening Balance', 'Balance Nature'],
+      ['Tariq Fabric Centre', 'Wholesaler / Dealer', '0300-9281734', 'Hyderabad', 'Resham Gali', 85000, 'Debit'],
+      ['Al-Madina Cloth House', 'Retail / General', '0312-7654321', 'Karachi', 'Jama Cloth Market', 0, 'Debit'],
+      ['Ibrahim Textile Traders', 'Boutique / Tailor', '0333-8889991', 'Sukkur', 'Cloth Market', 25000, 'Credit'],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(templateData);
@@ -218,6 +243,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       { wch: 22 }, // Phone
       { wch: 18 }, // City
       { wch: 22 }, // Area
+      { wch: 18 }, // Opening Balance
+      { wch: 18 }, // Balance Nature
     ];
 
     const wb = XLSX.utils.book_new();
@@ -285,6 +312,17 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         setCol('subArea', r.city || 'Hyderabad');
         setCol('area', r.area || '');
         setCol('province', 'Sindh');
+
+        // Opening Balance & Balance Nature
+        const rawBal = Number(r.balance) || 0;
+        const computedBal = r.balanceNature === 'Credit' ? -Math.abs(rawBal) : Math.abs(rawBal);
+        setCol('opening_balance', Math.abs(rawBal));
+        setCol('openingBalance', Math.abs(rawBal));
+        setCol('balance', computedBal);
+        setCol('currentBalance', computedBal);
+        setCol('current_balance', computedBal);
+        setCol('balance_nature', r.balanceNature || 'Debit');
+        setCol('balanceNature', r.balanceNature || 'Debit');
 
         // Location in notes if area specified
         if (r.area) {
@@ -414,7 +452,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500 font-mono">
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-2 text-[11px] text-slate-500 font-mono">
                 <span>Columns:</span>
                 <span className="font-bold text-black dark:text-white">Customer Name *</span>
                 <span>•</span>
@@ -425,6 +463,10 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                 <span className="font-bold text-black dark:text-white">City *</span>
                 <span>•</span>
                 <span>Area</span>
+                <span>•</span>
+                <span>Opening Balance</span>
+                <span>•</span>
+                <span>Balance Nature</span>
               </div>
             </div>
           </div>
@@ -475,6 +517,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                       <th className="py-2.5 px-3">Phone</th>
                       <th className="py-2.5 px-3">City *</th>
                       <th className="py-2.5 px-3">Area</th>
+                      <th className="py-2.5 px-3 text-right">Opening Bal.</th>
+                      <th className="py-2.5 px-3 text-center">Nature</th>
                       <th className="py-2.5 px-3 text-center w-20">Status</th>
                     </tr>
                   </thead>
@@ -507,6 +551,20 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                         </td>
                         <td className="py-2 px-3 text-slate-600 dark:text-slate-300">
                           {row.area || '-'}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-200">
+                          {row.balance ? `Rs. ${row.balance.toLocaleString()}` : <span className="text-slate-400">0</span>}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              row.balanceNature === 'Credit'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                                : 'bg-primary/10 text-primary border border-primary/20'
+                            }`}
+                          >
+                            {row.balanceNature === 'Credit' ? 'Credit (Cr)' : 'Debit (Dr)'}
+                          </span>
                         </td>
                         <td className="py-2 px-3 text-center">
                           {row.isValid ? (
@@ -574,3 +632,4 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
 };
 
 export default CustomerImportModal;
+
