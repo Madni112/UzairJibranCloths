@@ -263,7 +263,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
 
     setImporting(true);
     try {
-      // 1. Probe database columns to set all variants
+      // 1. Probe database columns to set only valid columns
       const dbColumns: string[] = [];
       try {
         const { data: probeData } = await supabase.from('customers').select('*').limit(1);
@@ -274,6 +274,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         console.warn('Schema probe notice:', e);
       }
 
+      const hasCol = (colName: string) =>
+        dbColumns.some((c) => c.toLowerCase() === colName.toLowerCase());
       const getExactCols = (fieldKey: string) =>
         dbColumns.filter((c) => c.toLowerCase() === fieldKey.toLowerCase());
 
@@ -286,59 +288,100 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
             exacts.forEach((c) => {
               item[c] = val;
             });
-          } else if (dbColumns.length === 0) {
-            item[key] = val;
           }
         };
 
-        // Name
-        setCol('customerName', r.name);
-        setCol('customername', r.name);
-        setCol('customer_name', r.name);
-        setCol('name', r.name);
-
-        // Tier / Registration Type
-        setCol('registrationType', r.tier || '');
-        setCol('registrationtype', r.tier || '');
-
-        // Phone
-        setCol('primaryPhone', r.phone);
-        setCol('primaryphone', r.phone);
-        setCol('phone', r.phone);
-
-        // Location (City & Area)
-        setCol('city', r.city || 'Hyderabad');
-        setCol('sub_area', r.city || 'Hyderabad');
-        setCol('subArea', r.city || 'Hyderabad');
-        setCol('area', r.area || '');
-        setCol('province', 'Sindh');
-
-        // Opening Balance & Balance Nature
         const rawBal = Number(r.balance) || 0;
         const computedBal = r.balanceNature === 'Credit' ? -Math.abs(rawBal) : Math.abs(rawBal);
-        setCol('opening_balance', Math.abs(rawBal));
-        setCol('openingBalance', Math.abs(rawBal));
-        setCol('balance', computedBal);
-        setCol('currentBalance', computedBal);
-        setCol('current_balance', computedBal);
-        setCol('balance_nature', r.balanceNature || 'Debit');
-        setCol('balanceNature', r.balanceNature || 'Debit');
+        const locText = [r.city, r.area].filter(Boolean).join(' | ');
 
-        // Location in notes if area specified
-        if (r.area) {
-          setCol('notes', `Location: ${r.city} | ${r.area}`);
+        if (dbColumns.length === 0) {
+          // Safe base payload when schema probe returns empty
+          item['customerName'] = r.name;
+          if (r.phone) item['primaryPhone'] = r.phone;
+          item['province'] = 'Sindh';
+          if (r.tier) item['registrationType'] = r.tier;
+          item['opening_balance'] = Math.abs(rawBal);
+          item['currentBalance'] = computedBal;
+          item['balance'] = computedBal;
+          item['balance_nature'] = r.balanceNature || 'Debit';
+          if (locText) {
+            item['notes'] = `Location: ${locText}`;
+          }
+        } else {
+          // Probe found existing columns: map dynamically
+          setCol('customerName', r.name);
+          setCol('customername', r.name);
+          setCol('customer_name', r.name);
+          setCol('name', r.name);
+
+          // Tier / Registration Type
+          if (r.tier) {
+            setCol('registrationType', r.tier);
+            setCol('registrationtype', r.tier);
+          }
+
+          // Phone
+          if (r.phone) {
+            setCol('primaryPhone', r.phone);
+            setCol('primaryphone', r.phone);
+            setCol('phone', r.phone);
+          }
+
+          // Location
+          if (hasCol('city')) setCol('city', r.city);
+          if (hasCol('sub_area')) setCol('sub_area', r.city);
+          if (hasCol('subArea')) setCol('subArea', r.city);
+          if (hasCol('area')) setCol('area', r.area);
+          if (hasCol('province')) setCol('province', 'Sindh');
+
+          // Always ensure Location is preserved in notes for reliable search & display
+          if (locText) {
+            setCol('notes', `Location: ${locText}`);
+          }
+
+          // Opening Balance & Balance Nature
+          setCol('opening_balance', Math.abs(rawBal));
+          setCol('openingBalance', Math.abs(rawBal));
+          setCol('balance', computedBal);
+          setCol('currentBalance', computedBal);
+          setCol('current_balance', computedBal);
+          setCol('balance_nature', r.balanceNature || 'Debit');
+          setCol('balanceNature', r.balanceNature || 'Debit');
         }
 
         return item;
       });
 
-      // 3. Insert in batches of 50
+      // 3. Insert in batches with self-healing schema cache retry
       const batchSize = 50;
       let insertedCount = 0;
 
       for (let i = 0; i < payloads.length; i += batchSize) {
-        const batch = payloads.slice(i, i + batchSize);
-        const { error } = await supabase.from('customers').insert(batch);
+        let batch = payloads.slice(i, i + batchSize);
+        let { error } = await supabase.from('customers').insert(batch);
+
+        // Auto-heal missing columns reported by PostgREST schema cache
+        if (error && (error.code === 'PGRST204' || error.message?.includes('schema cache'))) {
+          for (let attempt = 0; attempt < 8 && error; attempt++) {
+            const errMsg = error.message || '';
+            const colMatch = errMsg.match(/Could not find the '([^']+)' column/i);
+            if (colMatch && colMatch[1]) {
+              const missingCol = colMatch[1].toLowerCase();
+              batch = batch.map((rowItem) => {
+                const copy = { ...rowItem };
+                const foundKey = Object.keys(copy).find((k) => k.toLowerCase() === missingCol);
+                if (foundKey) delete copy[foundKey];
+                return copy;
+              });
+              const retryRes = await supabase.from('customers').insert(batch);
+              error = retryRes.error;
+            } else {
+              break;
+            }
+          }
+        }
+
         if (error) throw error;
         insertedCount += batch.length;
       }
