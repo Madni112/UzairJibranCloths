@@ -126,7 +126,7 @@ const DropdownUser = () => {
       {/* <!-- Dropdown Start --> */}
       {dropdownOpen && (
         <div
-          className="absolute right-0 mt-3 flex w-80 flex-col rounded-xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark z-99999 overflow-hidden animate-fadeIn"
+          className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-3 flex w-80 max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark z-99999 overflow-hidden animate-fadeIn`}
           style={{ zIndex: 99999 }}
         >
           {/* Client Company Name & Details */}
