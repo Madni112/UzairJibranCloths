@@ -461,7 +461,7 @@ const VendorList = () => {
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
                                                 <TableActions
-                                                    onEdit={() => navigate('/Purchase/Vendor/Add', { state: { vendor } })}
+                                                    onEdit={() => navigate(`/Purchase/Vendor/Edit/${vendor.id}`, { state: { vendor } })}
                                                     onDelete={() => handleDeleteVendorRecord(vendor.id)}
                                                     editTitle="Edit Supplier"
                                                     deleteTitle="Delete Supplier"

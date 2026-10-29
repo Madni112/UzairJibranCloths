@@ -359,13 +359,7 @@ const CustomerHistory = () => {
           <p className="text-xs text-gray-500 mt-0.5">Manage customer directory and assign Chart of Account ledger codes</p>
         </div>
         <button 
-          onClick={() => {
-            const segments = window.location.pathname.split('/').filter(Boolean);
-            const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
-              ? `/${segments[0]}`
-              : (tenantId ? `/${tenantId}` : '');
-            navigate(`${tenantPrefix}/Sales/Customers/Add`);
-          }} 
+          onClick={() => navigate('/Sales/Customers/Add')} 
           className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-xl text-sm font-semibold transition cursor-pointer shadow-sm flex items-center gap-1.5" 
         > 
           + Add New Customer
@@ -539,11 +533,7 @@ const CustomerHistory = () => {
                     <td className="py-3.5 px-4 text-center"> 
                       <TableActions
                         onEdit={() => {
-                          const segments = window.location.pathname.split('/').filter(Boolean);
-                          const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
-                            ? `/${segments[0]}`
-                            : (tenantId ? `/${tenantId}` : '');
-                          navigate(`${tenantPrefix}/Sales/Customers/Add`, { state: { customer: c } });
+                          navigate(`/Sales/Customers/Edit/${c.id}`, { state: { customer: c } });
                         }}
                         onDelete={() => handleDelete(c.id)}
                         editTitle="Edit Customer"

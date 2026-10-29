@@ -657,6 +657,16 @@ export const adminRoutes = [
     hideFromSidebar: true
   },
   {
+    path: '/Sales/Customers/Edit',
+    component: <AddCustomer />,
+    hideFromSidebar: true
+  },
+  {
+    path: '/Sales/Customers/Edit/:id',
+    component: <AddCustomer />,
+    hideFromSidebar: true
+  },
+  {
     path: '/Customers/list',
     component: <CustomerHistory />,
     hideFromSidebar: true
@@ -770,6 +780,16 @@ export const adminRoutes = [
   },
   {
     path: '/Purchase/Vendor/Add',
+    component: <AddVendor />,
+    hideFromSidebar: true
+  },
+  {
+    path: '/Purchase/Vendor/Edit',
+    component: <AddVendor />,
+    hideFromSidebar: true
+  },
+  {
+    path: '/Purchase/Vendor/Edit/:id',
     component: <AddVendor />,
     hideFromSidebar: true
   },

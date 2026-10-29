@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { supabase } from '../../../Context/supabaseClient';
@@ -32,17 +32,38 @@ const AddVendor = () => {
   const { tenantId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
 
-  const editData = location.state?.vendorRecord || location.state?.vendor;
-  const isEditMode = !!editData;
+  const [fetchedVendor, setFetchedVendor] = useState<any>(null);
+  const [vendorLoading, setVendorLoading] = useState<boolean>(false);
 
-  // Safe universal redirect helper that preserves tenant prefix if active
+  // If navigated directly to /Purchase/Vendor/Edit/:id or refreshed, load vendor from DB
+  useEffect(() => {
+    if (id && !location.state?.vendorRecord && !location.state?.vendor) {
+      setVendorLoading(true);
+      supabase
+        .from('vendors')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching vendor by id:', error);
+            toast.error('Failed to load vendor details');
+          } else if (data) {
+            setFetchedVendor(data);
+          }
+          setVendorLoading(false);
+        });
+    }
+  }, [id, location.state]);
+
+  const editData = location.state?.vendorRecord || location.state?.vendor || fetchedVendor;
+  const isEditMode = !!(id || editData);
+
+  // Universal redirect helper back to vendor list
   const handleNavigateToList = () => {
-    const segments = location.pathname.split('/').filter(Boolean);
-    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
-      ? `/${segments[0]}`
-      : (tenantId ? `/${tenantId}` : '');
-    navigate(`${tenantPrefix}/Purchase/Vendor/List`);
+    navigate('/Purchase/Vendor/List');
   };
 
   // Custom added Sub Areas (Cities) - shared with Customers via localStorage
@@ -215,6 +236,15 @@ const AddVendor = () => {
     email: Yup.string().email('Please enter a valid email address').nullable(),
   });
 
+  if (vendorLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[350px] gap-3">
+        <Spinner size="w-8 h-8" />
+        <span className="text-sm font-semibold text-gray-500">Loading Vendor Profile...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-12">
       {/* 1. Breadcrumb Navigation */}
@@ -234,7 +264,7 @@ const AddVendor = () => {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                {isEditMode ? `Modify Vendor: ${editData?.vendor_name || editData?.name}` : 'Add New Commercial Vendor'}
+                {isEditMode ? `Modify Vendor: ${editData?.vendor_name || editData?.name || ''}` : 'Add New Commercial Vendor'}
               </h3>
               <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                 isEditMode 
@@ -320,8 +350,9 @@ const AddVendor = () => {
 
             // Self-healing database executor: handles schema cache column casing/missing columns automatically
             const executeSave = async (dataPayload: any) => {
-              if (isEditMode) {
-                return await supabase.from('vendors').update(dataPayload).eq('id', editData.id);
+              const vendorId = editData?.id || id;
+              if (isEditMode && vendorId) {
+                return await supabase.from('vendors').update(dataPayload).eq('id', vendorId);
               } else {
                 return await supabase.from('vendors').insert([dataPayload]).select('id');
               }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { supabase } from '../../../Context/supabaseClient';
@@ -230,18 +230,39 @@ const AddCustomer: React.FC = () => {
   const { tenantId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
 
-  // Extract customer data if passed via navigation (Edit Mode)
-  const editData = location.state?.customer;
-  const isEditMode = !!editData;
+  const [fetchedCustomer, setFetchedCustomer] = useState<any>(null);
+  const [customerLoading, setCustomerLoading] = useState<boolean>(false);
 
-  // Safe universal redirect helper that preserves tenant prefix if active
+  // If navigated directly to /Sales/Customers/Edit/:id or refreshed, load customer from DB
+  useEffect(() => {
+    if (id && !location.state?.customer) {
+      setCustomerLoading(true);
+      supabase
+        .from('customers')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching customer by id:', error);
+            toast.error('Failed to load customer details');
+          } else if (data) {
+            setFetchedCustomer(data);
+          }
+          setCustomerLoading(false);
+        });
+    }
+  }, [id, location.state?.customer]);
+
+  // Extract customer data if passed via navigation (Edit Mode) or fetched from DB
+  const editData = location.state?.customer || fetchedCustomer;
+  const isEditMode = !!(id || editData);
+
+  // Universal redirect helper back to customer list
   const handleNavigateToList = () => {
-    const segments = location.pathname.split('/').filter(Boolean);
-    const tenantPrefix = (segments.length > 0 && ['bashir', 'zohaib', 'daniyal', 'nexis'].includes(segments[0].toLowerCase()))
-      ? `/${segments[0]}`
-      : (tenantId ? `/${tenantId}` : '');
-    navigate(`${tenantPrefix}/Sales/Customers/List`);
+    navigate('/Sales/Customers/List');
   };
 
   useEffect(() => {
@@ -426,8 +447,9 @@ const AddCustomer: React.FC = () => {
         .eq('customerName', trimmedName)
         .eq('company', companyVal);
 
-      if (isEditMode) {
-        query = query.neq('id', editData.id);
+      const customerId = editData?.id || id;
+      if (isEditMode && customerId) {
+        query = query.neq('id', customerId);
       }
 
       const { data: existingRecords, error: checkError } = await query;
@@ -540,11 +562,12 @@ const AddCustomer: React.FC = () => {
 
       // Self-healing database executor: handles schema cache column casing mismatches automatically
       const executeSave = async (dataPayload: any) => {
-        if (isEditMode) {
+        const customerId = editData?.id || id;
+        if (isEditMode && customerId) {
           return await supabase
             .from('customers')
             .update(dataPayload)
-            .eq('id', editData.id);
+            .eq('id', customerId);
         } else {
           return await supabase
             .from('customers')
@@ -649,6 +672,15 @@ const AddCustomer: React.FC = () => {
     return true;
   };
 
+  if (customerLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[350px] gap-3">
+        <Spinner size="w-8 h-8" />
+        <span className="text-sm font-semibold text-gray-500">Loading Customer Profile...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       {/* 1. Breadcrumb Navigation */}
@@ -668,7 +700,7 @@ const AddCustomer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                {isEditMode ? `Edit Profile: ${editData.customerName}` : 'Add New Customer'}
+                {isEditMode ? `Edit Profile: ${editData?.customerName || ''}` : 'Add New Customer'}
               </h3>
               <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                 isEditMode 
