@@ -493,11 +493,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             </div>
 
             <div className="flex flex-col min-w-0">
-              <span className="font-cinzel font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate">
-                {brand.fullName || 'UZAIR JIBRAN CLOTH'}
+              <span className={`font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate ${isRTL ? 'font-sans' : 'font-cinzel'}`}>
+                {isRTL ? 'عزیر جبران کلوتھ' : (brand.fullName || 'UZAIR JIBRAN CLOTH')}
               </span>
               <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
-                CLOTH ERP
+                {isRTL ? 'کلوتھ ERP' : 'CLOTH ERP'}
               </span>
             </div>
           </NavLink>

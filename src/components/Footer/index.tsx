@@ -1,10 +1,14 @@
 import React from 'react';
 import { MdPhone, MdWhatsapp, MdBusiness, MdShield, MdCloudDone } from 'react-icons/md';
 import { useAuth } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 
 const Footer: React.FC = () => {
   const { businessName } = useAuth();
+  const { isRTL } = useLanguage();
   const currentYear = new Date().getFullYear();
+
+  const brandTitle = isRTL ? 'عزیر جبران کلوتھ' : 'UZAIR JIBRAN CLOTH';
 
   return (
     <footer className="print:hidden w-full border-t border-slate-200/80 backdrop-blur-md bg-white/90 px-4 py-3.5 dark:border-slate-800 dark:bg-[#1E293B]/90 md:px-6 2xl:px-8 duration-200 transition-all">
@@ -16,18 +20,18 @@ const Footer: React.FC = () => {
             <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
               <MdBusiness size={13} />
             </span>
-            <span className="font-extrabold tracking-wide uppercase text-xs">UZAIR JIBRAN CLOTH</span>
+            <span className="font-extrabold tracking-wide uppercase text-xs">{brandTitle}</span>
           </div>
 
           {businessName && (
             <span className="hidden sm:inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-              {businessName}
+              {isRTL && businessName.toLowerCase().includes('uzair jibran') ? 'عزیر جبران کلوتھ' : businessName}
             </span>
           )}
 
           <span className="hidden lg:inline text-slate-300 dark:text-slate-700">•</span>
           <span className="hidden lg:inline text-slate-500 dark:text-slate-400 text-[11px]">
-            UZAIR JIBRAN CLOTH
+            {brandTitle}
           </span>
         </div>
 
@@ -35,20 +39,20 @@ const Footer: React.FC = () => {
         <div className="flex items-center gap-3 font-medium text-slate-500 dark:text-slate-400">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Cloud Synced
+            {isRTL ? 'کلاؤڈ سنکڈ' : 'Cloud Synced'}
           </span>
           <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-            <MdShield size={13} className="text-emerald-500" /> Enterprise Secure
+            <MdShield size={13} className="text-emerald-500" /> {isRTL ? 'محفوظ کاروباری نظام' : 'Enterprise Secure'}
           </span>
         </div>
 
         {/* Right: Contact Hotline & Quick WhatsApp Actions */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 font-bold text-xs">
-            <span className="text-slate-400 dark:text-slate-500 font-normal">Hotline:</span>
+            <span className="text-slate-400 dark:text-slate-500 font-normal">{isRTL ? 'ہاٹ لائن:' : 'Hotline:'}</span>
             <a
               href="tel:03128039911"
-              className="flex items-center gap-1 font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline transition"
+              className="flex items-center gap-1 font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline transition font-mono"
               title="Call Support Hotline"
             >
               <MdPhone size={13} />
@@ -64,7 +68,7 @@ const Footer: React.FC = () => {
             title="Chat on WhatsApp"
           >
             <MdWhatsapp size={13} />
-            <span className="hidden sm:inline">WhatsApp</span>
+            <span className="hidden sm:inline">{isRTL ? 'واٹس ایپ' : 'WhatsApp'}</span>
           </a>
         </div>
 
@@ -72,8 +76,8 @@ const Footer: React.FC = () => {
 
       {/* Bottom Sub-line */}
       <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
-        <span>© {currentYear} NHT ENTERPRISES by Abdul Sattar. All rights reserved.</span>
-        <span className="font-mono">v1.3.9 • Secure Business Management Infrastructure</span>
+        <span>© {currentYear} NHT ENTERPRISES by Abdul Sattar. {isRTL ? 'جملہ حقوق محفوظ ہیں۔' : 'All rights reserved.'}</span>
+        <span className="font-mono">v1.3.9 • {isRTL ? 'محفوظ کاروباری انتظامی نظام' : 'Secure Business Management Infrastructure'}</span>
       </div>
     </footer>
   );

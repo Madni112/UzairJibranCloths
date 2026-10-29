@@ -49,8 +49,21 @@ const DropdownUser = () => {
 
   const brand = getBrandConfig();
   const displayEmail = userEmail || profile?.email || brand.adminEmail;
-  const displayRole = role || profile?.role || 'Super Admin';
-  const displayCompanyName = authBusinessName || brand.name;
+  const rawRole = role || profile?.role || 'Super Admin';
+  const rawCompanyName = authBusinessName || brand.name;
+
+  // Translate brand company and role when in Urdu mode
+  const displayCompanyName = isRTL
+    ? (rawCompanyName.toLowerCase().includes('uzair jibran') ? 'عزیر جبران کلوتھ' : getUrduText(rawCompanyName))
+    : rawCompanyName;
+
+  const displayRole = isRTL
+    ? (rawRole.toLowerCase().includes('retail') || rawRole.toLowerCase().includes('cloth')
+        ? 'کلوتھ ریٹیل اینڈ ہول سیل'
+        : rawRole.toLowerCase().includes('admin')
+        ? 'سپر ایڈمن'
+        : getUrduText(rawRole))
+    : rawRole;
   const displayName = profile?.user_metadata?.full_name || profile?.user_metadata?.name || displayCompanyName;
   const isLightAccent = getContrastTextColor(accentColor) === '#0F172A';
   const roleTextColor = isLightAccent && !isDarkModeActive() ? '#0F172A' : accentColor;
@@ -121,7 +134,7 @@ const DropdownUser = () => {
             <div className="flex items-center gap-1.5 mb-1" style={{ color: roleTextColor }}>
               <LuBuilding2 size={15} />
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Company / Organization
+                {isRTL ? 'کمپنی / ادارہ' : 'Company / Organization'}
               </span>
             </div>
 
@@ -130,7 +143,7 @@ const DropdownUser = () => {
             </h4>
 
             <div className="mt-2 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400 pt-1 border-t border-stroke/50 dark:border-strokedark/50">
-              <span className="truncate flex items-center gap-1" title={displayEmail}>
+              <span className="truncate flex items-center gap-1 font-mono" title={displayEmail}>
                 <LuMail size={12} className="shrink-0" />
                 {displayEmail}
               </span>
@@ -184,7 +197,7 @@ const DropdownUser = () => {
                   color: isSettingsHovered ? roleTextColor : undefined,
                 }}
               />
-              <span>Settings</span>
+              <span>{isRTL ? 'سیٹنگز' : 'Settings'}</span>
             </Link>
 
             <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
@@ -194,7 +207,7 @@ const DropdownUser = () => {
               className="flex items-center gap-3 w-full px-3.5 py-2 rounded-lg text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition duration-150 ease-in-out cursor-pointer"
             >
               <LuLogOut size={16} />
-              <span>Log Out</span>
+              <span>{isRTL ? 'لاگ آؤٹ' : 'Log Out'}</span>
             </button>
           </div>
         </div>

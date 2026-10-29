@@ -1,5 +1,6 @@
 import React from 'react';
 import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import { useLanguage } from '../Context/LanguageContext';
 
 export interface TablePaginationProps {
   currentPage: number;
@@ -20,6 +21,7 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   onPageChange,
   itemName = 'entries',
 }) => {
+  const { isRTL } = useLanguage();
   if (totalEntries === 0) return null;
 
   const safeTotalPages = Math.max(1, totalPages);
@@ -69,9 +71,19 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   return (
     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs select-none">
       <div className="text-slate-500 dark:text-slate-400 font-medium">
-        Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{totalEntries > 0 ? startIndex + 1 : 0}</span> to{' '}
-        <span className="font-semibold text-slate-800 dark:text-slate-200">{endIndex}</span> of{' '}
-        <span className="font-semibold text-slate-800 dark:text-slate-200">{totalEntries}</span> {itemName}
+        {isRTL ? (
+          <>
+            کل <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{totalEntries}</span> میں سے{' '}
+            <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{totalEntries > 0 ? startIndex + 1 : 0}</span> تا{' '}
+            <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{endIndex}</span> ریکارڈز
+          </>
+        ) : (
+          <>
+            Showing <span className="font-semibold text-slate-800 dark:text-slate-200">{totalEntries > 0 ? startIndex + 1 : 0}</span> to{' '}
+            <span className="font-semibold text-slate-800 dark:text-slate-200">{endIndex}</span> of{' '}
+            <span className="font-semibold text-slate-800 dark:text-slate-200">{totalEntries}</span> {itemName}
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-end">
@@ -81,8 +93,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           disabled={safeCurrentPage <= 1}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs shadow-2xs"
         >
-          <MdChevronLeft className="text-base" />
-          <span>Previous</span>
+          {isRTL ? <MdChevronRight className="text-base" /> : <MdChevronLeft className="text-base" />}
+          <span>{isRTL ? 'پچھلا' : 'Previous'}</span>
         </button>
 
         <div className="flex items-center gap-1">
@@ -119,8 +131,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
           disabled={safeCurrentPage >= safeTotalPages}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs shadow-2xs"
         >
-          <span>Next</span>
-          <MdChevronRight className="text-base" />
+          <span>{isRTL ? 'اگلا' : 'Next'}</span>
+          {isRTL ? <MdChevronLeft className="text-base" /> : <MdChevronRight className="text-base" />}
         </button>
       </div>
     </div>

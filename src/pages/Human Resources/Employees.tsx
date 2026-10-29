@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import TablePagination from '../../components/TablePagination';
+import { useLanguage } from '../../Context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -33,6 +34,7 @@ import { useTenant } from '../../Context/TenantContext';
 export const EmployeesPage: React.FC = () => {
   const { tenantSlug, branchId } = useTenant();
   const navigate = useNavigate();
+  const { isRTL } = useLanguage();
   const hub = useHub(() => getEmployees(tenantSlug, branchId), [tenantSlug, branchId]);
   const [coaAccounts, setCoaAccounts] = useState<any[]>([]);
   const [loadingCOA, setLoadingCOA] = useState(false);
@@ -361,9 +363,9 @@ export const EmployeesPage: React.FC = () => {
       {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <div>
-          <h4 className="text-xl font-semibold text-black dark:text-white">Employee Database</h4>
+          <h4 className="text-xl font-semibold text-black dark:text-white">{isRTL ? "ملازمین کا ڈیٹابیس" : "Employee Database"}</h4>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Manage company employees, designations, joined dates, and assign Chart of Account ledger codes
+            {isRTL ? "کمپنی ملازمین، عہدے، شمولیت کی تاریخ اور چارٹ آف اکاؤنٹس لیجر کوڈز کا انتظام" : "Manage company employees, designations, joined dates, and assign Chart of Account ledger codes"}
           </p>
         </div>
         <button
@@ -371,14 +373,14 @@ export const EmployeesPage: React.FC = () => {
           className="bg-primary text-white py-2 px-4 rounded text-sm font-medium hover:bg-opacity-90 transition cursor-pointer shadow-sm flex items-center gap-1.5"
         >
           <MdAdd size={18} />
-          <span>Add New Employee</span>
+          <span>{isRTL ? "+ نیا ملازم شامل کریں" : "Add New Employee"}</span>
         </button>
       </div>
 
       {/* ── FILTER CONTROLS ── */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <span>Show</span>
+          <span>{isRTL ? "دکھائیں" : "Show"}</span>
           <select
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
@@ -390,16 +392,16 @@ export const EmployeesPage: React.FC = () => {
               </option>
             ))}
           </select>
-          <span>entries</span>
+          <span>{isRTL ? "ریکارڈز" : "entries"}</span>
         </div>
 
         <div className="flex items-center gap-2 text-sm w-full sm:w-auto text-gray-500 dark:text-gray-400">
-          <span>Search:</span>
+          <span>{isRTL ? "تلاش:" : "Search:"}</span>
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search employee #, name, designation, phone..."
+            placeholder={isRTL ? "ملازم کوڈ، نام، عہدہ، فون سے تلاش کریں..." : "Search employee #, name, designation, phone..."}
             className="w-full sm:w-72 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none focus:border-primary text-sm text-black dark:text-white"
           />
         </div>
@@ -419,7 +421,7 @@ export const EmployeesPage: React.FC = () => {
                 title="Click to sort by Employee #"
               >
                 <div className="flex items-center gap-1">
-                  <span>Employee #</span>
+                  <span>{isRTL ? "ملازم کوڈ #" : "Employee #"}</span>
                   {sortOrder === 'asc' && <MdArrowUpward size={14} className="text-primary font-bold" />}
                   {sortOrder === 'desc' && <MdArrowDownward size={14} className="text-primary font-bold" />}
                   {!sortOrder && <span className="text-[10px] text-gray-400 font-normal">⇅</span>}
@@ -428,32 +430,32 @@ export const EmployeesPage: React.FC = () => {
 
               {/* 2. Name */}
               <th className="min-w-[200px] py-4 px-4 font-medium text-black dark:text-white text-sm">
-                Name
+                {isRTL ? "نام" : "Name"}
               </th>
 
               {/* 3. Account */}
               <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">
-                Account
+                {isRTL ? "کھاتہ کوڈ" : "Account"}
               </th>
 
               {/* 4. Designation */}
               <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white text-sm">
-                Designation
+                {isRTL ? "عہدہ" : "Designation"}
               </th>
 
               {/* 5. Joined */}
               <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm">
-                Joined
+                {isRTL ? "شمولیت" : "Joined"}
               </th>
 
               {/* 6. Status */}
               <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm text-center">
-                Status
+                {isRTL ? "صورتحال" : "Status"}
               </th>
 
               {/* 7. Action */}
               <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">
-                Action
+                {isRTL ? "کارروائی" : "Action"}
               </th>
             </tr>
           </thead>
@@ -874,7 +876,7 @@ export const EmployeesPage: React.FC = () => {
                       <th className="py-2 px-3 text-right">Basic</th>
                       <th className="py-2 px-3 text-right">Gross</th>
                       <th className="py-2 px-3 text-right">Net</th>
-                      <th className="py-2 px-3 text-center">Status</th>
+                      <th className="py-2 px-3 text-center">{isRTL ? "صورتحال" : "Status"}</th>
                     </tr>
                   </thead>
                   <tbody>

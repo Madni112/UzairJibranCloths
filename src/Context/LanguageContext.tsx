@@ -148,15 +148,37 @@ export const getUrduText = (str: string): string => {
     }
   }
 
-  // Common quick replacements
+  // Common quick replacements & master lookup
   const quickMap: Record<string, string> = {
+    // Top Nav & Brand
+    'uzair jibran cloth': 'عزیر جبران کلوتھ',
+    'uzair jibran': 'عزیر جبران',
+    'cloth erp': 'کلوتھ ERP',
+    'cloth retail & wholesale': 'کلوتھ ریٹیل اینڈ ہول سیل',
+    'retail & wholesale': 'ریٹیل اینڈ ہول سیل',
+    'super admin': 'سپر ایڈمن',
+    'admin': 'ایڈمن',
+    'cloud synced': 'کلاؤڈ سنکڈ',
+    'enterprise secure': 'محفوظ کاروباری نظام',
+    'hotline': 'ہاٹ لائن',
+    'hotline:': 'ہاٹ لائن:',
+    'whatsapp': 'واٹس ایپ',
+    'company / organization': 'کمپنی / ادارہ',
+    'portal active': 'پورٹل فعال',
+    'new sale': 'نئی سیل',
+    'new sale +': '+ نئی سیل',
+    '+ new sale': '+ نئی سیل',
+
+    // Main Sections
     'dashboard': 'ڈیش بورڈ',
     'administration': 'انتظامیہ',
     'registration': 'رجسٹریشن',
-    'sales': 'سیلز',
-    'purchase': 'خریداری',
+    'sales': 'سیلز (فروخت)',
+    'purchase': 'پرچیز (خریداری)',
     'human resource': 'ہیومن ریسورس (HR)',
     'reports': 'رپورٹس',
+
+    // Navigation Submenus
     'chart of account': 'چارٹ آف اکاؤنٹس',
     'chart of accounts': 'چارٹ آف اکاؤنٹس',
     'vouchers': 'واؤچرز',
@@ -166,22 +188,22 @@ export const getUrduText = (str: string): string => {
     'brands': 'برانڈز',
     'brand': 'برانڈز',
     'uoms': 'پیمائش کی اکائیاں',
-    'products': 'پروڈکٹس',
+    'products': 'پروڈکٹس (اشیاء)',
     'bulk upload': 'بلک اپلوڈ',
     'company': 'کمپنی',
     'quotations': 'کوٹیشنز',
-    'invoice': 'انوائس',
-    'invoice receipt': 'انوائس رسید',
+    'invoice': 'انوائس / بل',
+    'invoice receipt': 'انوائس وصولی رسید',
     'sales return': 'سیلز واپسی',
     'sales return receipt': 'سیلز واپسی رسید',
-    'customers': 'کسٹمرز',
+    'customers': 'کسٹمرز (گاہک)',
     'salesman': 'سیلزمین',
     'purchases': 'پرچیز آرڈرز',
     'goods receipt (grn)': 'مال وصولی رسید (GRN)',
     'purchase receipt': 'پرچیز رسید',
     'purchase return': 'خریداری واپسی',
     'purchase return receipt': 'واپسی رسید',
-    'vendor': 'وینڈرز',
+    'vendor': 'وینڈرز (سپلائر)',
     'locations': 'مقامات / گودام',
     'assigned locations': 'تفویض شدہ گودام',
     'stock transfer': 'اسٹاک منتقلی',
@@ -205,11 +227,15 @@ export const getUrduText = (str: string): string => {
     'settings': 'سیٹنگز',
     'logout': 'لاگ آؤٹ',
     'log out': 'لاگ آؤٹ',
+
+    // Dashboard Cards
     'cash': 'نقد کیش',
     'bank balance': 'بینک بیلنس',
     'receivables': 'وصول طلب رقم',
     'stock assets': 'اسٹاک کے اثاثے',
     'this month': 'اس ماہ',
+    'this month:': 'اس ماہ:',
+    ':this month': 'اس ماہ:',
     "today's sale": 'آج کی سیلز',
     'this month sales': 'اس ماہ کی سیلز',
     'this month purchases': 'اس ماہ کی خریداری',
@@ -218,9 +244,196 @@ export const getUrduText = (str: string): string => {
     'items list': 'اشیاء کی فہرست',
     'customer return': 'کسٹمر واپسی',
     'inventory audit': 'انوینٹری آڈٹ',
+    'role dashboard preview:': 'ڈیش بورڈ پیش نظارہ:',
+    ':role dashboard preview': 'ڈیش بورڈ پیش نظارہ:',
+    'executive overview': 'مرکزی جائزہ',
+    'salesman view': 'سیلزمین ویو',
+    'warehouse': 'گودام',
+    'executive management dashboard': 'انتظامی مینجمنٹ ڈیش بورڈ',
+    'show operational ledgers & analytics': 'آپریشنل لیجرز اور تجزیات دکھائیں',
+    'hide operational ledgers & analytics': 'آپریشنل لیجرز اور تجزیات چھپائیں',
+    'live modules': 'فعال ماڈیولز',
+
+    // Table Column Headers (TH)
+    's#': 'نمبر شمار',
+    's #': 'نمبر شمار',
+    '#': 'نمبر شمار',
+    'sr #': 'نمبر شمار',
+    'sr no': 'نمبر شمار',
+    'sr. no.': 'نمبر شمار',
+    'sr.': 'نمبر شمار',
+    'purchase no': 'پرچیز نمبر',
+    'purchase no.': 'پرچیز نمبر',
+    'purchase #': 'پرچیز نمبر',
+    'vendor profile': 'وینڈر پروفائل',
+    'vendor name': 'وینڈر کا نام',
+    'wholesale vendor': 'ہول سیل وینڈر',
+    'stock receiving location': 'مال وصولی گودام',
+    'receiving location': 'وصولی گودام',
+    'source warehouse': 'ارسال کنندہ گودام',
+    'target warehouse': 'ہدف گودام',
+    'warehouse name': 'گودام کا نام',
+    'entry date': 'اندراج تاریخ',
+    'purchase date': 'خریداری تاریخ',
+    'invoice date': 'انوائس تاریخ',
+    'return date': 'واپسی تاریخ',
+    'date': 'تاریخ',
+    'payment term': 'ادائیگی کی شرط',
+    'payment terms': 'ادائیگی کی شرائط',
+    'total bill': 'کل بل',
+    'bill amount': 'بل رقم',
+    'grand total': 'کل رقم',
+    'total amount': 'کل رقم',
+    'payment / due status': 'ادائیگی کی صورتحال',
+    'payment status': 'ادائیگی صورتحال',
+    'due status': 'واجب الادا صورتحال',
+    'reimbursement status': 'رقم واپسی صورتحال',
+    'refund status': 'ری فنڈ صورتحال',
+    'gross return': 'کل واپسی رقم',
+    'return amount': 'واپسی رقم',
+    '# debit note': 'ڈیبٹ نوٹ #',
+    'debit note #': 'ڈیبٹ نوٹ #',
+    'debit note': 'ڈیبٹ نوٹ',
+    '# employee': 'ملازم کوڈ #',
+    'employee #': 'ملازم کوڈ #',
+    'employee id': 'ملازم شناختی کوڈ',
+    'name': 'نام',
+    'employee name': 'ملازم کا نام',
+    'customer name': 'گاہک کا نام',
+    'account': 'کھاتہ کوڈ',
+    'accounts': 'کھاتہ جات',
+    'account code': 'کھاتہ کوڈ',
+    'designation': 'عہدہ',
+    'joined': 'شمولیت کی تاریخ',
+    'joining date': 'شمولیت کی تاریخ',
+    'status': 'صورتحال',
+    'action': 'کارروائی',
+    'actions': 'کارروائی',
+    'tier / category': 'کیٹیگری',
+    'tier': 'کیٹیگری',
+    'category': 'کیٹیگری',
+    'phone': 'فون نمبر',
+    'phone number': 'فون نمبر',
+    'mobile': 'موبائل نمبر',
+    'city': 'شہر',
+    'city *': 'شہر *',
+    'city / area': 'شہر / علاقہ',
+    'area': 'علاقہ',
+    'opening bal.': 'ابتدائی بیلنس',
+    'opening bal': 'ابتدائی بیلنس',
+    'opening balance': 'ابتدائی بیلنس',
+    'nature': 'نوعیت',
+    'balance nature': 'بیلنس نوعیت',
+    'balance nature:': 'بیلنس نوعیت:',
+    'address': 'پتہ',
+    'page #': 'صفحہ #',
+    'qty': 'تعداد',
+    'quantity': 'تعداد',
+    'uom': 'پیمائش',
+    'unit price': 'فی یونٹ قیمت',
+    'price': 'قیمت',
+    'rate': 'ریٹ',
+    'sale price': 'سیل قیمت',
+    'purchase price': 'خریداری قیمت',
+    'current stock': 'موجودہ اسٹاک',
+    'available stock': 'دستیاب اسٹاک',
+    'total': 'ٹوٹل',
+    'paid': 'ادا شدہ',
+    'unpaid': 'غیر ادا شدہ',
+    'partially paid': 'جزوی ادا شدہ',
+    'on credit': 'ادھار پر',
+    'active': 'فعال',
+    'inactive': 'غیر فعال',
+    'debit (dr)': 'ڈیبٹ (Dr)',
+    'credit (cr)': 'کریڈٹ (Cr)',
+    'debit': 'ڈیبٹ',
+    'credit': 'کریڈٹ',
+    'manager': 'منیجر',
+
+    // Table Action Buttons
+    '+ log new supply': '+ نیا مال درج کریں',
+    'log new supply +': '+ نیا مال درج کریں',
+    'log new supply': 'نیا مال درج کریں',
+    '+ log new return note': '+ نئی خریداری واپسی درج کریں',
+    'log new return note +': '+ نئی خریداری واپسی درج کریں',
+    'log new return note': 'نئی خریداری واپسی درج کریں',
+    '+ add new employee': '+ نیا ملازم شامل کریں',
+    'add new employee +': '+ نیا ملازم شامل کریں',
+    'add new employee': 'نیا ملازم شامل کریں',
+    '+ add new customer': '+ نیا کسٹمر شامل کریں',
+    'add new customer +': '+ نیا کسٹمر شامل کریں',
+    'add new customer': 'نیا کسٹمر شامل کریں',
+    '+ add new vendor': '+ نیا وینڈر شامل کریں',
+    'add new vendor +': '+ نیا وینڈر شامل کریں',
+    'add new vendor': 'نیا وینڈر شامل کریں',
+    '+ add new product': '+ نیا آئٹم شامل کریں',
+    'add new product +': '+ نیا آئٹم شامل کریں',
+    'add new product': 'نیا آئٹم شامل کریں',
+    '+ link account': '+ کھاتہ لنک کریں',
+    'link account': 'کھاتہ لنک کریں',
+    'upload excel': 'ایکسل فائل اپلوڈ',
+    'download excel format': 'ایکسل فارمیٹ ڈاؤنلوڈ',
+    'clear list': 'لسٹ صاف کریں',
+    'import customers': 'کسٹمرز امپورٹ کریں',
+    'cancel': 'منسوخ',
+    'edit': 'ترمیم',
+    'delete': 'حذف',
+    'save': 'محفوظ کریں',
+    'update': 'اپ ڈیٹ کریں',
+    'submit': 'جمع کریں',
+
+    // Table Controls
+    'show': 'دکھائیں',
+    'entries': 'ریکارڈز',
+    'search:': 'تلاش:',
+    ':search': 'تلاش:',
+    'search': 'تلاش',
+    'previous': 'پچھلا',
+    'next': 'اگلا',
+
+    // Page Titles & Descriptions
+    'wholesale purchase log registry': 'ہول سیل خریداری رجسٹر (Purchases)',
+    'manage inward vendor supply consignments and trace batch arrivals': 'سپلائرز سے مال کی آمد، کنسائنمنٹس اور بیجز کا انتظام کریں',
+    'vendor purchase returns registry (debit notes)': 'وینڈر پرچیز واپسی رجسٹر (ڈیبٹ نوٹس)',
+    'trace outbound product returns, debit notes, and warehouse shelf offsets': 'سپلائرز کو ناقص مال کی واپسی اور ڈیبٹ نوٹس کا مکمل ریکارڈ',
+    'employee database': 'ملازمین کا ڈیٹابیس',
+    'manage company employees, designations, joined dates, and assign chart of account ledger codes': 'کمپنی ملازمین، عہدے، شمولیت کی تاریخ اور چارٹ آف اکاؤنٹس لیجر کوڈز',
+    'customer database': 'کسٹمر ڈائریکٹری',
+    'manage customer directory and assign chart of account ledger codes': 'کسٹمر کھاتہ جات اور لیجر کوڈز کا انتظام کریں',
+
+    // Empty Table Notices
+    'no supply restock logs recorded yet.': 'ابھی تک خریداری کا کوئی لاگ درج نہیں ہوا۔',
+    'no supply restock logs recorded yet': 'ابھی تک خریداری کا کوئی لاگ درج نہیں ہوا۔',
+    '.no supply restock logs recorded yet': 'ابھی تک خریداری کا کوئی لاگ درج نہیں ہوا۔',
+    'no outbound supply return records found.': 'خریداری واپسی کا کوئی ریکارڈ نہیں ملا۔',
+    'no outbound supply return records found': 'خریداری واپسی کا کوئی ریکارڈ نہیں ملا۔',
+    '.no outbound supply return records found': 'خریداری واپسی کا کوئی ریکارڈ نہیں ملا۔',
+    'no records found.': 'کوئی ریکارڈ نہیں ملا۔',
+    'no records found': 'کوئی ریکارڈ نہیں ملا۔',
+    'no data available.': 'کوئی ڈیٹا دستیاب نہیں ہے۔',
+    'no data available': 'کوئی ڈیٹا دستیاب نہیں ہے۔',
+
+    // Search Placeholders
+    'search by order # or vendor name...': 'آرڈر نمبر یا وینڈر کے نام سے تلاش کریں...',
+    'search by order # or vendor name': 'آرڈر نمبر یا وینڈر کے نام سے تلاش کریں...',
+    'search by return #, vendor, warehouse': 'واپسی نمبر، وینڈر یا گودام سے تلاش کریں...',
+    'employee #, name, designation, phone': 'ملازم کوڈ، نام، عہدہ، فون سے تلاش کریں...',
+    'search name, phone, city, area, acc': 'نام، فون، شہر، علاقہ سے تلاش کریں...',
   };
 
   if (quickMap[clean]) return quickMap[clean];
+
+  // Strip leading/trailing dots, hashes, colons, pluses, ellipsis
+  const stripped = clean
+    .replace(/^[.\s#+:–—\->←]+/, '')
+    .replace(/[.\s#+:–—\->←]+$/, '')
+    .trim();
+
+  if (quickMap[stripped]) {
+    if (clean.startsWith('#')) return `${quickMap[stripped]} #`;
+    if (clean.startsWith('+') || clean.endsWith('+')) return `+ ${quickMap[stripped]}`;
+    return quickMap[stripped];
+  }
 
   return str;
 };
@@ -252,6 +465,172 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
     localStorage.setItem('uj_language', language);
     window.dispatchEvent(new CustomEvent('uj_language_changed', { detail: { language } }));
+  }, [language]);
+
+  // Automated DOM Translator for Table Headers, Action Buttons, Filter Controls, Page Titles
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const translateElements = () => {
+      if (language !== 'ur') return;
+
+      // 1. Table Headers (th)
+      const thElements = document.querySelectorAll('th');
+      thElements.forEach((th) => {
+        if (th.querySelector('input, select')) return;
+        const currentText = th.textContent?.trim();
+        if (!currentText) return;
+
+        const urdu = getUrduText(currentText);
+        if (urdu && urdu !== currentText) {
+          if (!th.getAttribute('data-en-text')) {
+            th.setAttribute('data-en-text', currentText);
+          }
+          if (th.textContent?.trim() !== urdu) {
+            th.textContent = urdu;
+          }
+        }
+      });
+
+      // 2. Action Buttons
+      const buttons = document.querySelectorAll('button, a.btn');
+      buttons.forEach((btn) => {
+        const textNodes = Array.from(btn.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE);
+        textNodes.forEach((node) => {
+          const raw = node.textContent?.trim();
+          if (!raw) return;
+          const urdu = getUrduText(raw);
+          if (urdu && urdu !== raw) {
+            if (!(btn as HTMLElement).getAttribute('data-en-text')) {
+              (btn as HTMLElement).setAttribute('data-en-text', raw);
+            }
+            if (node.textContent?.trim() !== urdu) {
+              node.textContent = node.textContent?.replace(raw, urdu) || urdu;
+            }
+          }
+        });
+      });
+
+      // 3. Search and pagination labels (e.g. "Show", "entries", "Search:")
+      const labels = document.querySelectorAll('span, label');
+      labels.forEach((el) => {
+        const raw = el.textContent?.trim();
+        if (!raw) return;
+        const lower = raw.toLowerCase();
+        if (lower === 'show' || lower === 'entries' || lower === 'search:' || lower === ':search') {
+          const urdu = getUrduText(raw);
+          if (urdu && urdu !== raw) {
+            if (!el.getAttribute('data-en-text')) {
+              el.setAttribute('data-en-text', raw);
+            }
+            if (el.textContent?.trim() !== urdu) {
+              el.textContent = urdu;
+            }
+          }
+        }
+      });
+
+      // 4. Page Titles & Subtitles (h2, h3, h1, descriptions)
+      const headings = document.querySelectorAll('h2, h3, h1, p.text-gray-400, p.text-gray-500, p.text-slate-400, p.text-slate-500');
+      headings.forEach((el) => {
+        const raw = el.textContent?.trim();
+        if (!raw) return;
+        const urdu = getUrduText(raw);
+        if (urdu && urdu !== raw) {
+          if (!el.getAttribute('data-en-text')) {
+            el.setAttribute('data-en-text', raw);
+          }
+          if (el.textContent?.trim() !== urdu) {
+            el.textContent = urdu;
+          }
+        }
+      });
+
+      // 5. Empty Table Notices (td with colSpan or italic)
+      const emptyTds = document.querySelectorAll('td[colspan], td.italic');
+      emptyTds.forEach((el) => {
+        const raw = el.textContent?.trim();
+        if (!raw) return;
+        const clean = raw.replace(/^[.\s]+/, '').replace(/[.\s]+$/, '');
+        if (
+          clean.toLowerCase().includes('no supply restock') ||
+          clean.toLowerCase().includes('no outbound supply') ||
+          clean.toLowerCase().includes('no records found') ||
+          clean.toLowerCase().includes('no data')
+        ) {
+          const urdu = getUrduText(raw) || getUrduText(clean);
+          if (urdu && urdu !== raw) {
+            if (!el.getAttribute('data-en-text')) {
+              el.setAttribute('data-en-text', raw);
+            }
+            if (el.textContent?.trim() !== urdu) {
+              el.textContent = urdu;
+            }
+          }
+        }
+      });
+
+      // 6. Common Search Input Placeholders
+      const inputs = document.querySelectorAll('input[type="text"]');
+      inputs.forEach((input) => {
+        const ph = (input as HTMLInputElement).placeholder?.trim();
+        if (!ph) return;
+        const urdu = getUrduText(ph);
+        if (urdu && urdu !== ph) {
+          if (!input.getAttribute('data-en-placeholder')) {
+            input.setAttribute('data-en-placeholder', ph);
+          }
+          if ((input as HTMLInputElement).placeholder !== urdu) {
+            (input as HTMLInputElement).placeholder = urdu;
+          }
+        }
+      });
+    };
+
+    const restoreElements = () => {
+      const translated = document.querySelectorAll('[data-en-text]');
+      translated.forEach((el) => {
+        const en = el.getAttribute('data-en-text');
+        if (en) {
+          el.textContent = en;
+          el.removeAttribute('data-en-text');
+        }
+      });
+
+      const translatedPlaceholders = document.querySelectorAll('[data-en-placeholder]');
+      translatedPlaceholders.forEach((input) => {
+        const en = input.getAttribute('data-en-placeholder');
+        if (en) {
+          (input as HTMLInputElement).placeholder = en;
+          input.removeAttribute('data-en-placeholder');
+        }
+      });
+    };
+
+    if (language === 'ur') {
+      translateElements();
+
+      let frameId: number | null = null;
+      const observer = new MutationObserver(() => {
+        if (frameId) cancelAnimationFrame(frameId);
+        frameId = requestAnimationFrame(() => {
+          translateElements();
+        });
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: false,
+      });
+
+      return () => {
+        if (frameId) cancelAnimationFrame(frameId);
+        observer.disconnect();
+      };
+    } else {
+      restoreElements();
+    }
   }, [language]);
 
   const toggleLanguage = () => {
