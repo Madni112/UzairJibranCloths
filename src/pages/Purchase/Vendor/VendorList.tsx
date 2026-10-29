@@ -222,22 +222,45 @@ const VendorList = () => {
     };
 
     const filteredVendors = vendors
-        .filter(v =>
-            (v.vendor_name || v.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.vendor_code || v.vendorCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.page_no || v.pageNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.contact_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.sub_area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.subArea || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.cell_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.phone_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.phone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (v.account_code || '').includes(searchTerm)
-        )
+        .filter(v => {
+            const term = searchTerm.trim().toLowerCase();
+            if (!term) return true;
+
+            const cleanTerm = term.replace(/[\s-]/g, '');
+            const loc = getVendorLocation(v);
+            const coa = getVendorCOA(v);
+
+            const name = (v.vendor_name || v.name || '').toLowerCase();
+            const code = (v.vendor_code || v.vendorCode || '').toLowerCase();
+            const pageNo = String(v.page_no || v.pageNo || '').toLowerCase();
+            const contact = (v.contact_name || '').toLowerCase();
+            const city = (loc.city || v.sub_area || v.subArea || v.city || '').toLowerCase();
+            const area = (loc.area || v.area || '').toLowerCase();
+            const address = (v.address || '').toLowerCase();
+            const coaCode = String(coa?.account_code || v.account_code || '').toLowerCase();
+            const email = (v.email || '').toLowerCase();
+
+            // Phone numbers
+            const rawCell = String(v.cell_no || '').toLowerCase();
+            const rawPhone = String(v.phone_no || v.phone || '').toLowerCase();
+            const cleanCell = rawCell.replace(/[\s-]/g, '');
+            const cleanPhone = rawPhone.replace(/[\s-]/g, '');
+
+            return (
+                name.includes(term) ||
+                code.includes(term) ||
+                pageNo.includes(term) ||
+                contact.includes(term) ||
+                city.includes(term) ||
+                area.includes(term) ||
+                address.includes(term) ||
+                coaCode.includes(term) ||
+                email.includes(term) ||
+                rawCell.includes(term) ||
+                rawPhone.includes(term) ||
+                (cleanTerm.length > 0 && (cleanCell.includes(cleanTerm) || cleanPhone.includes(cleanTerm)))
+            );
+        })
         .sort((a, b) => {
             if (!pageSortOrder) {
                 return (a.vendor_name || a.name || '').localeCompare(b.vendor_name || b.name || '');
@@ -323,7 +346,7 @@ const VendorList = () => {
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search vendor name, code, page #, city, area, phone..."
+                            placeholder="Search name, phone, city, area, account, page #..."
                             className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none text-black dark:text-white text-xs font-semibold"
                         />
                     </div>

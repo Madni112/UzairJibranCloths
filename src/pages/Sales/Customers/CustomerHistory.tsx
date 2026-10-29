@@ -290,24 +290,47 @@ const CustomerHistory = () => {
 
   // Live filter and natural page # sort
   const filteredCustomers = customers
-    .filter(c => 
-      getCustomerDisplayName(c).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.customer_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.customerCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.page_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.pageNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.sub_area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.subArea || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.province?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.ntnNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.primaryPhone?.includes(searchTerm) ||
-      c.phone?.includes(searchTerm) ||
-      c.account_code?.includes(searchTerm)
-    )
+    .filter(c => {
+      const term = searchTerm.trim().toLowerCase();
+      if (!term) return true;
+
+      const cleanTerm = term.replace(/[\s-]/g, '');
+      const loc = getCustomerLocation(c);
+      const coa = getCustomerCOA(c);
+
+      const name = getCustomerDisplayName(c).toLowerCase();
+      const code = (c.customer_code || c.customerCode || '').toLowerCase();
+      const pageNo = String(c.page_no || c.pageNo || '').toLowerCase();
+      const city = (loc.city || c.sub_area || c.subArea || c.city || '').toLowerCase();
+      const area = (loc.area || c.area || '').toLowerCase();
+      const address = (c.address || '').toLowerCase();
+      const province = (c.province || '').toLowerCase();
+      const company = (c.company || '').toLowerCase();
+      const coaCode = String(coa?.account_code || c.account_code || c.coa_code || '').toLowerCase();
+      const ntn = (c.ntnNo || '').toLowerCase();
+
+      // Phones (check both formatted and clean digits)
+      const rawPhone = String(c.primaryPhone || c.phone || '').toLowerCase();
+      const rawSecPhone = String(c.secondaryPhone || '').toLowerCase();
+      const cleanPhone = rawPhone.replace(/[\s-]/g, '');
+      const cleanSecPhone = rawSecPhone.replace(/[\s-]/g, '');
+
+      return (
+        name.includes(term) ||
+        code.includes(term) ||
+        pageNo.includes(term) ||
+        city.includes(term) ||
+        area.includes(term) ||
+        address.includes(term) ||
+        province.includes(term) ||
+        company.includes(term) ||
+        coaCode.includes(term) ||
+        ntn.includes(term) ||
+        rawPhone.includes(term) ||
+        rawSecPhone.includes(term) ||
+        (cleanTerm.length > 0 && (cleanPhone.includes(cleanTerm) || cleanSecPhone.includes(cleanTerm)))
+      );
+    })
     .sort((a, b) => {
       if (!pageSortOrder) {
         return getCustomerDisplayName(a).localeCompare(getCustomerDisplayName(b));
@@ -393,7 +416,7 @@ const CustomerHistory = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search name, code, page #, phone, city, area, address..."
+            placeholder="Search name, phone, city, area, account, page #..."
             className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none focus:border-primary text-sm text-black dark:text-white"
           />
         </div>
