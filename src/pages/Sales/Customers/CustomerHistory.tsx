@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner'; 
 import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
+import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
 import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
 
 const CustomerHistory = () => { 
@@ -255,6 +256,33 @@ const CustomerHistory = () => {
     return match ? parseInt(match[0], 10) : null;
   };
 
+  const getCustomerLocation = (c: any) => {
+    let city = c.sub_area || c.subArea || c.city || '';
+    let area = c.area || '';
+
+    // Check if saved inside notes (e.g. "Location: Hyderabad | Cloth Market")
+    if ((!city || !area) && c.notes && c.notes.includes('Location:')) {
+      const match = c.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
+      if (match) {
+        if (!city && match[1]) city = match[1].trim();
+        if (!area && match[2]) area = match[2].trim();
+      }
+    }
+
+    // Fallback: If city still empty, scan address for known cities
+    if (!city && c.address) {
+      const addr = String(c.address).toLowerCase();
+      for (const dCity of DEFAULT_SUB_AREAS) {
+        if (addr.includes(dCity.toLowerCase())) {
+          city = dCity;
+          break;
+        }
+      }
+    }
+
+    return { city, area };
+  };
+
   // Live filter and natural page # sort
   const filteredCustomers = customers
     .filter(c => 
@@ -263,6 +291,10 @@ const CustomerHistory = () => {
       c.customerCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.page_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.pageNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.sub_area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.subArea || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.province?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -362,7 +394,7 @@ const CustomerHistory = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search name, code, page #, phone, address..."
+            placeholder="Search name, code, page #, phone, city, area, address..."
             className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none focus:border-primary text-sm text-black dark:text-white"
           />
         </div>
@@ -386,23 +418,26 @@ const CustomerHistory = () => {
                 </div>
               </th>
               <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">Code</th> 
-              <th className="min-w-[180px] py-4 px-4 font-medium text-black dark:text-white text-sm">Name</th> 
-              <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">Accounts</th> 
+              <th className="min-w-[170px] py-4 px-4 font-medium text-black dark:text-white text-sm">Name</th> 
               <th className="min-w-[110px] py-4 px-4 font-medium text-black dark:text-white text-sm">Phone</th> 
-              <th className="min-w-[180px] py-4 px-4 font-medium text-black dark:text-white text-sm">Address</th> 
+              <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">City</th> 
+              <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white text-sm">Area</th> 
+              <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">Address</th> 
+              <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white text-sm">Accounts</th> 
               <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">Actions</th> 
             </tr> 
           </thead> 
           <tbody> 
             {loading ? ( 
-              <tr><td colSpan={7} className="text-center py-12"><Spinner /></td></tr> 
+              <tr><td colSpan={9} className="text-center py-12"><Spinner /></td></tr> 
             ) : paginatedCustomers.length === 0 ? ( 
-              <tr><td colSpan={7} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No matching customer entries found.</td></tr> 
+              <tr><td colSpan={9} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No matching customer entries found.</td></tr> 
             ) : ( 
               paginatedCustomers.map((c) => {
                 const coa = getCustomerCOA(c);
                 const custCode = c.customer_code || c.customerCode;
                 const pageNo = c.page_no || c.pageNo;
+                const loc = getCustomerLocation(c);
 
                 return ( 
                   <tr key={c.id} className="border-b border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4/10 duration-150"> 
@@ -434,7 +469,46 @@ const CustomerHistory = () => {
                       <p className="text-xs text-gray-500 dark:text-gray-400">{c.company || 'Private Customer'}</p> 
                     </td> 
 
-                    {/* 4. Accounts */}
+                    {/* 4. Phone */}
+                    <td className="py-3.5 px-4 text-sm text-black dark:text-white">
+                      <p className="font-mono text-xs">{c.primaryPhone || c.phone || 'N/A'}</p>
+                    </td> 
+
+                    {/* 5. City */}
+                    <td className="py-3.5 px-4 text-sm">
+                      {loc.city ? (
+                        <span className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-meta-4/40 px-2 py-0.5 rounded border border-slate-200 dark:border-strokedark">
+                          {loc.city}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 font-mono text-xs">-</span>
+                      )}
+                    </td>
+
+                    {/* 6. Area */}
+                    <td className="py-3.5 px-4 text-sm text-gray-600 dark:text-gray-300">
+                      {loc.area ? (
+                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                          {loc.area}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 font-mono text-xs">-</span>
+                      )}
+                    </td>
+
+                    {/* 7. Address & Province */}
+                    <td className="py-3.5 px-4 text-sm">
+                      {c.address ? (
+                        <p className="text-black dark:text-white text-xs font-normal leading-snug">{c.address}</p>
+                      ) : (
+                        <p className="text-gray-400 text-xs">N/A</p>
+                      )}
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
+                        Province: {c.province || 'Sindh'}
+                      </p>
+                    </td>
+
+                    {/* 8. Accounts */}
                     <td className="py-3.5 px-4 text-sm">
                       {coa ? (
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -459,23 +533,6 @@ const CustomerHistory = () => {
                           <MdAdd size={14} /> Link Account
                         </button>
                       )}
-                    </td>
-
-                    {/* 5. Phone */}
-                    <td className="py-3.5 px-4 text-sm text-black dark:text-white">
-                      <p className="font-mono text-xs">{c.primaryPhone || c.phone || 'N/A'}</p>
-                    </td> 
-
-                    {/* 6. Address & Province */}
-                    <td className="py-3.5 px-4 text-sm">
-                      {c.address ? (
-                        <p className="text-black dark:text-white text-xs font-normal leading-snug">{c.address}</p>
-                      ) : (
-                        <p className="text-gray-400 text-xs">N/A</p>
-                      )}
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
-                        Province: {c.province || 'Sindh'}
-                      </p>
                     </td>
 
                     {/* 7. Actions */}

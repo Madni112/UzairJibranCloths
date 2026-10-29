@@ -5,6 +5,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
+import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
 import { MdEdit, MdDelete, MdMoreVert, MdEmail, MdPhone, MdPerson, MdBusiness, MdAccountBalanceWallet, MdAdd, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
 
 const VendorList = () => {
@@ -202,12 +203,34 @@ const VendorList = () => {
         return match ? parseInt(match[0], 10) : null;
     };
 
+    const getVendorLocation = (v: any) => {
+        let city = v.sub_area || v.subArea || v.city || '';
+        let area = v.area || '';
+
+        // Fallback: If city is missing, scan address for known cities
+        if (!city && v.address) {
+            const addr = String(v.address).toLowerCase();
+            for (const c of DEFAULT_SUB_AREAS) {
+                if (addr.includes(c.toLowerCase())) {
+                    city = c;
+                    break;
+                }
+            }
+        }
+
+        return { city, area };
+    };
+
     const filteredVendors = vendors
         .filter(v =>
             (v.vendor_name || v.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (v.vendor_code || v.vendorCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (v.page_no || v.pageNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (v.contact_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (v.sub_area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (v.subArea || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (v.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (v.area || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (v.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (v.cell_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (v.phone_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -300,7 +323,7 @@ const VendorList = () => {
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search vendor name, code, page #, phone..."
+                            placeholder="Search vendor name, code, page #, city, area, phone..."
                             className="w-full sm:w-64 rounded border border-stroke py-1.5 px-3 bg-transparent dark:border-strokedark outline-none text-black dark:text-white text-xs font-semibold"
                         />
                     </div>
@@ -323,25 +346,27 @@ const VendorList = () => {
                                     </div>
                                 </th>
                                 <th className="py-4 px-4 font-semibold min-w-[100px]">Code</th>
-                                <th className="py-4 px-4 font-semibold min-w-[180px]">Vendor / Business Name</th>
-                                <th className="py-4 px-4 font-semibold min-w-[140px]">Contact Person</th>
+                                <th className="py-4 px-4 font-semibold min-w-[170px]">Vendor / Business Name</th>
+                                <th className="py-4 px-4 font-semibold min-w-[130px]">Contact Person</th>
                                 <th className="py-4 px-4 font-semibold min-w-[120px]">Mobile / Phone</th>
-                                <th className="py-4 px-4 font-semibold min-w-[120px]">Email</th>
-                                <th className="py-4 px-4 font-semibold min-w-[140px]">Address</th>
-                                <th className="py-4 px-4 font-semibold min-w-[160px]">Accounts</th>
+                                <th className="py-4 px-4 font-semibold min-w-[110px]">City</th>
+                                <th className="py-4 px-4 font-semibold min-w-[120px]">Area</th>
+                                <th className="py-4 px-4 font-semibold min-w-[130px]">Address</th>
+                                <th className="py-4 px-4 font-semibold min-w-[150px]">Accounts</th>
                                 <th className="py-4 px-4 font-semibold w-24 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={9} className="text-center py-12 text-sm"><Spinner /></td></tr>
+                                <tr><td colSpan={10} className="text-center py-12 text-sm"><Spinner /></td></tr>
                             ) : paginatedVendors.length === 0 ? (
-                                <tr><td colSpan={9} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400 italic">No business merchant vendors registered yet.</td></tr>
+                                <tr><td colSpan={10} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400 italic">No business merchant vendors registered yet.</td></tr>
                             ) : (
                                 paginatedVendors.map((vendor) => {
                                     const coa = getVendorCOA(vendor);
                                     const vendCode = vendor.vendor_code || vendor.vendorCode;
                                     const pageNo = vendor.page_no || vendor.pageNo;
+                                    const loc = getVendorLocation(vendor);
 
                                     return (
                                         <tr key={vendor.id} className="border-b border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4/10 duration-150 font-semibold text-black dark:text-white text-xs">
@@ -386,10 +411,25 @@ const VendorList = () => {
                                                     {vendor.cell_no || vendor.phone_no || vendor.phone || '-'}
                                                 </span>
                                             </td>
-                                            <td className="py-3.5 px-4 text-gray-600 dark:text-gray-400">
-                                                <span className="inline-flex items-center gap-1 font-mono text-[11px]">
-                                                    {vendor.email ? <><MdEmail size={14} className="text-gray-400" />{vendor.email}</> : '-'}
-                                                </span>
+                                            {/* City */}
+                                            <td className="py-3.5 px-4">
+                                                {loc.city ? (
+                                                    <span className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-meta-4/40 px-2 py-0.5 rounded border border-slate-200 dark:border-strokedark">
+                                                        {loc.city}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400 font-mono text-xs">-</span>
+                                                )}
+                                            </td>
+                                            {/* Area */}
+                                            <td className="py-3.5 px-4 text-gray-600 dark:text-gray-300">
+                                                {loc.area ? (
+                                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                                        {loc.area}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400 font-mono text-xs">-</span>
+                                                )}
                                             </td>
                                             <td className="py-3.5 px-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">
                                                 {vendor.address || '-'}
