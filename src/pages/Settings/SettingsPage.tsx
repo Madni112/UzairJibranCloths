@@ -61,6 +61,7 @@ import {
 } from '../../utils/deviceTracker';
 import { supabase } from '../../Context/supabaseClient';
 import { useAuth } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 import { getBrandConfig } from '../../utils/brand';
 import useColorMode from '../../hooks/useColorMode';
 import {
@@ -112,37 +113,49 @@ const SETTINGS_TABS: TabItem[] = [
   {
     id: 'profile',
     label: 'Profile',
+    urLabel: 'پروفائل',
     description: 'Personal info & company details',
+    urDescription: 'ذاتی معلومات اور کمپنی تفصیلات',
     icon: LuUser,
   },
   {
     id: 'security_devices',
     label: 'Login Devices & Security',
+    urLabel: 'لاگ ان ڈیوائسز اور سیکیورٹی',
     description: 'Workstations, active sessions & remote logout',
+    urDescription: 'فعال سیشنز اور ریموٹ لاگ آؤٹ',
     icon: LuShieldCheck,
   },
   {
     id: 'theme',
     label: 'Theme & Appearance',
+    urLabel: 'تھیم اور ظاہری شکل',
     description: 'Accent colors, sidebar styles & mode',
+    urDescription: 'رنگ، سائیڈبار اسٹائل اور موڈ',
     icon: LuPalette,
   },
   {
     id: 'credit_limits',
     label: 'Customer Credit Limits',
+    urLabel: 'کسٹمر کریڈٹ لمٹس',
     description: 'Monitor customer borrowing boundaries',
+    urDescription: 'کسٹمر ادھار کی حدود کی نگرانی',
     icon: LuCreditCard,
   },
   {
     id: 'sound_effects',
     label: 'Audio & Sound Effects',
+    urLabel: 'آواز اور آڈیو اثرات',
     description: 'POS audio feedback for billing & scanning',
+    urDescription: 'بلنگ اور اسکیننگ پر آڈیو فیڈ بیک',
     icon: LuVolume2,
   },
   {
     id: 'backup',
     label: 'Data Backup & Export',
+    urLabel: 'ڈیٹا بیک اپ اور ایکسپورٹ',
     description: 'Export records & complete ERP snapshots',
+    urDescription: 'ریکارڈز اور مکمل بیک اپ اسنیپ شاٹس',
     icon: LuHardDrive,
   },
 ];
@@ -313,6 +326,7 @@ const SoundToneCard: React.FC<SoundToneCardProps> = ({
 
 const SettingsPage: React.FC = () => {
   const { userEmail, role, businessName, tenantId } = useAuth();
+  const { isRTL } = useLanguage();
   const [activeTab, setActiveTab] = useState<string>('profile');
   const [themeSubTab, setThemeSubTab] = useState<'navbar' | 'sidebar'>('navbar');
   const [colorMode, setColorMode] = useColorMode();
@@ -344,7 +358,7 @@ const SettingsPage: React.FC = () => {
     toast.success(
       mode === 'floating'
         ? '🚀 Floating Modern Sidebar activated!'
-        : '🏛️ Classic Edge Sidebar activated!',
+        : '🏛️ {isRTL ? "کلاسک ایج" : "Classic Edge"} Sidebar activated!',
       { id: 'sidebar-layout-toast' }
     );
   };
@@ -355,7 +369,7 @@ const SettingsPage: React.FC = () => {
     toast.success(
       mode === 'floating'
         ? '🚀 Floating Modern Navbar activated!'
-        : '🏛️ Classic Full-Width Navbar activated!',
+        : '🏛️ {isRTL ? "کلاسک فل" : "Classic Full"}-Width Navbar activated!',
       { id: 'navbar-layout-toast' }
     );
   };
@@ -368,7 +382,7 @@ const SettingsPage: React.FC = () => {
     toast.success(
       mode === 'floating'
         ? '🚀 Full Floating Workspace (Sidebar & Navbar) activated!'
-        : '🏛️ Full Classic Edge Workspace (Sidebar & Navbar) activated!',
+        : '🏛️ Full {isRTL ? "کلاسک ایج" : "Classic Edge"} Workspace (Sidebar & Navbar) activated!',
       { id: 'preset-layout-toast' }
     );
   };
@@ -1015,10 +1029,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold truncate leading-tight">
-                        {tab.label}
+                        {isRTL ? ((tab as any).urLabel || tab.label) : tab.label}
                       </div>
                       <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate hidden lg:block mt-0.5 font-normal">
-                        {tab.description}
+                        {isRTL ? ((tab as any).urDescription || tab.description) : tab.description}
                       </div>
                     </div>
                   </button>
@@ -1084,7 +1098,7 @@ const SettingsPage: React.FC = () => {
                         title="View connected login devices and session security"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Active Session • Manage Devices →</span>
+                        <span>{isRTL ? "فعال سیشن • ڈیوائسز کا انتظام ←" : "Active Session • Manage Devices →"}</span>
                       </button>
                     </div>
 
@@ -1101,14 +1115,14 @@ const SettingsPage: React.FC = () => {
                 <div className="flex items-center gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
                   <LuBuilding2 className="text-primary text-lg" />
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Organization & Account Information
+                    {isRTL ? "تنظیم اور کھاتہ کی معلومات" : "Organization & Account Information"}
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                      Company / Organization Name
+                      {isRTL ? "کمپنی / ادارے کا نام" : "Company / Organization Name"}
                     </span>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1">
                       {displayCompanyName}
@@ -1117,7 +1131,7 @@ const SettingsPage: React.FC = () => {
 
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                      Login Email Address
+                      {isRTL ? "لاگ ان ای میل ایڈریس" : "Login Email Address"}
                     </span>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1">
                       {displayEmail}
@@ -1126,17 +1140,17 @@ const SettingsPage: React.FC = () => {
 
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                      Security Level & Access Role
+                      {isRTL ? "سیکیورٹی لیول اور رسائی کا کردار" : "Security Level & Access Role"}
                     </span>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1 flex items-center gap-1.5">
                       <LuShieldCheck className="text-primary" />
-                      <span>{displayRole} (Full Permissions)</span>
+                      <span>{displayRole} {isRTL ? "(مکمل اختیارات)" : "(Full Permissions)"}</span>
                     </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                      Portal Instance
+                      {isRTL ? "پورٹل انسٹینس" : "Portal Instance"}
                     </span>
                     <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-1 flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-primary border border-slate-300 dark:border-slate-600 shrink-0" />
@@ -1170,7 +1184,7 @@ const SettingsPage: React.FC = () => {
                       className="w-2.5 h-2.5 rounded-full shadow-2xs shrink-0"
                       style={{ backgroundColor: selectedAccentColor }}
                     />
-                    <span>Navbar & Brand Accent</span>
+                    <span>{isRTL ? "نیوبار اور برانڈ کا رنگ" : "Navbar & Brand Accent"}</span>
                     {isAccentChanged && (
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Unapplied changes" />
                     )}
@@ -1190,7 +1204,7 @@ const SettingsPage: React.FC = () => {
                       className="w-2.5 h-2.5 rounded-full shadow-2xs shrink-0"
                       style={{ backgroundColor: selectedSidebarColor }}
                     />
-                    <span>Sidebar</span>
+                    <span>{isRTL ? "سائیڈبار" : "Sidebar"}</span>
                     {isSidebarChanged && (
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Unapplied changes" />
                     )}
@@ -1198,9 +1212,9 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 px-2 text-xs font-medium text-slate-500 dark:text-slate-400 self-end sm:self-auto">
-                  <span>Customizing:</span>
+                  <span>{isRTL ? "حسب ضرورت:" : "Customizing:"}</span>
                   <strong className="text-slate-800 dark:text-slate-200 font-bold">
-                    {themeSubTab === 'navbar' ? 'Navbar & Brand Accent' : 'Sidebar Colors'}
+                    {isRTL ? (themeSubTab === 'navbar' ? 'نیوبار اور برانڈ کا رنگ' : 'سائیڈبار کے رنگ') : (themeSubTab === 'navbar' ? 'Navbar & Brand Accent' : 'Sidebar Colors')}
                   </strong>
                 </div>
               </div>
@@ -1221,10 +1235,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                        Brand Accent Color
+                        {isRTL ? "برانڈ کا بنیادی رنگ" : "Brand Accent Color"}
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Select a color to preview, then click <strong className="text-slate-700 dark:text-slate-200">Apply Accent Color</strong> to save changes.
+                        Select a color to preview, then click <strong className="text-slate-700 dark:text-slate-200">{isRTL ? "رنگ لاگو کریں" : "Apply Accent Color"}</strong> to save changes.
                       </p>
                     </div>
                   </div>
@@ -1255,7 +1269,7 @@ const SettingsPage: React.FC = () => {
                       Preset Palette ({PRESET_THEME_COLORS.length} Colors)
                     </span>
                     <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                      Click any swatch to preview
+                      {isRTL ? "پیش نظارہ کے لیے کسی بھی رنگ پر کلک کریں" : "Click any swatch to preview"}
                     </span>
                   </div>
 
@@ -1313,10 +1327,10 @@ const SettingsPage: React.FC = () => {
                     <div>
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                         <LuPenLine size={13} />
-                        <span>Custom Accent Hex</span>
+                        <span>{isRTL ? "حسب ضرورت ہیکس کوڈ" : "Custom Accent Hex"}</span>
                       </div>
                       <span className="text-[11px] text-slate-400 dark:text-slate-400">
-                        Pick from the color wheel or type any hex
+                        {isRTL ? "رنگوں کے پہیے سے منتخب کریں یا کوڈ لکھیں" : "Pick from the color wheel or type any hex"}
                       </span>
                     </div>
                   </div>
@@ -1378,7 +1392,7 @@ const SettingsPage: React.FC = () => {
                       ) : (
                         <>
                           <LuSparkles size={15} />
-                          <span>Apply Accent Color</span>
+                          <span>{isRTL ? "رنگ لاگو کریں" : "Apply Accent Color"}</span>
                         </>
                       )}
                     </button>
@@ -1503,7 +1517,7 @@ const SettingsPage: React.FC = () => {
                       Preset Options
                     </span>
                     <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                      Click any swatch to preview
+                      {isRTL ? "پیش نظارہ کے لیے کسی بھی رنگ پر کلک کریں" : "Click any swatch to preview"}
                     </span>
                   </div>
 
@@ -1679,7 +1693,7 @@ const SettingsPage: React.FC = () => {
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm">
                 <div className="pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Interface Theme Mode
+                    {isRTL ? "انٹرفیس تھیم موڈ" : "Interface Theme Mode"}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Select your preferred appearance for the entire workspace.
@@ -1687,7 +1701,7 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Light Mode Card */}
+                  {/* {isRTL ? "لائٹ موڈ" : "Light Mode"} Card */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1710,10 +1724,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                        Light Mode
+                        {isRTL ? "لائٹ موڈ" : "Light Mode"}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Clean, bright daylight interface with sharp contrast.
+                        {isRTL ? "صاف اور روشن دن کا انٹرفیس مع واضح کنٹراسٹ۔" : "Clean, bright daylight interface with sharp contrast."}
                       </div>
                     </div>
                     {colorMode === 'light' && (
@@ -1721,7 +1735,7 @@ const SettingsPage: React.FC = () => {
                     )}
                   </button>
 
-                  {/* Dark Mode Card */}
+                  {/* {isRTL ? "ڈارک موڈ" : "Dark Mode"} Card */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1744,10 +1758,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                        Dark Mode
+                        {isRTL ? "ڈارک موڈ" : "Dark Mode"}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Sleek low-light aesthetic reducing eye strain.
+                        {isRTL ? "آنکھوں کی حفاظت کے لیے پرسکون ڈارک موڈ۔" : "Sleek low-light aesthetic reducing eye strain."}
                       </div>
                     </div>
                     {colorMode === 'dark' && (
@@ -1766,7 +1780,7 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                        Workspace Navigation & Layout
+                        {isRTL ? "ورک اسپیس نیویگیشن اور لے آؤٹ" : "Workspace Navigation & Layout"}
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Choose between a modern floating card layout or the classic edge-to-edge ERP interface.
@@ -1781,7 +1795,7 @@ const SettingsPage: React.FC = () => {
                     title="Undo customizations and restore original Classic layout"
                   >
                     <LuRotateCcw size={13} />
-                    <span>Reset to Classic (Undo)</span>
+                    <span>{isRTL ? "کلاسک موڈ پر واپس جائیں" : "Reset to Classic (Undo)"}</span>
                   </button>
                 </div>
 
@@ -1853,14 +1867,14 @@ const SettingsPage: React.FC = () => {
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                            🚀 Floating Card
+                            🚀 {isRTL ? "فلوٹنگ کارڈ" : "Floating Card"}
                           </span>
                           {sidebarLayout === 'floating' && (
                             <LuCheck className="text-primary text-sm stroke-[3]" />
                           )}
                         </div>
                         <p className="text-[10px] text-slate-400 dark:text-slate-400 leading-tight">
-                          Rounded detached card with ambient elevation.
+                          {isRTL ? "گول کٹ آؤٹ ڈیزائن مع خوبصورت شیڈو۔" : "Rounded detached card with ambient elevation."}
                         </p>
                       </button>
 
@@ -1875,14 +1889,14 @@ const SettingsPage: React.FC = () => {
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                            🏛️ Classic Edge
+                            🏛️ {isRTL ? "کلاسک ایج" : "Classic Edge"}
                           </span>
                           {sidebarLayout === 'classic' && (
                             <LuCheck className="text-primary text-sm stroke-[3]" />
                           )}
                         </div>
                         <p className="text-[10px] text-slate-400 dark:text-slate-400 leading-tight">
-                          Original edge-to-edge flush sidebar.
+                          {isRTL ? "اصل مکمل اسکرین سائیڈبار۔" : "Original edge-to-edge flush sidebar."}
                         </p>
                       </button>
                     </div>
@@ -1916,14 +1930,14 @@ const SettingsPage: React.FC = () => {
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                            🚀 Floating Card
+                            🚀 {isRTL ? "فلوٹنگ کارڈ" : "Floating Card"}
                           </span>
                           {navbarLayout === 'floating' && (
                             <LuCheck className="text-primary text-sm stroke-[3]" />
                           )}
                         </div>
                         <p className="text-[10px] text-slate-400 dark:text-slate-400 leading-tight">
-                          Rounded floating pill card with elevation.
+                          {isRTL ? "گول فلوٹنگ پِل ڈیزائن مع شیڈو۔" : "Rounded floating pill card with elevation."}
                         </p>
                       </button>
 
@@ -1938,14 +1952,14 @@ const SettingsPage: React.FC = () => {
                       >
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                            🏛️ Classic Full
+                            🏛️ {isRTL ? "کلاسک فل" : "Classic Full"}
                           </span>
                           {navbarLayout === 'classic' && (
                             <LuCheck className="text-primary text-sm stroke-[3]" />
                           )}
                         </div>
                         <p className="text-[10px] text-slate-400 dark:text-slate-400 leading-tight">
-                          Original edge-to-edge full width navbar.
+                          {isRTL ? "اصل مکمل چوڑائی والا نیوبار۔" : "Original edge-to-edge full width navbar."}
                         </p>
                       </button>
                     </div>
@@ -2006,7 +2020,7 @@ const SettingsPage: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                            Customer Credit Limits Directory
+                            {isRTL ? "کسٹمر کریڈٹ لمٹس ڈائریکٹری" : "Customer Credit Limits Directory"}
                           </h2>
                           {canEdit ? (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
@@ -2021,7 +2035,7 @@ const SettingsPage: React.FC = () => {
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           {canEdit
                             ? 'You have permission to edit and set customer credit limit ceilings.'
-                            : 'View customer credit boundaries and risk status. Edit rights are managed in /dev/master.'}
+                            : '{isRTL ? "کسٹمر کے ادھار کی حد اور رسک اسٹیٹس دیکھیں۔ ترمیم کے اختیارات /dev/master میں ہیں۔" : "View customer credit boundaries and risk status. Edit rights are managed in /dev/master"}.'}
                         </p>
                       </div>
                     </div>
@@ -2033,7 +2047,7 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
                       <LuRefreshCw className={loadingCustomers ? 'animate-spin' : ''} />
-                      <span>Refresh Limits</span>
+                      <span>{isRTL ? "حدود ریفریش کریں" : "Refresh Limits"}</span>
                     </button>
                   </div>
 
@@ -2069,7 +2083,7 @@ const SettingsPage: React.FC = () => {
                       type="text"
                       value={creditSearch}
                       onChange={e => setCreditSearch(e.target.value)}
-                      placeholder="Search by customer name, phone, or code..."
+                      placeholder={isRTL ? "کسٹمر کا نام، فون یا کوڈ تلاش کریں..." : "Search by customer name, phone, or code..."}
                       className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 focus:border-primary focus:outline-hidden"
                     />
                   </div>
@@ -2248,10 +2262,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                        POS & System Audio Chimes
+                        {isRTL ? "POS اور سسٹم آڈیو اثرات" : "POS & System Audio Chimes"}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Interactive sound feedback for cashiers during sales invoice creation, scanning, and alerts.
+                        {isRTL ? "سیلز انوائس بنانے، اسکیننگ اور الرٹس کے دوران کیشیئرز کے لیے آڈیو فیڈ بیک۔" : "Interactive sound feedback for cashiers during sales invoice creation, scanning, and alerts."}
                       </p>
                     </div>
                   </div>
@@ -2259,7 +2273,7 @@ const SettingsPage: React.FC = () => {
                   {/* Per-User Master Sound Switch */}
                   <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      {soundEnabled ? 'Audio Active' : 'Audio Muted'}
+                      {isRTL ? (soundEnabled ? 'آڈیو فعال ہے' : 'آڈیو میوٹ ہے') : (soundEnabled ? 'Audio Active' : 'Audio Muted')}
                     </span>
                     <button
                       type="button"
@@ -2381,7 +2395,7 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                        ERP Data Backup & Excel Export
+                        {isRTL ? "ERP ڈیٹا بیک اپ اور ایکسل ایکسپورٹ" : "ERP Data Backup & Excel Export"}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         Download comprehensive, clean Excel (.xlsx) snapshots of your customers, products, and sales history.
@@ -2400,7 +2414,7 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          Customers & Accounts Directory
+                          {isRTL ? "کسٹمرز اور اکاؤنٹس ڈائریکٹری" : "Customers & Accounts Directory"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           Names, codes, phone, ledger balances, and credit limits.
@@ -2430,7 +2444,7 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          Item Master & Tile Catalog
+                          {isRTL ? "آئٹم ماسٹر اور ٹائلز کیٹلاگ" : "Item Master & Tile Catalog"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           Full product registry, tile dimensions, prices, and inventory stock.
@@ -2460,7 +2474,7 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          Sales Invoices & Revenue Ledger
+                          {isRTL ? "سیلز انوائسز اور ریونیو لیجر" : "Sales Invoices & Revenue Ledger"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           Invoice history, customer orders, payment status, and totals.
@@ -2490,7 +2504,7 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          Complete ERP Snapshot (Multi-Sheet)
+                          {isRTL ? "مکمل ERP اسنیپ شاٹ (ملٹی شیٹ)" : "Complete ERP Snapshot (Multi-Sheet)"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
                           Combines Customers, Products, and Invoices into one Excel workbook.
@@ -2508,7 +2522,7 @@ const SettingsPage: React.FC = () => {
                       ) : (
                         <LuDownload className="text-sm" />
                       )}
-                      <span>Download Complete ERP Snapshot (.xlsx)</span>
+                      <span>{isRTL ? "مکمل ERP اسنیپ شاٹ ڈاؤنلوڈ کریں (.xlsx)" : "Download Complete ERP Snapshot (.xlsx)"}</span>
                     </button>
                   </div>
                 </div>
@@ -2536,7 +2550,7 @@ const SettingsPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-                      Manage all connected cashier workstations, mobile POS devices, and authorized browsers. You can terminate remote sessions anytime to prevent unauthorized access.
+                      {isRTL ? "تمام منسلک کیشیئر کمپیوٹرز، موبائل ڈیوائسز اور براؤزرز کا انتظام کریں۔ آپ غیر مجاز رسائی روکنے کے لیے کسی بھی وقت ریموٹ سیشن ختم کر سکتے ہیں۔" : "Manage all connected cashier workstations, mobile POS devices, and authorized browsers. You can terminate remote sessions anytime to prevent unauthorized access."}
                     </p>
                   </div>
                 </div>
@@ -2553,7 +2567,7 @@ const SettingsPage: React.FC = () => {
                     ) : (
                       <LuLogOut className="text-sm" />
                     )}
-                    <span>Revoke All Other Devices</span>
+                    <span>{isRTL ? "دیگر تمام ڈیوائسز ختم کریں" : "Revoke All Other Devices"}</span>
                   </button>
                 </div>
 
@@ -2585,7 +2599,7 @@ const SettingsPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                      Connected & Verified
+                      {isRTL ? "منسلک اور تصدیق شدہ" : "Connected & Verified"}
                     </span>
                   </div>
                 </div>
@@ -2640,10 +2654,10 @@ const SettingsPage: React.FC = () => {
                         <LuLaptop className="text-primary text-lg" />
                         <div>
                           <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                            Other Authorized Workstations & Remote Terminals
+                            {isRTL ? "دیگر مجاز کمپیوٹرز اور ٹرمینلز" : "Other Authorized Workstations & Remote Terminals"}
                           </h3>
                           <p className="text-[11px] text-slate-400">
-                            Real-time connected cashier workstations, mobile POS scanners, and branch devices.
+                            {isRTL ? "حقیقی وقت میں منسلک کیشیئر کمپیوٹرز، موبائل اسکینرز اور برانچ ڈیوائسز۔" : "Real-time connected cashier workstations, mobile POS scanners, and branch devices."}
                           </p>
                         </div>
                       </div>
@@ -2752,7 +2766,7 @@ const SettingsPage: React.FC = () => {
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <LuLock className="text-primary text-base" />
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Authentication & Workstation Security Specifications
+                    {isRTL ? "تصدیق اور ورک اسٹیشن سیکیورٹی تفصیلات" : "Authentication & Workstation Security Specifications"}
                   </h3>
                 </div>
 
@@ -2801,7 +2815,7 @@ const SettingsPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-                      <LuAlertTriangle /> Workstation Reset & Session Logout
+                      <LuAlertTriangle /> {isRTL ? "ورک اسٹیشن ری سیٹ اور سیشن لاگ آؤٹ" : "Workstation Reset & Session Logout"}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Flush local authorization cache on this machine or terminate your session immediately.
@@ -2815,7 +2829,7 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                       <LuRefreshCw size={13} />
-                      <span>Flush Workstation Cache</span>
+                      <span>{isRTL ? "کیشے میموری صاف کریں" : "Flush Workstation Cache"}</span>
                     </button>
 
                     <button
@@ -2825,7 +2839,7 @@ const SettingsPage: React.FC = () => {
                       className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
                     >
                       <LuLogOut size={13} />
-                      <span>Sign Out This Device</span>
+                      <span>{isRTL ? "اس ڈیوائس سے سائن آؤٹ کریں" : "Sign Out This Device"}</span>
                     </button>
                   </div>
                 </div>
