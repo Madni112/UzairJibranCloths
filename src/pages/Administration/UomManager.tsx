@@ -3,6 +3,7 @@ import { supabase } from '../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../ui/Spinner';
 import { useAuth } from '../../Context/Auth';
+import { useLanguage } from '../../Context/LanguageContext';
 import { MdAdd, MdCheckCircle, MdLayers, MdClose, MdEdit, MdDelete } from 'react-icons/md';
 
 const DEFAULT_UOM_TEMPLATES = [
@@ -46,6 +47,54 @@ const CATEGORY_OPTIONS = [
 
 const UomManager = () => {
   const { tenantId } = useAuth();
+  const { isRTL } = useLanguage();
+
+  const getCategoryLabel = (cat: string) => {
+    if (!isRTL) return cat;
+    const map: Record<string, string> = {
+      'Count & Units': 'شمار اور اکائیاں (Count & Units)',
+      'Packaging & Containers': 'پیکنگ اور کنٹینرز (Packaging & Containers)',
+      'Area & Surface': 'رقبہ اور سطح (Area & Surface)',
+      'Length & Distance': 'لمبائی اور فاصلہ (Length & Distance)',
+      'Weight & Mass': 'وزن اور کمیت (Weight & Mass)',
+      'Volume & Liquid': 'حجم اور مائع (Volume & Liquid)',
+    };
+    return map[cat] || cat;
+  };
+
+  const getUomLabel = (name: string) => {
+    if (!isRTL || !name) return name;
+    const map: Record<string, string> = {
+      'Box / Carton': 'ڈبہ / کارٹن (Box / Carton)',
+      'Pieces': 'تھان / پیس (Pieces)',
+      'Numbers': 'تعداد (Numbers)',
+      'Each': 'فی عدد (Each)',
+      'Sets': 'سیٹ (Sets)',
+      'Pairs': 'جوڑا (Pairs)',
+      'Dozen (12 Pcs)': 'درجن (12 Pcs)',
+      'Carton': 'کارٹن (Carton)',
+      'Packet / Pack': 'پیکٹ (Packet)',
+      'Bag / Sack': 'تھیلا / بوری (Bag / Sack)',
+      'Bundle': 'بنڈل (Bundle)',
+      'Roll': 'تھان / رول (Roll)',
+      'Square Feet (Sq. Ft)': 'مربع فٹ (Sq. Ft)',
+      'Square Meter (Sq. Mtr)': 'مربع میٹر (Sq. Mtr)',
+      'Square Yard (Guz)': 'مربع گز (Guz)',
+      'Meter (Linear Mtr)': 'میٹر (Meter)',
+      'Foot / Feet': 'فٹ (Feet)',
+      'Inches': 'انچ (Inches)',
+      'Millimeter': 'ملی میٹر (mm)',
+      'Yard (Guz)': 'گز (Guz)',
+      'Kilogram (Kg)': 'کلوگرام (Kg)',
+      'Gram (g)': 'گرام (g)',
+      'Metric Ton': 'میٹرک ٹن',
+      'Pound (lb)': 'پاؤنڈ (lb)',
+      'Liter (Ltr)': 'لیٹر (Ltr)',
+      'Milliliter (ml)': 'ملی لیٹر (ml)',
+      'Gallon': 'گیلن (Gallon)'
+    };
+    return map[name] || name;
+  };
   const [uoms, setUoms] = useState<any[]>([]);
   const [uomUsageCounts, setUomUsageCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -293,10 +342,10 @@ const UomManager = () => {
         <div>
           <h2 className="text-xl font-bold text-black dark:text-white flex items-center gap-2">
             <MdLayers className="text-primary" size={24} />
-            Units of Measurement (UOM) Switchboard
+            {isRTL ? "پیمائش کی اکائیاں (UOM سوئچ بورڈ)" : "Units of Measurement (UOM) Switchboard"}
           </h2>
           <p className="text-gray-400 mt-0.5 text-xs">
-            Turn individual units On or Off, edit names, or delete unwanted custom units across active ERP forms.
+            {isRTL ? "مختلف اکائیوں کو آن یا آف کریں، نام تبدیل کریں یا غیر ضروری کسٹم اکائیاں حذف کریں۔" : "Turn individual units On or Off, edit names, or delete unwanted custom units across active ERP forms."}
           </p>
         </div>
 
@@ -305,14 +354,14 @@ const UomManager = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search unit codes, names..."
+            placeholder={isRTL ? "اکائی کوڈ یا نام تلاش کریں..." : "Search unit codes, names..."}
             className="w-full sm:w-64 rounded-lg border border-stroke py-2 px-3 bg-white dark:bg-boxdark dark:border-strokedark outline-none focus:border-primary text-black dark:text-white shadow-xs"
           />
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1 bg-primary hover:bg-opacity-90 text-white px-4 py-2 rounded-lg font-bold transition whitespace-nowrap shadow-sm cursor-pointer"
           >
-            <MdAdd size={16} /> Add Unit
+            <MdAdd size={16} /> {isRTL ? "+ نئی اکائی شامل کریں" : "Add Unit"}
           </button>
         </div>
       </div>
@@ -320,13 +369,13 @@ const UomManager = () => {
       {/* Summary Stat Pills */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="bg-slate-100 dark:bg-meta-4 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-full font-bold text-xs">
-          Total Units: <strong className="text-black dark:text-white">{uoms.length}</strong>
+          {isRTL ? "کل اکائیاں: " : "Total Units: "}<strong className="text-black dark:text-white font-mono">{uoms.length}</strong>
         </span>
         <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full font-bold text-xs flex items-center gap-1">
-          <MdCheckCircle size={14} /> Active Units: <strong>{activeCount}</strong>
+          <MdCheckCircle size={14} /> {isRTL ? "فعال اکائیاں: " : "Active Units: "}<strong className="font-mono">{activeCount}</strong>
         </span>
         <span className="bg-gray-100 dark:bg-meta-4 text-gray-500 px-3 py-1 rounded-full font-bold text-xs">
-          Inactive Units: <strong>{uoms.length - activeCount}</strong>
+          {isRTL ? "غیر فعال اکائیاں: " : "Inactive Units: "}<strong className="font-mono">{uoms.length - activeCount}</strong>
         </span>
       </div>
 
@@ -342,10 +391,10 @@ const UomManager = () => {
               {/* Category Header */}
               <div className="bg-slate-100 dark:bg-meta-4 px-5 py-3 border-b border-stroke dark:border-strokedark flex items-center justify-between">
                 <h3 className="font-extrabold text-black dark:text-white tracking-wider text-[11px] uppercase">
-                  {categoryName}
+                  {getCategoryLabel(categoryName)}
                 </h3>
-                <span className="text-[10px] font-bold text-gray-500">
-                  {groupedUoms[categoryName].filter((u: any) => u.is_active).length} / {groupedUoms[categoryName].length} Active
+                <span className="text-[10px] font-bold text-gray-500 font-mono">
+                  {groupedUoms[categoryName].filter((u: any) => u.is_active).length} / {groupedUoms[categoryName].length} {isRTL ? "فعال" : "Active"}
                 </span>
               </div>
 
@@ -371,13 +420,13 @@ const UomManager = () => {
                         }`}>
                           {unit.short_code}
                         </span>
-                        <span className="text-xs truncate">{unit.full_name}</span>
+                        <span className="text-xs truncate">{getUomLabel(unit.full_name)}</span>
                         {inUseCount > 0 && (
                           <span 
                             className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800 whitespace-nowrap"
                             title={`${inUseCount} active product(s) use this unit`}
                           >
-                            In Use ({inUseCount})
+                            {isRTL ? "زیر استعمال" : "In Use"} ({inUseCount})
                           </span>
                         )}
                       </div>
@@ -443,7 +492,7 @@ const UomManager = () => {
           <div className="w-full max-w-md bg-white dark:bg-boxdark rounded-2xl p-6 shadow-2xl border border-stroke dark:border-strokedark">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-stroke dark:border-strokedark">
               <h3 className="font-bold text-base text-black dark:text-white flex items-center gap-2">
-                <MdAdd className="text-primary" size={20} /> Add Custom Unit (UOM)
+                <MdAdd className="text-primary" size={20} /> {isRTL ? "نئی کسٹم اکائی شامل کریں" : "Add Custom Unit (UOM)"}
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -455,7 +504,7 @@ const UomManager = () => {
 
             <form onSubmit={handleAddCustomUom} className="space-y-4">
               <div>
-                <label className="block font-bold text-xs mb-1">Unit Short Code <span className="text-rose-500">*</span></label>
+                <label className="block font-bold text-xs mb-1">{isRTL ? "اکائی کا مختصر کوڈ" : "Unit Short Code"} <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   required
@@ -467,7 +516,7 @@ const UomManager = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-xs mb-1">Full Description / Name <span className="text-rose-500">*</span></label>
+                <label className="block font-bold text-xs mb-1">{isRTL ? "مکمل نام / تفصیل" : "Full Description / Name"} <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   required
@@ -479,7 +528,7 @@ const UomManager = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-xs mb-1">Category Group</label>
+                <label className="block font-bold text-xs mb-1">{isRTL ? "کیٹیگری گروپ" : "Category Group"}</label>
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
@@ -502,7 +551,7 @@ const UomManager = () => {
                   disabled={savingNew}
                   className="px-5 py-2 rounded-lg bg-primary hover:bg-opacity-90 text-white font-bold transition shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {savingNew ? <Spinner /> : 'Save Unit'}
+                  {savingNew ? <Spinner /> : (isRTL ? 'محفوظ کریں' : 'Save Unit')}
                 </button>
               </div>
             </form>
@@ -516,7 +565,7 @@ const UomManager = () => {
           <div className="w-full max-w-md bg-white dark:bg-boxdark rounded-2xl p-6 shadow-2xl border border-stroke dark:border-strokedark">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-stroke dark:border-strokedark">
               <h3 className="font-bold text-base text-black dark:text-white flex items-center gap-2">
-                <MdEdit className="text-primary" size={20} /> Edit Unit ({editingUom.short_code})
+                <MdEdit className="text-primary" size={20} /> {isRTL ? "اکائی میں ترمیم" : "Edit Unit"} ({editingUom.short_code})
               </h3>
               <button
                 onClick={() => setEditingUom(null)}
@@ -528,7 +577,7 @@ const UomManager = () => {
 
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
-                <label className="block font-bold text-xs mb-1">Unit Short Code <span className="text-rose-500">*</span></label>
+                <label className="block font-bold text-xs mb-1">{isRTL ? "اکائی کا مختصر کوڈ" : "Unit Short Code"} <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   required
@@ -539,7 +588,7 @@ const UomManager = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-xs mb-1">Full Description / Name <span className="text-rose-500">*</span></label>
+                <label className="block font-bold text-xs mb-1">{isRTL ? "مکمل نام / تفصیل" : "Full Description / Name"} <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   required
@@ -550,7 +599,7 @@ const UomManager = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-xs mb-1">Category Group</label>
+                <label className="block font-bold text-xs mb-1">{isRTL ? "کیٹیگری گروپ" : "Category Group"}</label>
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}

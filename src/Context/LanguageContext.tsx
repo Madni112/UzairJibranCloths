@@ -452,24 +452,19 @@ export const getUrduText = (str: string): string => {
     return TH_TRANSLATIONS[stripped];
   }
 
-  // Multi-word Token Fallback (translates compound headers)
+  // Multi-word Token Fallback (ONLY for short compound headers <= 3 words where ALL words are recognized)
   const words = clean.split(/[\s/]+/);
-  if (words.length > 1) {
-    let hasTranslated = false;
-    const translatedWords = words.map((w) => {
+  if (words.length > 1 && words.length <= 3) {
+    const allWordsRecognized = words.every((w) => {
       const wClean = w.replace(/^[.\s#+:–—\->←⇅▲▼↑↓()]+/, '').replace(/[.\s#+:–—\->←⇅▲▼↑↓()]+$/, '').toLowerCase();
-      if (TOKEN_TRANSLATIONS[wClean]) {
-        hasTranslated = true;
-        return TOKEN_TRANSLATIONS[wClean];
-      }
-      if (TH_TRANSLATIONS[wClean]) {
-        hasTranslated = true;
-        return TH_TRANSLATIONS[wClean];
-      }
-      return w;
+      return !!(TOKEN_TRANSLATIONS[wClean] || TH_TRANSLATIONS[wClean] || quickMap[wClean]);
     });
 
-    if (hasTranslated) {
+    if (allWordsRecognized) {
+      const translatedWords = words.map((w) => {
+        const wClean = w.replace(/^[.\s#+:–—\->←⇅▲▼↑↓()]+/, '').replace(/[.\s#+:–—\->←⇅▲▼↑↓()]+$/, '').toLowerCase();
+        return TOKEN_TRANSLATIONS[wClean] || TH_TRANSLATIONS[wClean] || quickMap[wClean] || w;
+      });
       return translatedWords.join(' ');
     }
   }
