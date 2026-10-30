@@ -6,6 +6,7 @@ import { bomService, BomHeader, BomItem } from '../../../service/bomService';
 import Breadcrumb from '../../../components/Breadcrumbs/Breadcrumb';
 import SearchableProductSelect from '../../../components/SearchableProductSelect';
 import { SearchableDropdown } from '../../../components/SearchableDropdown';
+import SearchableUomDropdown from '../../../components/SearchableUomDropdown';
 import { fetchAllUomsSafe, UomItem } from '../../../service/uomService';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
@@ -41,6 +42,7 @@ const AddBOM: React.FC = () => {
   const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
   const [allCategories, setAllCategories] = useState<any[]>([]);
   const [availableUoms, setAvailableUoms] = useState<string[]>([]);
+  const [allUomsList, setAllUomsList] = useState<UomItem[]>([]);
 
   // Step 1: Finished Product Output State
   const [bomNumber, setBomNumber] = useState('');
@@ -98,6 +100,7 @@ const AddBOM: React.FC = () => {
 
         if (prodRes.data) setCatalogProducts(prodRes.data);
         if (catRes.data) setAllCategories(catRes.data);
+        if (uomsList) setAllUomsList(uomsList.filter(u => u.is_active));
 
         const activeUomCodes = uomsList
           .filter(u => u.is_active)
@@ -642,25 +645,13 @@ const AddBOM: React.FC = () => {
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
                       {isRTL ? 'پیداواری اکائی (Output UOM) *' : 'Finished Good Unit (UOM) *'}
                     </label>
-                    <select
+                    <SearchableUomDropdown
                       value={uom}
-                      onChange={e => setUom(e.target.value)}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 font-semibold"
-                    >
-                      {availableUoms.length > 0 ? (
-                        availableUoms.map(u => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))
-                      ) : (
-                        ['PCS', 'MTR', 'SUIT', 'BOX', 'KG'].map(u => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      onChange={val => setUom(val)}
+                      uoms={allUomsList.length > 0 ? allUomsList : availableUoms}
+                      placeholder={isRTL ? 'پیداواری اکائی منتخب کریں' : 'Select Output UOM'}
+                      isRTL={isRTL}
+                    />
                   </div>
                 </div>
 
@@ -879,26 +870,14 @@ const AddBOM: React.FC = () => {
                           />
                         </td>
 
-                        <td className="p-2 w-[100px]">
-                          <select
+                        <td className="p-2 w-[100px] relative">
+                          <SearchableUomDropdown
                             value={row.uom}
-                            onChange={e => handleUpdateItem(idx, 'uom', e.target.value)}
-                            className="w-full rounded border border-stroke bg-white dark:bg-meta-4 py-1.5 px-2 text-center outline-none focus:border-primary dark:border-strokedark font-medium"
-                          >
-                            {availableUoms.length > 0 ? (
-                              availableUoms.map(u => (
-                                <option key={u} value={u}>
-                                  {u}
-                                </option>
-                              ))
-                            ) : (
-                              ['PCS', 'MTR', 'KG', 'LBS', 'BOX'].map(u => (
-                                <option key={u} value={u}>
-                                  {u}
-                                </option>
-                              ))
-                            )}
-                          </select>
+                            onChange={val => handleUpdateItem(idx, 'uom', val)}
+                            uoms={allUomsList.length > 0 ? allUomsList : availableUoms}
+                            compact={true}
+                            isRTL={isRTL}
+                          />
                         </td>
 
                         <td className="p-2 w-[130px]">
