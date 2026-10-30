@@ -623,18 +623,45 @@ const AddBOM: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Product Code / SKU */}
-                <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
-                    {isRTL ? 'پروڈکٹ کوڈ / SKU' : 'Product Code / SKU'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., ESK-PREM-01"
-                    value={finishedProductCode}
-                    onChange={e => setFinishedProductCode(e.target.value)}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs font-mono outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
-                  />
+                {/* Product Code / SKU & Output Unit (UOM) */}
+                <div className="sm:col-span-2 sm:grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
+                      {isRTL ? 'پروڈکٹ کوڈ / SKU' : 'Product Code / SKU'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., ESK-PREM-01"
+                      value={finishedProductCode}
+                      onChange={e => setFinishedProductCode(e.target.value)}
+                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs font-mono outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
+                      {isRTL ? 'پیداواری اکائی (Output UOM) *' : 'Finished Good Unit (UOM) *'}
+                    </label>
+                    <select
+                      value={uom}
+                      onChange={e => setUom(e.target.value)}
+                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 font-semibold"
+                    >
+                      {availableUoms.length > 0 ? (
+                        availableUoms.map(u => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))
+                      ) : (
+                        ['PCS', 'MTR', 'SUIT', 'BOX', 'KG'].map(u => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
                 </div>
 
                 {/* 3-LEVEL CASCADING CATEGORIES (Identical to AddProduct.tsx) */}
@@ -706,49 +733,6 @@ const AddBOM: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Batch Output Quantity & Output Unit (UOM) */}
-                <div className="sm:col-span-2 sm:grid sm:grid-cols-2 gap-4 pt-2 border-t border-stroke dark:border-strokedark">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
-                      {isRTL ? 'بیچ پیداواری مقدار (Batch Qty) *' : 'Batch Production Quantity *'}
-                    </label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="any"
-                      required
-                      value={batchQuantity}
-                      onChange={e => setBatchQuantity(parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs font-mono font-semibold outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
-                      {isRTL ? 'پیداواری اکائی (Output UOM)' : 'Output Unit (UOM)'}
-                    </label>
-                    <select
-                      value={uom}
-                      onChange={e => setUom(e.target.value)}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
-                    >
-                      {availableUoms.length > 0 ? (
-                        availableUoms.map(u => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))
-                      ) : (
-                        ['PCS', 'MTR', 'SUIT', 'BOX', 'KG'].map(u => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -756,6 +740,41 @@ const AddBOM: React.FC = () => {
           {/* TAB 2: RAW MATERIALS RECIPE TABLE */}
           {activeTab === 2 && (
             <div className="rounded-2xl border border-stroke bg-white p-5 shadow-sm dark:border-strokedark dark:bg-boxdark space-y-4">
+              {/* Batch Production Target Card (Moved to Tab 2) */}
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 rounded-xl border border-primary/25 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-primary text-white shadow-xs">
+                    <MdPrecisionManufacturing className="text-xl" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-black dark:text-white block">
+                      {isRTL ? 'بیچ پیداواری مقدار (Batch Production Quantity) *' : 'Batch Production Quantity *'}
+                    </label>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      {isRTL
+                        ? `یہ نسخہ نیچے دیے گئے تمام خام مال سے تیار ہونے والی کل مقدار (${uom}) کو ظاہر کرتا ہے۔`
+                        : `Total output produced by this recipe run. Raw materials below formulate this exact batch size.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    required
+                    value={batchQuantity}
+                    onChange={e => setBatchQuantity(parseFloat(e.target.value) || 0)}
+                    className="w-36 rounded-xl border-2 border-primary/40 bg-white py-2 px-3 text-sm font-mono font-bold text-primary dark:bg-meta-4 outline-none focus:border-primary shadow-xs text-center"
+                    placeholder="1"
+                  />
+                  <span className="font-bold text-xs bg-white dark:bg-meta-4 border border-stroke dark:border-strokedark px-3 py-2 rounded-xl text-black dark:text-white uppercase font-mono">
+                    {uom}
+                  </span>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stroke pb-3 dark:border-strokedark">
                 <div className="flex items-center gap-2">
                   <MdLayers className="text-xl text-primary" />
@@ -782,31 +801,31 @@ const AddBOM: React.FC = () => {
               </div>
 
               <div className="overflow-x-auto min-h-[300px] pb-32">
-                <table className="w-full table-auto text-xs">
+                <table className="w-full min-w-[1040px] table-fixed text-xs">
                   <thead>
                     <tr className="bg-gray-100 dark:bg-meta-4 text-gray-600 dark:text-gray-300 uppercase font-semibold">
-                      <th className={`p-2.5 ${isRTL ? 'text-right' : 'text-left'} w-1/3 min-w-[260px]`}>
+                      <th className={`p-2.5 ${isRTL ? 'text-right' : 'text-left'} w-[280px]`}>
                         {isRTL ? 'خام مال / جزو *' : 'Material / Component Name *'}
                       </th>
-                      <th className="p-2.5 text-center w-24">
+                      <th className="p-2.5 text-center w-[110px]">
                         {isRTL ? 'مقدار *' : 'Quantity *'}
                       </th>
-                      <th className="p-2.5 text-center w-24">
+                      <th className="p-2.5 text-center w-[100px]">
                         {isRTL ? 'اکائی (UOM)' : 'UOM'}
                       </th>
-                      <th className="p-2.5 text-center w-28">
+                      <th className="p-2.5 text-center w-[130px]">
                         {isRTL ? 'فی یونٹ ریٹ' : 'Unit Cost'}
                       </th>
-                      <th className="p-2.5 text-center w-20">
+                      <th className="p-2.5 text-center w-[90px]">
                         {isRTL ? 'ضیاع %' : 'Waste %'}
                       </th>
-                      <th className={`p-2.5 ${isRTL ? 'text-left' : 'text-right'} w-28`}>
+                      <th className={`p-2.5 ${isRTL ? 'text-left' : 'text-right'} w-[140px]`}>
                         {isRTL ? 'کل لاگت' : 'Total Cost'}
                       </th>
-                      <th className={`p-2.5 ${isRTL ? 'text-right' : 'text-left'} w-36`}>
+                      <th className={`p-2.5 ${isRTL ? 'text-right' : 'text-left'} w-[140px]`}>
                         {isRTL ? 'نوٹ' : 'Note'}
                       </th>
-                      <th className="p-2.5 text-center w-12">
+                      <th className="p-2.5 text-center w-[50px]">
                         {isRTL ? 'حذف' : 'Del'}
                       </th>
                     </tr>
@@ -814,7 +833,7 @@ const AddBOM: React.FC = () => {
                   <tbody className="divide-y divide-stroke dark:divide-strokedark">
                     {items.map((row, idx) => (
                       <tr key={row.id || idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/20 relative z-10 focus-within:z-30 hover:z-20">
-                        <td className="p-2 min-w-[260px] relative">
+                        <td className="p-2 w-[280px] relative">
                           <SearchableProductSelect
                             products={catalogProducts}
                             value={row.item_name}
@@ -846,7 +865,7 @@ const AddBOM: React.FC = () => {
                           />
                         </td>
 
-                        <td className="p-2">
+                        <td className="p-2 w-[110px]">
                           <input
                             type="number"
                             min="0.001"
@@ -856,15 +875,15 @@ const AddBOM: React.FC = () => {
                             onChange={e =>
                               handleUpdateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
                             }
-                            className="w-full rounded border border-stroke bg-transparent py-1.5 px-2 font-mono text-center outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                            className="w-full rounded border border-stroke bg-white dark:bg-meta-4 py-1.5 px-2 font-mono text-center outline-none focus:border-primary dark:border-strokedark font-medium"
                           />
                         </td>
 
-                        <td className="p-2">
+                        <td className="p-2 w-[100px]">
                           <select
                             value={row.uom}
                             onChange={e => handleUpdateItem(idx, 'uom', e.target.value)}
-                            className="w-full rounded border border-stroke bg-transparent py-1.5 px-1 text-center outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                            className="w-full rounded border border-stroke bg-white dark:bg-meta-4 py-1.5 px-2 text-center outline-none focus:border-primary dark:border-strokedark font-medium"
                           >
                             {availableUoms.length > 0 ? (
                               availableUoms.map(u => (
@@ -882,7 +901,7 @@ const AddBOM: React.FC = () => {
                           </select>
                         </td>
 
-                        <td className="p-2">
+                        <td className="p-2 w-[130px]">
                           <input
                             type="number"
                             min="0"
@@ -891,11 +910,11 @@ const AddBOM: React.FC = () => {
                             onChange={e =>
                               handleUpdateItem(idx, 'unit_cost', parseFloat(e.target.value) || 0)
                             }
-                            className="w-full rounded border border-stroke bg-transparent py-1.5 px-2 font-mono text-center outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                            className="w-full rounded border border-stroke bg-white dark:bg-meta-4 py-1.5 px-2 font-mono text-center outline-none focus:border-primary dark:border-strokedark font-medium"
                           />
                         </td>
 
-                        <td className="p-2">
+                        <td className="p-2 w-[90px]">
                           <input
                             type="number"
                             min="0"
@@ -905,30 +924,30 @@ const AddBOM: React.FC = () => {
                             onChange={e =>
                               handleUpdateItem(idx, 'wastage_percentage', parseFloat(e.target.value) || 0)
                             }
-                            className="w-full rounded border border-stroke bg-transparent py-1.5 px-2 font-mono text-center outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                            className="w-full rounded border border-stroke bg-white dark:bg-meta-4 py-1.5 px-2 font-mono text-center outline-none focus:border-primary dark:border-strokedark font-medium"
                             placeholder="0"
                           />
                         </td>
 
                         <td
-                          className={`p-2 font-mono font-bold text-black dark:text-white ${
+                          className={`p-2 w-[140px] font-mono font-bold text-black dark:text-white ${
                             isRTL ? 'text-left' : 'text-right'
                           }`}
                         >
                           PKR {row.total_cost.toLocaleString()}
                         </td>
 
-                        <td className="p-2">
+                        <td className="p-2 w-[140px]">
                           <input
                             type="text"
                             placeholder={isRTL ? 'نوٹ...' : 'scrap, color...'}
                             value={row.notes || ''}
                             onChange={e => handleUpdateItem(idx, 'notes', e.target.value)}
-                            className="w-full rounded border border-stroke bg-transparent py-1.5 px-2 outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                            className="w-full rounded border border-stroke bg-white dark:bg-meta-4 py-1.5 px-2 outline-none focus:border-primary dark:border-strokedark"
                           />
                         </td>
 
-                        <td className="p-2 text-center">
+                        <td className="p-2 w-[50px] text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveItemRow(idx)}
