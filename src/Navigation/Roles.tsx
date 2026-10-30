@@ -6,9 +6,12 @@ import {
   MdLaptopChromebook, MdMan, MdRequestPage, MdOutlineRequestPage, MdPageview,
   MdSpaceDashboard, MdOutlineLaptop, MdTexture, MdPayment, MdAssignmentReturn,
   MdAssessment, MdDashboardCustomize, MdTrendingUp, MdBarChart, MdAccountBalanceWallet,
-  MdBalance, MdPauseCircleFilled, MdInbox, MdPointOfSale, MdWarehouse, MdSecurity
+  MdBalance, MdPauseCircleFilled, MdInbox, MdPointOfSale, MdWarehouse, MdSecurity,
+  MdPrecisionManufacturing
 } from 'react-icons/md';
 import { Navigate } from 'react-router-dom';
+import BOMList from '../pages/Manufacturing/BOM/BOMList';
+import AddBOM from '../pages/Manufacturing/BOM/AddBOM';
 import HoldingReport from '../pages/Reports/Holding Report/HoldingReport';
 import HoldingReportPrint from '../pages/Reports/Holding Report/HoldingReportPrint';
 import Brands from '../pages/Administration/Brands';
@@ -124,8 +127,8 @@ export const adminRoutes = [
     hideFromSidebar: true,
   },
   {
-    label: 'Administration',
-    icon: MdAdminPanelSettings,
+    label: 'Inventory',
+    icon: MdInventory2,
     children: [
       {
         path: '/Administration/Categories/List',
@@ -164,6 +167,24 @@ export const adminRoutes = [
         icon: MdDashboard,
         path: '/Administration/Products/Bulk-Upload',
         component: <BulkProductUpload />,
+      },
+      {
+        label: 'Bill of Materials',
+        icon: MdPrecisionManufacturing,
+        path: '/Manufacturing/list',
+        component: <BOMList />,
+      },
+      {
+        path: '/Manufacturing/add',
+        component: <AddBOM />,
+        label: 'Create BOM',
+        hideFromSidebar: true,
+      },
+      {
+        path: '/Manufacturing/edit/:id',
+        component: <AddBOM />,
+        label: 'Edit BOM',
+        hideFromSidebar: true,
       }
       /* 
       {
@@ -176,8 +197,8 @@ export const adminRoutes = [
     ]
   },
   {
-    label: 'REGISTRATION',
-    icon: MdFormatListBulleted,
+    label: 'Accounts',
+    icon: MdAccountBalance,
     children: [
       {
         path: '/Registration/Chart-of-Account/List',
