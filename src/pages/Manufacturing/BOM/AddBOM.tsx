@@ -660,11 +660,11 @@ const AddBOM: React.FC = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[320px] pb-36">
             <table className="w-full table-auto text-xs">
               <thead>
                 <tr className="bg-gray-100 dark:bg-meta-4 text-gray-600 dark:text-gray-300 uppercase font-semibold">
-                  <th className={`p-2.5 ${isRTL ? 'text-right' : 'text-left'} w-1/3`}>
+                  <th className={`p-2.5 ${isRTL ? 'text-right' : 'text-left'} w-1/3 min-w-[280px]`}>
                     {isRTL ? 'خام مال / جزو *' : 'Material / Component Name *'}
                   </th>
                   <th className="p-2.5 text-center w-24">
@@ -692,9 +692,9 @@ const AddBOM: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-stroke dark:divide-strokedark">
                 {items.map((row, idx) => (
-                  <tr key={row.id || idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/20">
+                  <tr key={row.id || idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/20 relative z-10 focus-within:z-30 hover:z-20">
                     {/* Material Name with Searchable Product Select */}
-                    <td className="p-2 min-w-[240px]">
+                    <td className="p-2 min-w-[280px] relative">
                       <SearchableProductSelect
                         products={catalogProducts}
                         value={row.item_name}

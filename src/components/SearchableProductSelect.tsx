@@ -5,8 +5,7 @@ import {
   MdKeyboardArrowDown,
   MdAdd,
   MdCheck,
-  MdInventory2,
-  MdSell
+  MdInventory2
 } from 'react-icons/md';
 
 export interface CatalogProduct {
@@ -30,25 +29,26 @@ interface SearchableProductSelectProps {
   isRTL?: boolean;
   disabled?: boolean;
   className?: string;
+  required?: boolean;
 }
 
 export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = ({
   products,
   value,
   onChange,
-  placeholder = 'Select product...',
+  placeholder = 'Type or choose product...',
   allowCustom = true,
   priceType = 'sales',
   isRTL = false,
   disabled = false,
-  className = ''
+  className = '',
+  required = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -62,23 +62,10 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // When opening, autofocus the search input and prefill with nothing or query
-  useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setHighlightedIndex(0);
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus();
-        }
-      }, 50);
-    }
-  }, [isOpen]);
-
-  // Filter matching products
+  // Filter matching products based on typed value
   const filteredProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return products.slice(0, 50); // limit to top 50 when empty for instant performance
+    const q = (value || '').trim().toLowerCase();
+    if (!q) return products.slice(0, 40); // show top 40 when blank
 
     return products
       .filter(p => {
@@ -87,28 +74,23 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
         const catMatch = String(p.category || '').toLowerCase().includes(q);
         return nameMatch || codeMatch || catMatch;
       })
-      .slice(0, 50);
-  }, [products, query]);
+      .slice(0, 40);
+  }, [products, value]);
 
-  // Check if typed query is an exact match
+  // Check if typed value is an exact catalog match
   const exactMatchExists = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = (value || '').trim().toLowerCase();
     if (!q) return true;
     return products.some(p => String(p.product_name || '').trim().toLowerCase() === q);
-  }, [products, query]);
+  }, [products, value]);
 
-  const canAddCustom = Boolean(allowCustom && query.trim() && !exactMatchExists);
+  const canAddCustom = Boolean(allowCustom && (value || '').trim() && !exactMatchExists);
   const totalItemsCount = filteredProducts.length + (canAddCustom ? 1 : 0);
 
-  // Selected product object
-  const selectedProduct = useMemo(() => {
-    if (!value) return null;
-    return (
-      products.find(
-        p => String(p.product_name || '').trim().toLowerCase() === String(value).trim().toLowerCase()
-      ) || null
-    );
-  }, [products, value]);
+  // Reset highlight index when filter changes
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [value, isOpen]);
 
   // Scroll active item into view
   useEffect(() => {
@@ -135,11 +117,12 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('', null);
+    if (inputRef.current) inputRef.current.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -155,9 +138,11 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (canAddCustom && highlightedIndex === filteredProducts.length) {
-        handleSelectCustom(query);
+        handleSelectCustom(value);
       } else if (filteredProducts[highlightedIndex]) {
         handleSelectProduct(filteredProducts[highlightedIndex]);
+      } else if (allowCustom && value.trim()) {
+        handleSelectCustom(value);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -172,101 +157,73 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
       dir={isRTL ? 'rtl' : 'ltr'}
       onKeyDown={handleKeyDown}
     >
-      {/* Trigger Button / Display */}
+      {/* Direct Interactive Combobox Input */}
       <div
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full min-h-[42px] px-3 py-2 rounded-lg border bg-white dark:bg-boxdark cursor-pointer select-none transition-all ${
+        className={`flex items-center w-full min-h-[38px] rounded-lg border bg-white dark:bg-boxdark transition-all ${
           isOpen
             ? 'border-primary ring-2 ring-primary/20 shadow-sm'
             : 'border-stroke dark:border-strokedark hover:border-gray-400 dark:hover:border-strokedark'
         } ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50 dark:bg-meta-4' : ''}`}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0 pr-1">
-          <MdInventory2 className="text-gray-400 text-lg flex-shrink-0" />
-          {value ? (
-            <div className="flex items-center gap-2 truncate">
-              <span className="text-sm font-medium text-black dark:text-white truncate">
-                {value}
-              </span>
-              {selectedProduct?.item_sr_no && (
-                <span className="font-mono text-[11px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded flex-shrink-0">
-                  {selectedProduct.item_sr_no}
-                </span>
-              )}
-              {selectedProduct?.category && (
-                <span className="text-[10px] text-gray-400 hidden sm:inline flex-shrink-0">
-                  ({selectedProduct.category})
-                </span>
-              )}
-            </div>
-          ) : (
-            <span className="text-sm text-gray-400 truncate">{placeholder}</span>
-          )}
+        <div className="pl-3 pr-2 text-gray-400 flex items-center">
+          <MdSearch className="text-lg" />
         </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <input
+          ref={inputRef}
+          type="text"
+          required={required}
+          disabled={disabled}
+          value={value}
+          placeholder={placeholder}
+          onFocus={() => {
+            if (!disabled) setIsOpen(true);
+          }}
+          onChange={e => {
+            const val = e.target.value;
+            // Check if exact catalog product match
+            const matched = products.find(
+              p => String(p.product_name || '').trim().toLowerCase() === val.trim().toLowerCase()
+            );
+            onChange(val, matched || null);
+            if (!isOpen) setIsOpen(true);
+          }}
+          className="w-full bg-transparent py-2 pr-2 text-sm text-black dark:text-white outline-none placeholder:text-gray-400"
+        />
+
+        <div className="flex items-center gap-1 pr-2.5 pl-1 flex-shrink-0">
           {value && !disabled && (
             <button
               type="button"
               onClick={handleClear}
               className="p-1 rounded-full text-gray-400 hover:text-danger hover:bg-gray-100 dark:hover:bg-meta-4 transition"
-              title={isRTL ? 'صاف کریں' : 'Clear selection'}
+              title={isRTL ? 'صاف کریں' : 'Clear'}
             >
               <MdClose className="text-sm" />
             </button>
           )}
-          <MdKeyboardArrowDown
-            className={`text-gray-400 text-xl transition-transform duration-200 ${
-              isOpen ? 'rotate-180 text-primary' : ''
-            }`}
-          />
+
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => !disabled && setIsOpen(!isOpen)}
+            className="p-1 text-gray-400 hover:text-primary transition"
+          >
+            <MdKeyboardArrowDown
+              className={`text-xl transition-transform duration-200 ${
+                isOpen ? 'rotate-180 text-primary' : ''
+              }`}
+            />
+          </button>
         </div>
       </div>
 
-      {/* Flyout Panel */}
+      {/* Dropdown Options List */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-stroke bg-white p-2 shadow-2xl dark:border-strokedark dark:bg-boxdark animate-fadeIn">
-          {/* Live Search Input */}
-          <div className="relative mb-2">
-            <MdSearch
-              className={`absolute top-1/2 -translate-y-1/2 text-gray-400 text-lg ${
-                isRTL ? 'right-2.5' : 'left-2.5'
-              }`}
-            />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={query}
-              onChange={e => {
-                setQuery(e.target.value);
-                setHighlightedIndex(0);
-              }}
-              placeholder={
-                isRTL
-                  ? 'نام یا کوڈ لکھ کر تلاش کریں...'
-                  : 'Search by name, SKU or category...'
-              }
-              className={`w-full rounded-lg border border-stroke bg-gray-50 py-2 text-xs outline-none focus:border-primary focus:bg-white dark:border-strokedark dark:bg-meta-4 dark:focus:bg-boxdark ${
-                isRTL ? 'pr-8 pl-3' : 'pl-8 pr-3'
-              }`}
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery('')}
-                className={`absolute top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white ${
-                  isRTL ? 'left-2.5' : 'right-2.5'
-                }`}
-              >
-                <MdClose className="text-sm" />
-              </button>
-            )}
-          </div>
-
-          {/* Options List */}
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-[9999] rounded-xl border border-stroke bg-white p-1.5 shadow-2xl dark:border-strokedark dark:bg-boxdark animate-fadeIn min-w-[280px]">
           <div
             ref={listRef}
-            className="max-h-60 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-meta-4"
+            className="max-h-60 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-meta-4"
           >
             {filteredProducts.map((p, idx) => {
               const isSelected =
@@ -280,7 +237,10 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
               return (
                 <div
                   key={p.id || idx}
-                  onClick={() => handleSelectProduct(p)}
+                  onMouseDown={e => {
+                    e.preventDefault(); // prevent blur
+                    handleSelectProduct(p);
+                  }}
                   onMouseEnter={() => setHighlightedIndex(idx)}
                   className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition text-xs ${
                     isHighlighted
@@ -322,10 +282,13 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
               );
             })}
 
-            {/* Custom Option at bottom if typed text does not exist */}
+            {/* Custom Option at bottom if typed value does not match catalog */}
             {canAddCustom && (
               <div
-                onClick={() => handleSelectCustom(query)}
+                onMouseDown={e => {
+                  e.preventDefault();
+                  handleSelectCustom(value);
+                }}
                 onMouseEnter={() => setHighlightedIndex(filteredProducts.length)}
                 className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer border border-dashed border-primary/40 bg-primary/5 text-primary text-xs transition ${
                   highlightedIndex === filteredProducts.length ? 'bg-primary/15' : ''
@@ -333,14 +296,14 @@ export const SearchableProductSelect: React.FC<SearchableProductSelectProps> = (
               >
                 <MdAdd className="text-base flex-shrink-0" />
                 <span className="truncate">
-                  {isRTL ? 'یہ پروڈکٹ استعمال کریں:' : 'Use custom product:'}{' '}
-                  <strong className="underline">{query.trim()}</strong>
+                  {isRTL ? 'کسٹم آئٹم منتخب کریں:' : 'Use custom item:'}{' '}
+                  <strong className="underline">{value.trim()}</strong>
                 </span>
               </div>
             )}
 
             {filteredProducts.length === 0 && !canAddCustom && (
-              <div className="py-6 text-center text-xs text-gray-400">
+              <div className="py-4 text-center text-xs text-gray-400">
                 {isRTL ? 'کوئی پروڈکٹ نہیں ملی' : 'No products found'}
               </div>
             )}
