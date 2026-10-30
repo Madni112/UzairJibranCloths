@@ -36,6 +36,7 @@ import {
   MdSquareFoot,
 } from 'react-icons/md';
 import SearchableDropdown from '../../../components/SearchableDropdown';
+import { fetchAllUomsSafe } from '../../../service/uomService';
 
 interface UomItem {
   id: number;
@@ -104,13 +105,8 @@ const AddTileProduct: React.FC = () => {
           .select('id, name, parent_id')
           .order('name', { ascending: true });
 
-        const { data: uomData } = await supabase
-          .from('inventory_uom')
-          .select('*')
-          .eq('tenant_id', activeTenant)
-          .eq('is_active', true)
-          .order('category', { ascending: true })
-          .order('short_code', { ascending: true });
+        const uomAll = await fetchAllUomsSafe(activeTenant);
+        const uomData = uomAll.filter(u => u.is_active);
 
         if (catData) {
           setCategories(catData);
@@ -120,11 +116,11 @@ const AddTileProduct: React.FC = () => {
           }
         }
 
-
-        if (uomData) {
-          const groups = uomData.reduce((acc: { [key: string]: UomItem[] }, curr: UomItem) => {
-            if (!acc[curr.category]) acc[curr.category] = [];
-            acc[curr.category].push(curr);
+        if (uomData && uomData.length > 0) {
+          const groups = uomData.reduce((acc: { [key: string]: UomItem[] }, curr: any) => {
+            const cat = curr.category || 'General';
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(curr);
             return acc;
           }, {});
           setGroupedUoms(groups);

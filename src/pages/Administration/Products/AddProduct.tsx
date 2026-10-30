@@ -40,6 +40,7 @@ import { useAuth } from '../../../Context/Auth';
 import { MdSquareFoot, MdViewModule, MdAttachMoney, MdLayers, MdClose, MdSave, MdFormatColorFill, MdAdd, MdDelete, MdEdit, MdCheck, MdInfo, MdLabelOutline } from 'react-icons/md';
 import SearchableDropdown from '../../../components/SearchableDropdown';
 import { logActivity } from '../../../service/auditLogger';
+import { fetchAllUomsSafe } from '../../../service/uomService';
 
 interface UomItem {
   id: number;
@@ -259,18 +260,13 @@ const AddProduct = () => {
           if (local) setSurfaceFinishes(JSON.parse(local));
         }
 
-        const { data: uomData } = await supabase
-          .from('inventory_uom')
-          .select('*')
-          .eq('is_active', true)
-          .order('category', { ascending: true })
-          .order('short_code', { ascending: true });
+        const uomAll = await fetchAllUomsSafe(tenantId);
+        const uomData = uomAll.filter(u => u.is_active);
 
         if (catData) setCategories(catData);
 
-        
         if (uomData && uomData.length > 0) {
-          const groups = uomData.reduce((acc: { [key: string]: UomItem[] }, curr: UomItem) => {
+          const groups = uomData.reduce((acc: { [key: string]: UomItem[] }, curr: any) => {
             const cat = curr.category || 'General';
             if (!acc[cat]) acc[cat] = [];
             acc[cat].push(curr);
@@ -1059,10 +1055,15 @@ const AddProduct = () => {
                                 availableUoms = ['BOX', 'SQM', 'SQFT', 'PCS'];
                               }
                               Object.keys(groupedUoms).forEach(cat => {
-                                groupedUoms[cat].forEach(u => availableUoms.push(u.short_code));
+                                groupedUoms[cat].forEach(u => {
+                                  if (u && u.short_code) availableUoms.push(u.short_code);
+                                });
                               });
+                              if (availableUoms.length === 0) {
+                                availableUoms = ['PCS', 'MTR', 'SUIT', 'THN', 'BOX', 'CTN', 'PKT', 'BAG', 'BNDL', 'ROLL', 'SQFT', 'SQM', 'KG', 'EACH', 'NOS', 'SET', 'PAIR', 'DOZ'];
+                              }
                               availableUoms.push('EACH');
-                              availableUoms = Array.from(new Set(availableUoms));
+                              availableUoms = Array.from(new Set(availableUoms.map(u => String(u).trim().toUpperCase()))).filter(Boolean);
                               const filteredUoms = availableUoms.filter(u => u.toLowerCase().includes(String(values.uom || '').toLowerCase()));
                               
                               return filteredUoms.length > 0 ? (
