@@ -7,7 +7,7 @@ import TableActions from '../../../ui/TableActions';
 import { useAuth } from '../../../Context/Auth';
 import { useLanguage } from '../../../Context/LanguageContext';
 import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
-import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward, MdCloudUpload } from 'react-icons/md';
+import { MdAccountBalanceWallet, MdAdd, MdEdit, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward, MdCloudUpload, MdReceiptLong } from 'react-icons/md';
 import CustomerImportModal from './CustomerImportModal';
 
 const getCustomerDisplayName = (c: any): string => {
@@ -583,14 +583,36 @@ const CustomerHistory = () => {
 
                     {/* 7. Actions */}
                     <td className="py-3.5 px-4 text-center"> 
-                      <TableActions
-                        onEdit={() => {
-                          navigate(`/Sales/Customers/Edit/${c.id}`, { state: { customer: c } });
-                        }}
-                        onDelete={() => handleDelete(c.id)}
-                        editTitle="Edit Customer"
-                        deleteTitle="Delete Customer"
-                      />
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cName = getCustomerDisplayName(c);
+                            navigate(`/Reports/Account-Report/Print`, {
+                              state: {
+                                tab: 1,
+                                criteria: {
+                                  customer: [cName],
+                                  dateFrom: '',
+                                  dateTo: new Date().toISOString().split('T')[0]
+                                }
+                              }
+                            });
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-blue-950/50 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white rounded text-xs font-bold border border-blue-200 dark:border-blue-800 transition duration-150 cursor-pointer shadow-2xs"
+                          title="View Customer Account Ledger"
+                        >
+                          <MdReceiptLong size={14} /> Ledger
+                        </button>
+                        <TableActions
+                          onEdit={() => {
+                            navigate(`/Sales/Customers/Edit/${c.id}`, { state: { customer: c } });
+                          }}
+                          onDelete={() => handleDelete(c.id)}
+                          editTitle="Edit Customer"
+                          deleteTitle="Delete Customer"
+                        />
+                      </div>
                     </td> 
                   </tr> 
                 );

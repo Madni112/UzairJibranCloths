@@ -217,6 +217,21 @@ const AccountReportPrint = () => {
                         let openingDebit = 0;
                         let openingCredit = 0;
 
+                        // Include customer initial opening balance from master records
+                        const rawCustOpening = Number(
+                            cust.opening_balance !== undefined && cust.opening_balance !== null && cust.opening_balance !== ''
+                                ? cust.opening_balance
+                                : (cust.balance !== undefined && cust.balance !== null && cust.balance !== ''
+                                    ? cust.balance
+                                    : cust.currentBalance || 0)
+                        );
+                        const custNature = String(cust.balance_nature || cust.balanceNature || '').toLowerCase();
+                        if (custNature.includes('cr') || custNature.includes('credit')) {
+                            openingCredit += Math.abs(rawCustOpening);
+                        } else if (rawCustOpening > 0) {
+                            openingDebit += Math.abs(rawCustOpening);
+                        }
+
                         custInvoices.forEach(inv => {
                             const d = inv.sale_date || inv.created_at;
                             const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
@@ -567,12 +582,14 @@ const AccountReportPrint = () => {
 
                 // --- 📊 TAB 12: ACCOUNT DEBIT AGING MATRIX SHEET (AGING REPORT) ---
                 else if (activeTab === 12) {
-                    const { data: invoices, error: invErr } = await supabase
-                        .from('sales_invoices')
-                        .select('*')
-                        .order('id', { ascending: true });
+                    const [invRes, custRes] = await Promise.all([
+                        supabase.from('sales_invoices').select('*').order('id', { ascending: true }),
+                        supabase.from('customers').select('*')
+                    ]);
 
-                    if (invErr) throw invErr;
+                    if (invRes.error) throw invRes.error;
+                    const invoices = invRes.data || [];
+                    const allCustomers = custRes.data || [];
 
                     const today = new Date();
 
@@ -585,6 +602,45 @@ const AccountReportPrint = () => {
                         days_90_plus: number;
                         invoice_count: number;
                     }> = {};
+
+                    // Seed customer opening debit balances into aging schedule
+                    allCustomers.forEach(c => {
+                        const custName = c.customerName || 'General Customer';
+                        if (filters.customer && filters.customer.length > 0 && !filters.customer.includes('All') && !filters.customer.includes(custName)) {
+                            return;
+                        }
+                        const rawCustOpening = Number(
+                            c.opening_balance !== undefined && c.opening_balance !== null && c.opening_balance !== ''
+                                ? c.opening_balance
+                                : (c.balance !== undefined && c.balance !== null && c.balance !== ''
+                                    ? c.balance
+                                    : c.currentBalance || 0)
+                        );
+                        const custNature = String(c.balance_nature || c.balanceNature || '').toLowerCase();
+                        let effectiveOpening = rawCustOpening;
+                        if (custNature.includes('cr') || custNature.includes('credit')) {
+                            effectiveOpening = -Math.abs(rawCustOpening);
+                        } else if (rawCustOpening > 0) {
+                            effectiveOpening = Math.abs(rawCustOpening);
+                        }
+
+                        if (effectiveOpening > 0.5) {
+                            if (!customerAgingMap[custName]) {
+                                customerAgingMap[custName] = {
+                                    customer_name: custName,
+                                    total_due: 0,
+                                    days_0_30: 0,
+                                    days_31_60: 0,
+                                    days_61_90: 0,
+                                    days_90_plus: 0,
+                                    invoice_count: 0
+                                };
+                            }
+                            const entry = customerAgingMap[custName];
+                            entry.total_due += effectiveOpening;
+                            entry.days_0_30 += effectiveOpening;
+                        }
+                    });
 
                     (invoices || []).forEach(inv => {
                         const custName = inv.customer_name || 'General Customer';
@@ -676,6 +732,20 @@ const AccountReportPrint = () => {
 
                         let openingCredit = 0; // Purchases (Payable)
                         let openingDebit = 0;  // Payments / Debit Notes (Reduces Payable)
+
+                        const rawVendOpening = Number(
+                            vend.opening_balance !== undefined && vend.opening_balance !== null && vend.opening_balance !== ''
+                                ? vend.opening_balance
+                                : (vend.balance !== undefined && vend.balance !== null && vend.balance !== ''
+                                    ? vend.balance
+                                    : vend.current_balance || 0)
+                        );
+                        const vendNature = String(vend.balance_nature || vend.balanceNature || '').toLowerCase();
+                        if (vendNature.includes('dr') || vendNature.includes('debit')) {
+                            openingDebit += Math.abs(rawVendOpening);
+                        } else if (rawVendOpening > 0) {
+                            openingCredit += Math.abs(rawVendOpening);
+                        }
 
                         vendPurchases.forEach(pur => {
                             const d = pur.purchase_date || pur.created_at;
@@ -992,6 +1062,8 @@ const AccountReportPrint = () => {
                     const { data: vouchers } = await supabase.from('financial_vouchers').select('*');
                     const { data: banks } = await supabase.from('banks').select('*');
                     const { data: products } = await supabase.from('products').select('*');
+                    const { data: customersData } = await supabase.from('customers').select('*');
+                    const { data: vendorsData } = await supabase.from('vendors').select('*');
 
                     const grossSalesSum = (sales || []).reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
                     const salesReturnsSum = (sReturns || []).reduce((acc, r) => acc + Number(r.payout_amount_paid || r.total_amount || 0), 0);
@@ -999,6 +1071,19 @@ const AccountReportPrint = () => {
                     const purchaseReturnsSum = (pReturns || []).reduce((acc, r) => acc + Number(r.amount_received || r.total_amount || 0), 0);
 
                     let totalReceivables = 0;
+                    (customersData || []).forEach((c: any) => {
+                        const rawBal = Number(c.currentBalance !== undefined && c.currentBalance !== null && c.currentBalance !== ''
+                            ? c.currentBalance
+                            : (c.balance !== undefined && c.balance !== null && c.balance !== '' ? c.balance : c.opening_balance || 0));
+                        const nature = String(c.balance_nature || c.balanceNature || '').toLowerCase();
+                        let effectiveBal = rawBal;
+                        if (nature.includes('cr') || nature.includes('credit')) {
+                            effectiveBal = -Math.abs(rawBal);
+                        } else if (rawBal > 0) {
+                            effectiveBal = Math.abs(rawBal);
+                        }
+                        if (effectiveBal > 0) totalReceivables += effectiveBal;
+                    });
                     (sales || []).forEach(s => {
                         const tot = Number(s.total_amount || 0);
                         const paid = Number(s.cash_amount_paid || s.amount_paid || 0);
@@ -1006,6 +1091,19 @@ const AccountReportPrint = () => {
                     });
 
                     let totalPayables = 0;
+                    (vendorsData || []).forEach((v: any) => {
+                        const rawBal = Number(v.current_balance !== undefined && v.current_balance !== null
+                            ? v.current_balance
+                            : (v.balance !== undefined && v.balance !== null ? v.balance : v.opening_balance || 0));
+                        const nature = String(v.balance_nature || v.balanceNature || '').toLowerCase();
+                        let effectiveBal = rawBal;
+                        if (nature.includes('dr') || nature.includes('debit')) {
+                            effectiveBal = -Math.abs(rawBal);
+                        } else if (rawBal > 0) {
+                            effectiveBal = Math.abs(rawBal);
+                        }
+                        if (effectiveBal > 0) totalPayables += effectiveBal;
+                    });
                     (purchases || []).forEach(p => {
                         const tot = Number(p.total_amount || 0);
                         const paid = Number(p.amount_paid_now || p.paid_amount || 0);
@@ -1052,6 +1150,22 @@ const AccountReportPrint = () => {
                     }));
 
                     const customerReceivablesMap: Record<string, number> = {};
+                    (customersData || []).forEach((c: any) => {
+                        const rawBal = Number(c.currentBalance !== undefined && c.currentBalance !== null && c.currentBalance !== ''
+                            ? c.currentBalance
+                            : (c.balance !== undefined && c.balance !== null && c.balance !== '' ? c.balance : c.opening_balance || 0));
+                        const nature = String(c.balance_nature || c.balanceNature || '').toLowerCase();
+                        let effectiveBal = rawBal;
+                        if (nature.includes('cr') || nature.includes('credit')) {
+                            effectiveBal = -Math.abs(rawBal);
+                        } else if (rawBal > 0) {
+                            effectiveBal = Math.abs(rawBal);
+                        }
+                        if (effectiveBal > 0) {
+                            const cName = c.customerName || 'General Customer';
+                            customerReceivablesMap[cName] = (customerReceivablesMap[cName] || 0) + effectiveBal;
+                        }
+                    });
                     (sales || []).forEach(s => {
                         const tot = Number(s.total_amount || 0);
                         const paid = Number(s.cash_amount_paid || s.amount_paid || 0);
