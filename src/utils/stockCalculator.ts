@@ -13,6 +13,7 @@ import { supabase } from '../Context/supabaseClient';
 export interface WarehouseBreakdown {
   opening: number;
   purchased: number;
+  manufactured: number;
   sold: number;
   salesReturned: number;
   purchaseReturned: number;
@@ -72,7 +73,7 @@ function balancesMatch(name: string, wh: string) {
 
 function zeroBreakdown(available: number): WarehouseBreakdown {
   return {
-    opening: 0, purchased: 0, sold: 0, salesReturned: 0, purchaseReturned: 0,
+    opening: 0, purchased: 0, manufactured: 0, sold: 0, salesReturned: 0, purchaseReturned: 0,
     rejected: 0, transferredIn: 0, transferredOut: 0, hold: 0, purchaseHold: 0,
     available, onHand: available,
   };
@@ -128,7 +129,7 @@ function buildBreakdown(
   const getWh = (whName: string) => {
     const key = String(whName || 'Global / Unassigned').trim();
     if (!whBreakdowns[key]) {
-      whBreakdowns[key] = { opening: 0, purchased: 0, sold: 0, salesReturned: 0, purchaseReturned: 0, rejected: 0, transferredIn: 0, transferredOut: 0, hold: 0, purchaseHold: 0 };
+      whBreakdowns[key] = { opening: 0, purchased: 0, manufactured: 0, sold: 0, salesReturned: 0, purchaseReturned: 0, rejected: 0, transferredIn: 0, transferredOut: 0, hold: 0, purchaseHold: 0 };
     }
     return whBreakdowns[key];
   };
@@ -333,18 +334,20 @@ function buildBreakdown(
     });
   });
 
+  const totalManufactured = 0;
   const totalAvailable =
-    (totalOpening + totalPurchased + totalSalesReturned) - totalSold - totalPurchaseReturned - totalRejected;
+    (totalOpening + totalPurchased + totalManufactured + totalSalesReturned) - totalSold - totalPurchaseReturned - totalRejected;
 
   const byWarehouse: Record<string, WarehouseBreakdown> = {};
   Object.keys(whBreakdowns).forEach((key) => {
     const w = whBreakdowns[key];
     const tIn = w.transferredIn || 0;
     const tOut = w.transferredOut || 0;
-    const avail = (w.opening + w.purchased + w.salesReturned + tIn) - w.sold - w.purchaseReturned - (w.rejected || 0) - tOut;
+    const avail = (w.opening + w.purchased + (w.manufactured || 0) + w.salesReturned + tIn) - w.sold - w.purchaseReturned - (w.rejected || 0) - tOut;
     byWarehouse[key] = {
       opening: w.opening,
       purchased: w.purchased,
+      manufactured: w.manufactured || 0,
       sold: w.sold,
       salesReturned: w.salesReturned,
       purchaseReturned: w.purchaseReturned,
@@ -371,12 +374,13 @@ export async function getDetailedBreakdown(productName: string, productCode?: st
   const res = buildBreakdown(productName.trim().toLowerCase(), data, productCode);
 
   const agg = {
-    opening: 0, purchased: 0, sold: 0, salesReturned: 0, purchaseReturned: 0,
+    opening: 0, purchased: 0, manufactured: 0, sold: 0, salesReturned: 0, purchaseReturned: 0,
     hold: 0, purchaseHold: 0, rejected: 0, transferredIn: 0, transferredOut: 0,
   };
   Object.values(res.byWarehouse).forEach((w: any) => {
     agg.opening += w.opening || 0;
     agg.purchased += w.purchased || 0;
+    agg.manufactured += w.manufactured || 0;
     agg.sold += w.sold || 0;
     agg.salesReturned += w.salesReturned || 0;
     agg.purchaseReturned += w.purchaseReturned || 0;

@@ -913,6 +913,16 @@ const ProductList = () => {
                       </div>
                       {formatVal(bData.purchased || 0)}
                     </div>
+                    {/* Manufactured Stock Output */}
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-strokedark/50">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Manufactured</span>
+                        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 tracking-wide">
+                          (BOM Production)
+                        </span>
+                      </div>
+                      {formatVal(bData.manufactured || 0)}
+                    </div>
                     {/* Purchase / QC hold (from GRN) */}
                     <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-strokedark/50 bg-yellow-50/50 dark:bg-yellow-900/10 px-3 -mx-3 rounded-lg mb-1">
                       <span className="text-[9px] font-bold text-yellow-800 dark:text-yellow-600 mt-0.5 tracking-wide">Hold (QC / Purchase)</span>
