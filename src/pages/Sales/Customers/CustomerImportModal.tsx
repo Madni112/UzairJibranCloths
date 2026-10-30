@@ -149,10 +149,15 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
     // 1. Pre-fetch existing customers from database for duplicate/update detection
     let existingDbCustomers: any[] = [];
     try {
-      const { data: dbCusts } = await supabase
+      const { data: dbCusts, error: custErr } = await supabase
         .from('customers')
-        .select('id, customerName, customername, customer_name, name, city, province, address, balance, currentBalance, opening_balance');
-      if (dbCusts) existingDbCustomers = dbCusts;
+        .select('id, customerName, customername, customer_name, city, province, address, balance, currentBalance, opening_balance');
+      if (!custErr && dbCusts) {
+        existingDbCustomers = dbCusts;
+      } else {
+        const { data: fallbackCusts } = await supabase.from('customers').select('*');
+        if (fallbackCusts) existingDbCustomers = fallbackCusts;
+      }
     } catch (e) {
       console.warn('Could not query existing customers for duplicate detection:', e);
     }
@@ -300,6 +305,12 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       String(s || '')
         .trim()
         .toLowerCase()
+        .replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '')
+        .replace(/[\u064B-\u065F]/g, '')
+        .replace(/[يى]/g, 'ی')
+        .replace(/[ك]/g, 'ک')
+        .replace(/[ة]/g, 'ہ')
+        .replace(/[أإآ]/g, 'ا')
         .replace(/\s+/g, ' ');
 
     for (let r = 1; r < matrix.length; r++) {
