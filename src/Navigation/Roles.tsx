@@ -169,7 +169,7 @@ export const adminRoutes = [
         component: <BulkProductUpload />,
       },
       {
-        label: 'Bill of Materials',
+        label: 'Manufacturing (BOM)',
         icon: MdPrecisionManufacturing,
         path: '/Manufacturing/list',
         component: <BOMList />,
