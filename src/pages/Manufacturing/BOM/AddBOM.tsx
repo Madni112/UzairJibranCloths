@@ -55,7 +55,7 @@ const AddBOM: React.FC = () => {
 
   const [batchQuantity, setBatchQuantity] = useState<number>(1);
   const [uom, setUom] = useState('PCS');
-  const [status, setStatus] = useState<'Active' | 'Draft'>('Active');
+  const [status, setStatus] = useState<'Active' | 'Trial' | 'Draft'>('Active');
 
   // Step 2: Raw Materials Table
   const [items, setItems] = useState<BomItem[]>([
@@ -125,7 +125,7 @@ const AddBOM: React.FC = () => {
             setCategory(existing.category || '');
             setBatchQuantity(existing.batch_quantity || 1);
             setUom(existing.uom || 'PCS');
-            setStatus(existing.status === 'Draft' ? 'Draft' : 'Active');
+            setStatus(existing.status === 'Trial' ? 'Trial' : existing.status === 'Draft' ? 'Trial' : 'Active');
             setLaborCost(existing.labor_cost || 0);
             setOverheadCost(existing.overhead_cost || 0);
             setPackagingCost(existing.packaging_cost || 0);
@@ -439,7 +439,7 @@ const AddBOM: React.FC = () => {
         }
       />
 
-      {/* HEADER BAR (Identical to AddProduct: Clean Title + See List Button, no top cancel/add) */}
+      {/* HEADER BAR (Clean Title + Recipe Status Pill Selector + See List Button) */}
       <div className="mb-6 rounded-2xl border border-stroke bg-white p-5 shadow-sm dark:border-strokedark dark:bg-boxdark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -463,15 +463,56 @@ const AddBOM: React.FC = () => {
           </p>
         </div>
 
-        {/* See List Link */}
-        <button
-          type="button"
-          onClick={() => navigate('/Manufacturing/list')}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-        >
-          <MdFormatListBulleted className="text-base" />
-          <span>{isRTL ? '← لسٹ دیکھیں (See List)' : '← See List'}</span>
-        </button>
+        {/* Right side: Recipe Status Pill Selector & See List Link */}
+        <div className="flex items-center flex-wrap gap-3">
+          {/* Status Pill Selector (Active / Trial) */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-meta-4 p-1 rounded-xl border border-stroke dark:border-strokedark">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-2">
+              {isRTL ? 'اسٹیٹس:' : 'Status:'}
+            </span>
+
+            {/* Active Pill */}
+            <button
+              type="button"
+              onClick={() => setStatus('Active')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                status === 'Active'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${status === 'Active' ? 'bg-white' : 'bg-emerald-500'}`} />
+              <span>{isRTL ? 'فعال (Active)' : 'Active'}</span>
+            </button>
+
+            {/* Trial Pill */}
+            <button
+              type="button"
+              onClick={() => setStatus('Trial')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                status === 'Trial' || status === 'Draft'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${status === 'Trial' || status === 'Draft' ? 'bg-white' : 'bg-amber-400'}`} />
+              <span>{isRTL ? 'آزمائشی (Trial)' : 'Trial'}</span>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="hidden sm:block h-6 w-[1px] bg-stroke dark:bg-strokedark" />
+
+          {/* See List Link */}
+          <button
+            type="button"
+            onClick={() => navigate('/Manufacturing/list')}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+          >
+            <MdFormatListBulleted className="text-base" />
+            <span>{isRTL ? '← لسٹ دیکھیں (See List)' : '← See List'}</span>
+          </button>
+        </div>
       </div>
 
       {/* 3 TABS STEPPER HEADER */}
@@ -583,34 +624,17 @@ const AddBOM: React.FC = () => {
                 </div>
 
                 {/* Product Code / SKU */}
-                <div className="sm:col-span-2 sm:grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
-                      {isRTL ? 'پروڈکٹ کوڈ / SKU' : 'Product Code / SKU'}
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., ESK-PREM-01"
-                      value={finishedProductCode}
-                      onChange={e => setFinishedProductCode(e.target.value)}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs font-mono outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
-                    />
-                  </div>
-
-                  {/* Recipe Status */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
-                      {isRTL ? 'نسخے کا اسٹیٹس' : 'Recipe Status'}
-                    </label>
-                    <select
-                      value={status}
-                      onChange={e => setStatus(e.target.value as 'Active' | 'Draft')}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
-                    >
-                      <option value="Active">{isRTL ? 'فعال (Approved for Production)' : 'Active (Approved for Production)'}</option>
-                      <option value="Draft">{isRTL ? 'ڈرافٹ (Trial / Review)' : 'Draft (Trial / Review)'}</option>
-                    </select>
-                  </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
+                    {isRTL ? 'پروڈکٹ کوڈ / SKU' : 'Product Code / SKU'}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., ESK-PREM-01"
+                    value={finishedProductCode}
+                    onChange={e => setFinishedProductCode(e.target.value)}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-xs font-mono outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4"
+                  />
                 </div>
 
                 {/* 3-LEVEL CASCADING CATEGORIES (Identical to AddProduct.tsx) */}

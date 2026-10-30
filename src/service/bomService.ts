@@ -32,7 +32,7 @@ export interface BomHeader {
   unit_cost: number;
   target_selling_price: number;
   margin_percentage: number;
-  status: 'Active' | 'Draft' | 'Archived';
+  status: 'Active' | 'Trial' | 'Draft' | 'Archived' | string;
   notes?: string;
   items: BomItem[];
   created_at?: string;

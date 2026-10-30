@@ -301,6 +301,7 @@ const BOMList: React.FC = () => {
           >
             <option value="ALL">{isRTL ? 'تمام اسٹیٹس' : 'All Status'}</option>
             <option value="Active">{isRTL ? 'فعال (Active)' : 'Active'}</option>
+            <option value="Trial">{isRTL ? 'آزمائشی (Trial)' : 'Trial'}</option>
             <option value="Draft">{isRTL ? 'ڈرافٹ (Draft)' : 'Draft'}</option>
           </select>
         </div>
@@ -433,16 +434,22 @@ const BOMList: React.FC = () => {
 
                     <td className="py-3.5 px-4">
                       <span
-                        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${
+                        className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                           bom.status === 'Active'
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                            : bom.status === 'Trial'
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
                         }`}
                       >
                         {bom.status === 'Active'
                           ? isRTL
                             ? 'فعال'
                             : 'Active'
+                          : bom.status === 'Trial'
+                          ? isRTL
+                            ? 'آزمائشی'
+                            : 'Trial'
                           : isRTL
                           ? 'ڈرافٹ'
                           : 'Draft'}
