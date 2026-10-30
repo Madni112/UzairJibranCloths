@@ -295,11 +295,11 @@ const AddCustomer: React.FC = () => {
 
         // Also merge any existing areas and sub areas from customers table
         try {
-          const { data: custAreaData } = await supabase.from('customers').select('city, address, sub_area, area').limit(100);
+          const { data: custAreaData } = await supabase.from('customers').select('city, address, sub_area, area').limit(500);
           if (custAreaData && custAreaData.length > 0) {
             const dbSubAreas = custAreaData
-              .map((c: any) => c.sub_area)
-              .filter((v: any) => typeof v === 'string' && v.trim().length > 1);
+              .map((c: any) => (c.city || c.sub_area || '').trim())
+              .filter((v: any) => typeof v === 'string' && v.length > 1);
             if (dbSubAreas.length > 0) {
               setSubAreaOptions((prev) => Array.from(new Set([...prev, ...dbSubAreas])).sort());
             }
@@ -371,11 +371,17 @@ const AddCustomer: React.FC = () => {
     }
 
     // Check if Location was recorded in notes e.g. "Location: Hyderabad | Cloth Market"
-    if ((!subArea || !area) && data.notes && data.notes.includes('Location:')) {
+    if (data.notes && data.notes.includes('Location:')) {
       const match = data.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
       if (match) {
-        if (!subArea && match[1]) subArea = match[1].trim();
-        if (!area && match[2]) area = match[2].trim();
+        const noteCity = match[1]?.trim();
+        const noteArea = match[2]?.trim();
+        if (!subArea) subArea = noteCity;
+        // If subArea was defaulted to Hyderabad but note specifically says another city (e.g. ماتلی), restore it
+        if (subArea && subArea.toLowerCase() === 'hyderabad' && noteCity && noteCity.toLowerCase() !== 'hyderabad') {
+          subArea = noteCity;
+        }
+        if (!area && noteArea) area = noteArea;
       }
     }
 

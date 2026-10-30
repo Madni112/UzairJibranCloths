@@ -40,6 +40,8 @@ export const DEFAULT_SUB_AREAS = [
   'Dadu',
   'Thatta',
   'Badin',
+  'Matli',
+  'ماتلی',
   'Tando Adam',
   'Tando Allahyar',
   'Kotri',
@@ -79,6 +81,8 @@ export const DEFAULT_SUBAREA_AREAS_MAP: Record<string, string[]> = {
   'Quetta': ['Liaquat Bazaar', 'Suraj Ganj Bazaar', 'Kandahari Bazaar'],
   'Nawabshah': ['Cloth Market', 'Chakra Bazaar', 'Masjid Road'],
   'Mirpurkhas': ['Shahi Bazaar', 'Station Road', 'Cloth Market'],
+  'Matli': ['Main Bazaar', 'Cloth Market', 'Station Road', 'Grain Market'],
+  'ماتلی': ['مین بازار', 'کلاتھ مارکیٹ', 'اسٹیشن روڈ', 'غلہ منڈی'],
   'Larkana': ['Shahi Bazaar', 'Station Road', 'Bank Square'],
 
   // Specific Bazaars mapping to their parent areas / cities

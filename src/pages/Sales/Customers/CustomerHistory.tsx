@@ -266,15 +266,20 @@ const CustomerHistory = () => {
   };
 
   const getCustomerLocation = (c: any) => {
-    let city = c.sub_area || c.subArea || c.city || '';
+    let city = c.city || c.sub_area || c.subArea || '';
     let area = c.area || '';
 
     // Check if saved inside notes (e.g. "Location: Hyderabad | Cloth Market")
-    if ((!city || !area) && c.notes && c.notes.includes('Location:')) {
+    if (c.notes && c.notes.includes('Location:')) {
       const match = c.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
       if (match) {
-        if (!city && match[1]) city = match[1].trim();
-        if (!area && match[2]) area = match[2].trim();
+        const noteCity = match[1]?.trim();
+        const noteArea = match[2]?.trim();
+        if (!city) city = noteCity;
+        if (city && city.toLowerCase() === 'hyderabad' && noteCity && noteCity.toLowerCase() !== 'hyderabad') {
+          city = noteCity;
+        }
+        if (!area && noteArea) area = noteArea;
       }
     }
 
