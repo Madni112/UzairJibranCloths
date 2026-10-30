@@ -230,7 +230,8 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
         purchaseReturnsRes,
         vouchersRes,
         dcsRes,
-        custRecoveriesRes
+        custRecoveriesRes,
+        customersRes
       ] = await Promise.all([
         fetchFinancialMetrics(),
         supabase.from('sales_invoices').select('*').order('created_at', { ascending: false }),
@@ -241,7 +242,8 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
         supabase.from('purchase_returns').select('*'),
         supabase.from('financial_vouchers').select('*').order('created_at', { ascending: false }),
         supabase.from('delivery_challans').select('*').order('created_at', { ascending: false }),
-        supabase.from('customer_recoveries').select('*')
+        supabase.from('customer_recoveries').select('*'),
+        supabase.from('customers').select('*').order('customerName', { ascending: true })
       ]);
 
       setMetrics(metricsData);
@@ -259,6 +261,37 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
       // ==========================================
       // 1. CUSTOMER RECEIVABLES WITH AGING PENDING
       // ==========================================
+      // 1a. Include customer opening debit balances / accounts receivable
+      const customersData = customersRes?.data || [];
+      const extractedReceivables: ReceivableInvoice[] = [];
+
+      customersData.forEach((c: any) => {
+        const rawBal = Number(c.currentBalance !== undefined && c.currentBalance !== null && c.currentBalance !== ''
+          ? c.currentBalance
+          : (c.balance !== undefined && c.balance !== null && c.balance !== '' ? c.balance : c.opening_balance || 0));
+        const nature = String(c.balance_nature || c.balanceNature || '').toLowerCase();
+        let effectiveBal = rawBal;
+        if (nature.includes('cr') || nature.includes('credit')) {
+          effectiveBal = -Math.abs(rawBal);
+        } else if (rawBal > 0) {
+          effectiveBal = Math.abs(rawBal);
+        }
+
+        if (effectiveBal > 0.5) {
+          extractedReceivables.push({
+            id: `cust-${c.id}`,
+            invoiceNo: c.customer_code || `CUST-${String(c.id).padStart(3, '0')}`,
+            customerName: c.customerName || 'Customer',
+            salesman: c.city ? `City: ${c.city}` : (c.primaryPhone || 'Direct Ledger'),
+            invoiceDate: c.created_at ? c.created_at.split('T')[0] : 'Opening Bal',
+            totalAmount: effectiveBal,
+            paidAmount: 0,
+            outstandingBalance: effectiveBal,
+            daysPending: 30
+          });
+        }
+      });
+
       // Map recoveries per invoice
       const invoiceRecoveriesMap: Record<string, number> = {};
       recoveries.forEach((rec: any) => {
@@ -280,7 +313,6 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
       });
 
       const today = new Date();
-      const extractedReceivables: ReceivableInvoice[] = [];
 
       invoices.forEach((inv: any) => {
         const total = Number(inv.total_amount || 0);
@@ -313,8 +345,9 @@ const Dashboard: React.FC<DashboardProps> = ({ initialView = 'executive' }) => {
         }
       });
 
-      // Keep last 10 sale transactions with pending receivables
-      setReceivablesList(extractedReceivables.slice(0, 10));
+      // Sort with highest pending receivables on top
+      extractedReceivables.sort((a, b) => b.outstandingBalance - a.outstandingBalance);
+      setReceivablesList(extractedReceivables.slice(0, 15));
 
       // ==========================================
       // 2. TRENDING PRODUCTS (REVENUE & VELOCITY)

@@ -85,7 +85,9 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       productsRes,
       customerReceiptsRes,
       openStocksRes,
-      dynamicStockRes
+      dynamicStockRes,
+      customersRes,
+      vendorsRes
     ] = await Promise.allSettled([
       supabase.from('sales_invoices').select('*'),
       supabase.from('supplier_purchases').select('*'),
@@ -98,7 +100,9 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       supabase.from('products').select('*'),
       supabase.from('customer_recoveries').select('*'),
       supabase.from('opening_stocks').select('*'),
-      supabase.rpc('calculate_dynamic_stock_by_location', { p_location: 'All', p_start_date: startOfCurrentMonthStr, p_end_date: null })
+      supabase.rpc('calculate_dynamic_stock_by_location', { p_location: 'All', p_start_date: startOfCurrentMonthStr, p_end_date: null }),
+      supabase.from('customers').select('*'),
+      supabase.from('vendors').select('*')
     ]);
 
     const invoicesList = (salesInvoicesRes.status === 'fulfilled' && Array.isArray(salesInvoicesRes.value.data)) ? salesInvoicesRes.value.data : [];
@@ -114,6 +118,8 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
     const customerRecList = (customerReceiptsRes.status === 'fulfilled' && Array.isArray(customerReceiptsRes.value.data)) ? customerReceiptsRes.value.data : [];
     const openStocksList = (openStocksRes.status === 'fulfilled' && Array.isArray(openStocksRes.value.data)) ? openStocksRes.value.data : [];
     const dynamicStockList = (dynamicStockRes.status === 'fulfilled' && Array.isArray(dynamicStockRes.value.data)) ? dynamicStockRes.value.data : [];
+    const customersList = (customersRes && customersRes.status === 'fulfilled' && Array.isArray(customersRes.value.data)) ? customersRes.value.data : [];
+    const vendorsList = (vendorsRes && vendorsRes.status === 'fulfilled' && Array.isArray(vendorsRes.value.data)) ? vendorsRes.value.data : [];
 
     // --- 2. Calculate Today's & Monthly Net Sales & Purchases ---
     let todaysSales = 0;
@@ -389,6 +395,28 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
     let totalReceivables = 0;
     let thisMonthReceivables = 0;
 
+    // 5a. Customer Ledger Balances & Opening Balances (Debit = Receivable)
+    customersList.forEach((c: any) => {
+      const rawBal = Number(c.currentBalance !== undefined && c.currentBalance !== null && c.currentBalance !== ''
+        ? c.currentBalance
+        : (c.balance !== undefined && c.balance !== null && c.balance !== '' ? c.balance : c.opening_balance || 0));
+      const nature = String(c.balance_nature || c.balanceNature || '').toLowerCase();
+      let effectiveBal = rawBal;
+      if (nature.includes('cr') || nature.includes('credit')) {
+        effectiveBal = -Math.abs(rawBal);
+      } else if (rawBal > 0) {
+        effectiveBal = Math.abs(rawBal);
+      }
+
+      if (effectiveBal > 0) {
+        totalReceivables += effectiveBal;
+        if (isThisMonth(c.created_at)) {
+          thisMonthReceivables += effectiveBal;
+        }
+      }
+    });
+
+    // 5b. Unpaid Sales Invoices
     invoicesList.forEach((inv: any) => {
       const invIdStr = String(inv.id).trim().toLowerCase();
       const tot = Number(inv.total_amount || 0);
@@ -420,6 +448,28 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
     let totalPayables = 0;
     let thisMonthPayables = 0;
 
+    // 5c. Vendor Ledger Balances & Opening Balances (Credit = Payable)
+    vendorsList.forEach((v: any) => {
+      const rawBal = Number(v.current_balance !== undefined && v.current_balance !== null
+        ? v.current_balance
+        : (v.balance !== undefined && v.balance !== null ? v.balance : v.opening_balance || 0));
+      const nature = String(v.balance_nature || v.balanceNature || '').toLowerCase();
+      let effectiveBal = rawBal;
+      if (nature.includes('dr') || nature.includes('debit')) {
+        effectiveBal = -Math.abs(rawBal);
+      } else if (rawBal > 0) {
+        effectiveBal = Math.abs(rawBal);
+      }
+
+      if (effectiveBal > 0) {
+        totalPayables += effectiveBal;
+        if (isThisMonth(v.created_at)) {
+          thisMonthPayables += effectiveBal;
+        }
+      }
+    });
+
+    // 5d. Unpaid Supplier Purchases
     purchasesList.forEach((pur: any) => {
       const purIdStr = String(pur.id).trim().toLowerCase();
       const tot = Number(pur.total_amount || 0);
