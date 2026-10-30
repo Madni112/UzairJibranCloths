@@ -77,6 +77,7 @@ const AddBOM: React.FC = () => {
   const [overheadCost, setOverheadCost] = useState<number>(0);
   const [packagingCost, setPackagingCost] = useState<number>(0);
   const [targetSellingPrice, setTargetSellingPrice] = useState<number>(0);
+  const [syncCatalogPrice, setSyncCatalogPrice] = useState<boolean>(false);
   const [notes, setNotes] = useState('');
 
   // Load catalog products, 3-level categories, and active UOMs
@@ -86,7 +87,7 @@ const AddBOM: React.FC = () => {
         const [prodRes, catRes, uomsList] = await Promise.all([
           supabase
             .from('products')
-            .select('id, product_name, item_sr_no, purchase_price, sales_price, uom, category, sub_category, sub_sub_category')
+            .select('id, product_name, item_sr_no, purchase_price, sales_price, retail_price, uom, category, sub_category, sub_sub_category')
             .limit(1000),
           supabase
             .from('inventory_categories')
@@ -173,7 +174,8 @@ const AddBOM: React.FC = () => {
       if (found.sub_category) setSubCategory(found.sub_category);
       if (found.sub_sub_category) setSubSubCategory(found.sub_sub_category);
       if (found.uom) setUom(found.uom);
-      if (found.sales_price) setTargetSellingPrice(Number(found.sales_price));
+      const existingPrice = Number(found.retail_price ?? found.sales_price ?? 0);
+      if (existingPrice > 0) setTargetSellingPrice(existingPrice);
     }
   };
 
@@ -345,6 +347,30 @@ const AddBOM: React.FC = () => {
         }
       } else if (!effectiveProductId && existingInCatalog.id) {
         effectiveProductId = String(existingInCatalog.id);
+      }
+
+      // 1b. If user enabled "Sync to Catalog Price" for existing product, update catalog price
+      if (existingInCatalog && syncCatalogPrice && effectiveProductId) {
+        try {
+          const updatePricePayload: Record<string, any> = {
+            retail_price: Number(targetSellingPrice) || 0,
+            sales_price: Number(targetSellingPrice) || 0
+          };
+          const { error: syncErr } = await supabase
+            .from('products')
+            .update(updatePricePayload)
+            .eq('id', effectiveProductId);
+
+          if (!syncErr) {
+            toast.success(
+              isRTL
+                ? 'پروڈکٹ کیٹلاگ کی سیل پرائس بھی اپڈیٹ کر دی گئی ہے'
+                : 'Product catalog selling price updated!'
+            );
+          }
+        } catch (syncErr) {
+          console.warn('Catalog price sync notice:', syncErr);
+        }
       }
 
       // 2. Save BOM Recipe
@@ -1124,6 +1150,48 @@ const AddBOM: React.FC = () => {
                   className="w-full rounded-lg border border-primary/50 bg-white py-2 px-3 text-xs font-mono font-bold text-emerald-600 dark:bg-meta-4 outline-none focus:border-primary"
                   placeholder="0"
                 />
+
+                {/* Sync to Catalog Pill Selector */}
+                <button
+                  type="button"
+                  onClick={() => setSyncCatalogPrice(prev => !prev)}
+                  className={`mt-2 w-full flex items-center justify-between p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                    syncCatalogPrice
+                      ? 'bg-primary/10 border-primary/40 text-primary dark:bg-primary/20 dark:border-primary/50'
+                      : 'bg-white/80 border-stroke text-gray-500 hover:bg-gray-50 dark:bg-meta-4 dark:border-strokedark dark:text-gray-400'
+                  }`}
+                  title={
+                    isRTL
+                      ? 'اگر فعال ہو تو پروڈکٹ لسٹ میں بھی سیلز پرائس اپڈیٹ ہو جائے گی'
+                      : 'When enabled, this price will also update the product sales price in Products Catalog'
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
+                        syncCatalogPrice
+                          ? 'bg-primary border-primary text-white'
+                          : 'border-stroke bg-white dark:border-strokedark dark:bg-boxdark text-transparent'
+                      }`}
+                    >
+                      <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
+                        <path d="M0 11l2-2 5 5L18 3l2 2L7 18z" />
+                      </svg>
+                    </div>
+                    <span className="text-[11px] font-semibold leading-tight">
+                      {isRTL ? 'کیٹلاگ پرائس بھی اپڈیٹ کریں' : 'Also update Catalog Price'}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider transition-all ${
+                      syncCatalogPrice
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    {syncCatalogPrice ? (isRTL ? 'فعال' : 'ON') : (isRTL ? 'غیر فعال' : 'OFF')}
+                  </span>
+                </button>
               </div>
 
               {/* Profit Breakdown */}
