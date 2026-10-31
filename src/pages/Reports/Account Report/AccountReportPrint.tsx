@@ -930,6 +930,8 @@ const AccountReportPrint = () => {
 
                     if (voucherErr) throw voucherErr;
 
+                    const { data: vendorsData } = await supabase.from('vendors').select('*');
+
                     let pool = purchasesData || [];
 
                     const selectedVendors = filters.supplier || filters.vendor;
@@ -996,6 +998,37 @@ const AccountReportPrint = () => {
                     } else if (filters.sortBy === 'amount_asc') {
                         calculatedVendorOutstandingRows.sort((a, b) => Number(a.total_amount) - Number(b.total_amount));
                     }
+
+                    // Add vendor opening credit balances (payables)
+                    (vendorsData || []).forEach((v: any) => {
+                        const rawBal = Number(v.current_balance !== undefined && v.current_balance !== null
+                            ? v.current_balance
+                            : (v.balance !== undefined && v.balance !== null ? v.balance : v.opening_balance || 0));
+                        const nature = String(v.balance_nature || v.balanceNature || '').toLowerCase();
+                        let effectiveBal = rawBal;
+                        if (nature.includes('dr') || nature.includes('debit')) {
+                            effectiveBal = -Math.abs(rawBal);
+                        } else if (rawBal > 0) {
+                            effectiveBal = Math.abs(rawBal);
+                        }
+
+                        if (effectiveBal > 0.5) {
+                            const vName = v.vendor_name || v.name || 'Supplier';
+                            if (selectedVendors && selectedVendors.length > 0 && !selectedVendors.includes('All') && !selectedVendors.includes(vName)) {
+                                return;
+                            }
+                            calculatedVendorOutstandingRows.unshift({
+                                id: `vend-ob-${v.id}`,
+                                purchase_no: v.vendor_code || `OB-${v.id}`,
+                                supplier_name: vName,
+                                purchase_date: v.created_at ? v.created_at.split('T')[0] : 'Opening',
+                                payment_term: 'Opening Balance',
+                                gross_amount: effectiveBal,
+                                paid_amount: 0,
+                                total_amount: effectiveBal
+                            });
+                        }
+                    });
 
                     setReportRows(calculatedVendorOutstandingRows);
                 }

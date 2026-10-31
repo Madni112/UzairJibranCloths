@@ -6,7 +6,8 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
 import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
-import { MdEdit, MdDelete, MdMoreVert, MdEmail, MdPhone, MdPerson, MdBusiness, MdAccountBalanceWallet, MdAdd, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
+import VendorImportModal from './VendorImportModal';
+import { MdEdit, MdDelete, MdMoreVert, MdEmail, MdPhone, MdPerson, MdBusiness, MdAccountBalanceWallet, MdAdd, MdClose, MdCheckCircle, MdArrowUpward, MdArrowDownward, MdReceiptLong, MdCloudUpload } from 'react-icons/md';
 
 const VendorList = () => {
     const navigate = useNavigate();
@@ -16,6 +17,7 @@ const VendorList = () => {
 
     // Modal State
     const [showAccountModal, setShowAccountModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [selectedVendor, setSelectedVendor] = useState<any>(null);
     const [accountCodeInput, setAccountCodeInput] = useState('');
     const [openingBalanceInput, setOpeningBalanceInput] = useState('');
@@ -314,13 +316,23 @@ const VendorList = () => {
                     <h2 className="text-xl font-bold text-black dark:text-white">Wholesale Vendor Master Directory</h2>
                     <p className="text-xs text-gray-400">Browse supply business profiles, manage tax coordinates, and map Chart of Account codes</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/Purchase/Vendor/Add')}
-                    className="flex items-center justify-center rounded bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-opacity-90 transition shadow-sm cursor-pointer"
-                >
-                    + Add New Vendor
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setShowImportModal(true)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-purple-500/30 bg-purple-50 text-purple-700 hover:bg-purple-600 hover:text-white dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-600 dark:hover:text-white py-2 px-3 text-xs font-bold transition shadow-xs cursor-pointer"
+                        title="Bulk upload suppliers and opening balances from Excel"
+                    >
+                        <MdCloudUpload size={16} /> Upload Excel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/Purchase/Vendor/Add')}
+                        className="flex items-center justify-center rounded bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-opacity-90 transition shadow-sm cursor-pointer"
+                    >
+                        + Add New Vendor
+                    </button>
+                </div>
             </div>
 
             <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
@@ -479,12 +491,34 @@ const VendorList = () => {
                                                 )}
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
-                                                <TableActions
-                                                    onEdit={() => navigate(`/Purchase/Vendor/Edit/${vendor.id}`, { state: { vendor } })}
-                                                    onDelete={() => handleDeleteVendorRecord(vendor.id)}
-                                                    editTitle="Edit Supplier"
-                                                    deleteTitle="Delete Supplier"
-                                                />
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const vName = vendor.vendor_name || vendor.name;
+                                                            navigate('/Reports/Account-Report/Print', {
+                                                                state: {
+                                                                    tab: 3,
+                                                                    criteria: {
+                                                                        vendor: [vName],
+                                                                        dateFrom: '',
+                                                                        dateTo: new Date().toISOString().split('T')[0]
+                                                                    }
+                                                                }
+                                                            });
+                                                        }}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white dark:bg-purple-950/50 dark:hover:bg-purple-600 dark:text-purple-300 dark:hover:text-white rounded text-xs font-bold border border-purple-200 dark:border-purple-800 transition duration-150 cursor-pointer shadow-2xs"
+                                                        title="View Vendor Account Ledger"
+                                                    >
+                                                        <MdReceiptLong size={14} /> Ledger
+                                                    </button>
+                                                    <TableActions
+                                                        onEdit={() => navigate(`/Purchase/Vendor/Edit/${vendor.id}`, { state: { vendor } })}
+                                                        onDelete={() => handleDeleteVendorRecord(vendor.id)}
+                                                        editTitle="Edit Supplier"
+                                                        deleteTitle="Delete Supplier"
+                                                    />
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -619,6 +653,12 @@ const VendorList = () => {
                 </div>
             )}
 
+            {/* Vendor Excel Import Modal */}
+            <VendorImportModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onSuccess={() => fetchRegisteredVendorsAndCOA()}
+            />
         </div>
     );
 };
