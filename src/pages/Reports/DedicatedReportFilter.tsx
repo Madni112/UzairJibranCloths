@@ -5,6 +5,7 @@ import { useAuth } from '../../Context/Auth';
 import Spinner from '../../ui/Spinner';
 import SearchableMultiSelect from '../../components/SearchableMultiSelect';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import { DEFAULT_SUB_AREAS } from '../../components/SubAreaAreaInput';
 import {
   MdArrowBack,
   MdReceipt,
