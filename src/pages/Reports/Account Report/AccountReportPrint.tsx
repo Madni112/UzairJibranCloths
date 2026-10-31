@@ -9,6 +9,37 @@ import { useAuth } from '../../../Context/Auth';
 import { exportToExcel, ExcelColumn } from '../../../utils/excelExport';
 import { getBrandConfig } from '../../../utils/brand';
 import ReportPagination from '../../../components/ReportPagination';
+import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
+
+const getCustomerLocation = (c: any) => {
+    let city = c.city || c.sub_area || c.subArea || '';
+    let area = c.area || '';
+
+    if (c.notes && c.notes.includes('Location:')) {
+        const match = c.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
+        if (match) {
+            const noteCity = match[1]?.trim();
+            const noteArea = match[2]?.trim();
+            if (!city) city = noteCity;
+            if (city && city.toLowerCase() === 'hyderabad' && noteCity && noteCity.toLowerCase() !== 'hyderabad') {
+                city = noteCity;
+            }
+            if (!area && noteArea) area = noteArea;
+        }
+    }
+
+    if (!city && c.address) {
+        const addr = String(c.address).toLowerCase();
+        for (const dCity of DEFAULT_SUB_AREAS) {
+            if (addr.includes(dCity.toLowerCase())) {
+                city = dCity;
+                break;
+            }
+        }
+    }
+
+    return { city: city || 'Hyderabad', area: area || '' };
+};
 
 const AccountReportPrint = () => {
     const location = useLocation();
@@ -149,6 +180,24 @@ const AccountReportPrint = () => {
                     // 1. Apply Customer Category Filter
                     if (filters.customerCategory && filters.customerCategory.length > 0 && !filters.customerCategory.includes('All')) {
                         allCustomers = allCustomers.filter(c => filters.customerCategory.includes(c.registrationType || 'Retail / General'));
+                    }
+
+                    // 1b. Apply City Filter
+                    if (filters.city && filters.city.length > 0 && !filters.city.includes('All')) {
+                        const rawCityFilters = Array.isArray(filters.city) ? filters.city : [filters.city];
+                        allCustomers = allCustomers.filter(c => {
+                            const loc = getCustomerLocation(c);
+                            return rawCityFilters.some((f: string) => f.toLowerCase() === loc.city.toLowerCase());
+                        });
+                    }
+
+                    // 1c. Apply Area Filter
+                    if (filters.area && filters.area.length > 0 && !filters.area.includes('All')) {
+                        const rawAreaFilters = Array.isArray(filters.area) ? filters.area : [filters.area];
+                        allCustomers = allCustomers.filter(c => {
+                            const loc = getCustomerLocation(c);
+                            return rawAreaFilters.some((f: string) => f.toLowerCase() === loc.area.toLowerCase());
+                        });
                     }
 
                     // 2. Apply Customer Name Filter
@@ -505,7 +554,9 @@ const AccountReportPrint = () => {
                             customer_code: cust.customer_code || cust.customerCode || '-',
                             page_no: cust.page_no || cust.pageNo || '-',
                             category: cust.registrationType || 'Retail / General',
-                            phone: cust.mobileNo || cust.phoneNo || '-',
+                            city: getCustomerLocation(cust).city,
+                            area: getCustomerLocation(cust).area,
+                            phone: cust.mobileNo || cust.phoneNo || cust.primaryPhone || '-',
                             address: cust.businessAddress || cust.residentialAddress || '-',
                             opening_balance: openingBalance,
                             period_debit: periodDebit,
@@ -2116,6 +2167,9 @@ const AccountReportPrint = () => {
                             {activeTab === 13 && `Customer Account Balance & Outstanding Detail Report${activeViewMode === 'detailed' ? ' (Detailed Invoices)' : ' (Summary Balances)'}`}
                         </b></span>
                         <span>Duration Window Block: {activeTab === 11 ? `As of ${new Date().toISOString().split('T')[0]}` : `${filters.dateFrom || 'Initial'} up to ${filters.dateTo || 'Today'}`}</span>
+                        {filters.city && filters.city.length > 0 && !filters.city.includes('All') && (
+                            <span>City / Region: <b className="text-black uppercase">{Array.isArray(filters.city) ? filters.city.join(', ') : filters.city}{filters.area && filters.area.length > 0 ? ` (${Array.isArray(filters.area) ? filters.area.join(', ') : filters.area})` : ''}</b></span>
+                        )}
                     </div>
                 </div>
 
@@ -2175,8 +2229,14 @@ const AccountReportPrint = () => {
                                                                 {cust.category || 'Retail / General'}
                                                             </span>
                                                         </div>
-                                                        <div className="text-[10px] text-slate-600 mt-1 font-mono flex gap-4">
+                                                        <div className="text-[10px] text-slate-600 mt-1 font-mono flex flex-wrap gap-4">
                                                             <span>📞 Phone: <b className="text-slate-800">{cust.phone || '-'}</b></span>
+                                                            {cust.city && (
+                                                                <span>🏙️ City: <b className="text-slate-800">{cust.city}</b></span>
+                                                            )}
+                                                            {cust.area && (
+                                                                <span>🏘️ Area: <b className="text-slate-800">{cust.area}</b></span>
+                                                            )}
                                                             {cust.address && cust.address !== '-' && (
                                                                 <span>📍 Address: <b className="text-slate-800">{cust.address}</b></span>
                                                             )}

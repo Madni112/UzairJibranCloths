@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
 import { SearchableMultiSelect } from '../../../components/SearchableMultiSelect';
+import { DEFAULT_SUB_AREAS } from '../../../components/SubAreaAreaInput';
 
 const AccountReport = () => {
   const navigate = useNavigate();
@@ -40,6 +41,8 @@ const AccountReport = () => {
     subCategoryCode: [],
     controlCode: [],
     chartOfAccountCode: [],
+    city: [],
+    area: [],
     customerCategory: [],
     customer: [],
     vendor: [],
@@ -62,7 +65,7 @@ const AccountReport = () => {
       try {
         setLoading(true);
         const [custRes, vendRes, smRes, compRes, coaRes] = await Promise.all([
-          supabase.from('customers').select('id, customerName, registrationType, primaryPhone, customer_code, customerCode'),
+          supabase.from('customers').select('id, customerName, registrationType, primaryPhone, customer_code, customerCode, city, area, sub_area, subArea, address, notes'),
           supabase.from('vendors').select('id, vendor_name'),
           supabase.from('salesmen').select('id, name'),
           supabase.from('companies').select('id, name'),
@@ -148,10 +151,83 @@ const AccountReport = () => {
   const subCategoryCodeOptions = useMemo(() => getFilteredSubCategoryCodesPool(), [uniqueSubCategoryCodes, chartOfAccounts, filters.categoryCode]);
   const controlCodeOptions = useMemo(() => getFilteredControlCodesPool(), [uniqueControlCodes, chartOfAccounts, filters.categoryCode, filters.subCategoryCode]);
   const chartOfAccountOptions = useMemo(() => getFilteredChartOfAccountsPool().map(c => `${c.account_code} - ${c.account_title}`), [chartOfAccounts, filters.categoryCode, filters.subCategoryCode, filters.controlCode]);
-  const customerOptions = useMemo(() => customers.map(c => {
-    const code = c.customer_code || c.customerCode;
-    return code ? `[${code}] ${c.customerName}` : c.customerName;
-  }).filter(Boolean), [customers]);
+  const getCustomerLocation = (c: any) => {
+    let city = c.city || c.sub_area || c.subArea || '';
+    let area = c.area || '';
+
+    if (c.notes && c.notes.includes('Location:')) {
+      const match = c.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
+      if (match) {
+        const noteCity = match[1]?.trim();
+        const noteArea = match[2]?.trim();
+        if (!city) city = noteCity;
+        if (city && city.toLowerCase() === 'hyderabad' && noteCity && noteCity.toLowerCase() !== 'hyderabad') {
+          city = noteCity;
+        }
+        if (!area && noteArea) area = noteArea;
+      }
+    }
+
+    if (!city && c.address) {
+      const addr = String(c.address).toLowerCase();
+      for (const dCity of DEFAULT_SUB_AREAS) {
+        if (addr.includes(dCity.toLowerCase())) {
+          city = dCity;
+          break;
+        }
+      }
+    }
+
+    return { city: city || 'Hyderabad', area: area || '' };
+  };
+
+  const cityOptions = useMemo(() => {
+    const cities = new Set<string>();
+    customers.forEach(c => {
+      const loc = getCustomerLocation(c);
+      if (loc.city) cities.add(loc.city);
+    });
+    DEFAULT_SUB_AREAS.forEach(c => cities.add(c));
+    return Array.from(cities).filter(Boolean).sort();
+  }, [customers]);
+
+  const areaOptions = useMemo(() => {
+    const areas = new Set<string>();
+    customers.forEach(c => {
+      const loc = getCustomerLocation(c);
+      if (filters.city && filters.city.length > 0 && !filters.city.includes('All')) {
+        const rawCityFilters = Array.isArray(filters.city) ? filters.city : [filters.city];
+        if (!rawCityFilters.includes(loc.city)) return;
+      }
+      if (loc.area) areas.add(loc.area);
+    });
+    return Array.from(areas).filter(Boolean).sort();
+  }, [customers, filters.city]);
+
+  const customerOptions = useMemo(() => {
+    let pool = customers;
+    if (filters.city && filters.city.length > 0 && !filters.city.includes('All')) {
+      const rawCityFilters = Array.isArray(filters.city) ? filters.city : [filters.city];
+      pool = pool.filter(c => {
+        const loc = getCustomerLocation(c);
+        return rawCityFilters.includes(loc.city);
+      });
+    }
+    if (filters.area && filters.area.length > 0 && !filters.area.includes('All')) {
+      const rawAreaFilters = Array.isArray(filters.area) ? filters.area : [filters.area];
+      pool = pool.filter(c => {
+        const loc = getCustomerLocation(c);
+        return rawAreaFilters.includes(loc.area);
+      });
+    }
+    if (filters.customerCategory && filters.customerCategory.length > 0 && !filters.customerCategory.includes('All')) {
+      pool = pool.filter(c => filters.customerCategory.includes(c.registrationType || 'Retail / General'));
+    }
+    return pool.map(c => {
+      const code = c.customer_code || c.customerCode;
+      return code ? `[${code}] ${c.customerName}` : c.customerName;
+    }).filter(Boolean);
+  }, [customers, filters.city, filters.area, filters.customerCategory]);
   const customerCategoryOptions = useMemo(() => {
     const fromCust = customers.map(c => c.registrationType).filter(Boolean);
     const standard = ['Retail / General', 'Contractor / Builder', 'Wholesaler / Dealer', 'Registered Corporate'];
@@ -233,6 +309,27 @@ const AccountReport = () => {
           {(activeTab === 1 || activeTab === 13) && (
             <>
               <SearchableMultiSelect 
+                label="City / Sub Area:" 
+                placeholder="All Cities" 
+                options={cityOptions} 
+                value={filters.city || []} 
+                onChange={(val) => {
+                  handleInputChange('city', val);
+                  handleInputChange('area', []);
+                  handleInputChange('customer', []);
+                }} 
+              />
+              <SearchableMultiSelect 
+                label="Area / Market:" 
+                placeholder="All Areas" 
+                options={areaOptions} 
+                value={filters.area || []} 
+                onChange={(val) => {
+                  handleInputChange('area', val);
+                  handleInputChange('customer', []);
+                }} 
+              />
+              <SearchableMultiSelect 
                 label="Customer Category / Type:" 
                 placeholder="All Categories" 
                 options={customerCategoryOptions} 
@@ -246,7 +343,7 @@ const AccountReport = () => {
                 value={filters.customer} 
                 onChange={(val) => handleInputChange('customer', val)} 
               />
-              <div className="md:col-span-2 flex flex-wrap items-center gap-6 pt-3">
+              <div className="md:col-span-4 flex flex-wrap items-center gap-6 pt-1">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input 
                     type="checkbox" 
