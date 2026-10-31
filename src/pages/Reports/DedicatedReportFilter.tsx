@@ -5,7 +5,7 @@ import { useAuth } from '../../Context/Auth';
 import Spinner from '../../ui/Spinner';
 import SearchableMultiSelect from '../../components/SearchableMultiSelect';
 import SearchableDropdown from '../../components/SearchableDropdown';
-import { DEFAULT_SUB_AREAS } from '../../components/SubAreaAreaInput';
+import { DEFAULT_SUB_AREAS, DEFAULT_AREAS, DEFAULT_SUBAREA_AREAS_MAP } from '../../components/SubAreaAreaInput';
 import {
   MdArrowBack,
   MdReceipt,
@@ -637,7 +637,7 @@ const DedicatedReportFilter: React.FC = () => {
           invRes,
           uomRes
         ] = await Promise.allSettled([
-          supabase.from('customers').select('id, customerName, registrationType, customer_code, customerCode, city, area, sub_area, subArea, address, notes'),
+          supabase.from('customers').select('id, customerName, registrationType, customer_code, customerCode, city, address, notes'),
           supabase.from('vendors').select('id, vendor_name, name'),
           supabase.from('salesmen').select('id, name'),
           supabase.from('logistics_transportation').select('id, name'),
@@ -714,16 +714,43 @@ const DedicatedReportFilter: React.FC = () => {
     return Array.from(cities).filter(Boolean).sort();
   }, [customers]);
 
+  const isCityMatch = (filterCity: string, targetCity: string) => {
+    if (!filterCity || !targetCity) return false;
+    const f = filterCity.trim().toLowerCase();
+    const t = targetCity.trim().toLowerCase();
+    if (f === t) return true;
+    if ((f === 'matli' || f === 'ماتلی') && (t === 'matli' || t === 'ماتلی')) return true;
+    return false;
+  };
+
   const areaOptions = useMemo(() => {
     const areas = new Set<string>();
-    customers.forEach(c => {
-      const loc = getCustomerLocation(c);
-      if (criteria.city && criteria.city.length > 0 && !criteria.city.includes('All')) {
-        const rawCityFilters = Array.isArray(criteria.city) ? criteria.city : [criteria.city];
-        if (!rawCityFilters.includes(loc.city)) return;
-      }
-      if (loc.area) areas.add(loc.area);
-    });
+    const rawCityFilters = (criteria.city && criteria.city.length > 0 && !criteria.city.includes('All'))
+      ? (Array.isArray(criteria.city) ? criteria.city : [criteria.city])
+      : [];
+
+    if (rawCityFilters.length > 0) {
+      rawCityFilters.forEach(city => {
+        const mapped = DEFAULT_SUBAREA_AREAS_MAP[city] || [];
+        mapped.forEach(a => areas.add(a));
+        if (city.toLowerCase() === 'matli' && DEFAULT_SUBAREA_AREAS_MAP['ماتلی']) {
+          DEFAULT_SUBAREA_AREAS_MAP['ماتلی'].forEach(a => areas.add(a));
+        } else if (city === 'ماتلی' && DEFAULT_SUBAREA_AREAS_MAP['Matli']) {
+          DEFAULT_SUBAREA_AREAS_MAP['Matli'].forEach(a => areas.add(a));
+        }
+      });
+      customers.forEach(c => {
+        const loc = getCustomerLocation(c);
+        const matches = rawCityFilters.some(f => isCityMatch(f, loc.city));
+        if (matches && loc.area) areas.add(loc.area);
+      });
+    } else {
+      DEFAULT_AREAS.forEach(a => areas.add(a));
+      customers.forEach(c => {
+        const loc = getCustomerLocation(c);
+        if (loc.area) areas.add(loc.area);
+      });
+    }
     return Array.from(areas).filter(Boolean).sort();
   }, [customers, criteria.city]);
 
@@ -733,14 +760,14 @@ const DedicatedReportFilter: React.FC = () => {
       const rawCityFilters = Array.isArray(criteria.city) ? criteria.city : [criteria.city];
       pool = pool.filter(c => {
         const loc = getCustomerLocation(c);
-        return rawCityFilters.includes(loc.city);
+        return rawCityFilters.some(f => isCityMatch(f, loc.city));
       });
     }
     if (criteria.area && criteria.area.length > 0 && !criteria.area.includes('All')) {
       const rawAreaFilters = Array.isArray(criteria.area) ? criteria.area : [criteria.area];
       pool = pool.filter(c => {
         const loc = getCustomerLocation(c);
-        return rawAreaFilters.includes(loc.area);
+        return rawAreaFilters.some(f => f.trim().toLowerCase() === (loc.area || '').trim().toLowerCase());
       });
     }
     if (criteria.customerCategory && criteria.customerCategory.length > 0 && !criteria.customerCategory.includes('All')) {

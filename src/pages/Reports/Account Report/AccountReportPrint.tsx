@@ -187,7 +187,13 @@ const AccountReportPrint = () => {
                         const rawCityFilters = Array.isArray(filters.city) ? filters.city : [filters.city];
                         allCustomers = allCustomers.filter(c => {
                             const loc = getCustomerLocation(c);
-                            return rawCityFilters.some((f: string) => f.toLowerCase() === loc.city.toLowerCase());
+                            return rawCityFilters.some((f: string) => {
+                                const fClean = (f || '').trim().toLowerCase();
+                                const cClean = (loc.city || '').trim().toLowerCase();
+                                if (fClean === cClean) return true;
+                                if ((fClean === 'matli' || fClean === 'ماتلی') && (cClean === 'matli' || cClean === 'ماتلی')) return true;
+                                return false;
+                            });
                         });
                     }
 
