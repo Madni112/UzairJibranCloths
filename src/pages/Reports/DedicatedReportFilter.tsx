@@ -370,7 +370,7 @@ const REPORT_REGISTRY: Record<string, ReportConfig> = {
     targetPrintPath: '/Reports/Account-Report/Print',
     printType: 'account',
     tab: 13,
-    fields: ['customerCategory', 'customer']
+    fields: ['city', 'area', 'customerCategory', 'customer']
   },
   'vendor-balance-detail': {
     id: 'vendor-balance-detail',
@@ -397,7 +397,7 @@ const REPORT_REGISTRY: Record<string, ReportConfig> = {
     targetPrintPath: '/Reports/Account-Report/Print',
     printType: 'account',
     tab: 1,
-    fields: ['customer']
+    fields: ['city', 'area', 'customer']
   },
   'customer-vendor-ledger': {
     id: 'customer-vendor-ledger',
@@ -410,7 +410,7 @@ const REPORT_REGISTRY: Record<string, ReportConfig> = {
     targetPrintPath: '/Reports/Account-Report/Print',
     printType: 'account',
     tab: 1,
-    fields: ['customer']
+    fields: ['city', 'area', 'customer']
   },
   'daybook-activity-report': {
     id: 'daybook-activity-report',
@@ -541,6 +541,8 @@ const DedicatedReportFilter: React.FC = () => {
   const firstOfMonthStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
   const [criteria, setCriteria] = useState<any>({
+    city: [],
+    area: [],
     customer: [],
     supplier: [],
     salesman: [],
@@ -634,7 +636,7 @@ const DedicatedReportFilter: React.FC = () => {
           invRes,
           uomRes
         ] = await Promise.allSettled([
-          supabase.from('customers').select('id, customerName, registrationType, customer_code, customerCode'),
+          supabase.from('customers').select('id, customerName, registrationType, customer_code, customerCode, city, area, sub_area, subArea, address, notes'),
           supabase.from('vendors').select('id, vendor_name, name'),
           supabase.from('salesmen').select('id, name'),
           supabase.from('logistics_transportation').select('id, name'),
@@ -671,10 +673,83 @@ const DedicatedReportFilter: React.FC = () => {
     setCriteria((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const customerOptions = useMemo(() => customers.map((c) => {
-    const code = c.customer_code || c.customerCode;
-    return code ? `[${code}] ${c.customerName}` : c.customerName;
-  }).filter(Boolean), [customers]);
+  const getCustomerLocation = (c: any) => {
+    let city = c.city || c.sub_area || c.subArea || '';
+    let area = c.area || '';
+
+    if (c.notes && c.notes.includes('Location:')) {
+      const match = c.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
+      if (match) {
+        const noteCity = match[1]?.trim();
+        const noteArea = match[2]?.trim();
+        if (!city) city = noteCity;
+        if (city && city.toLowerCase() === 'hyderabad' && noteCity && noteCity.toLowerCase() !== 'hyderabad') {
+          city = noteCity;
+        }
+        if (!area && noteArea) area = noteArea;
+      }
+    }
+
+    if (!city && c.address) {
+      const addr = String(c.address).toLowerCase();
+      for (const dCity of DEFAULT_SUB_AREAS) {
+        if (addr.includes(dCity.toLowerCase())) {
+          city = dCity;
+          break;
+        }
+      }
+    }
+
+    return { city: city || 'Hyderabad', area: area || '' };
+  };
+
+  const cityOptions = useMemo(() => {
+    const cities = new Set<string>();
+    customers.forEach(c => {
+      const loc = getCustomerLocation(c);
+      if (loc.city) cities.add(loc.city);
+    });
+    DEFAULT_SUB_AREAS.forEach(c => cities.add(c));
+    return Array.from(cities).filter(Boolean).sort();
+  }, [customers]);
+
+  const areaOptions = useMemo(() => {
+    const areas = new Set<string>();
+    customers.forEach(c => {
+      const loc = getCustomerLocation(c);
+      if (criteria.city && criteria.city.length > 0 && !criteria.city.includes('All')) {
+        const rawCityFilters = Array.isArray(criteria.city) ? criteria.city : [criteria.city];
+        if (!rawCityFilters.includes(loc.city)) return;
+      }
+      if (loc.area) areas.add(loc.area);
+    });
+    return Array.from(areas).filter(Boolean).sort();
+  }, [customers, criteria.city]);
+
+  const customerOptions = useMemo(() => {
+    let pool = customers;
+    if (criteria.city && criteria.city.length > 0 && !criteria.city.includes('All')) {
+      const rawCityFilters = Array.isArray(criteria.city) ? criteria.city : [criteria.city];
+      pool = pool.filter(c => {
+        const loc = getCustomerLocation(c);
+        return rawCityFilters.includes(loc.city);
+      });
+    }
+    if (criteria.area && criteria.area.length > 0 && !criteria.area.includes('All')) {
+      const rawAreaFilters = Array.isArray(criteria.area) ? criteria.area : [criteria.area];
+      pool = pool.filter(c => {
+        const loc = getCustomerLocation(c);
+        return rawAreaFilters.includes(loc.area);
+      });
+    }
+    if (criteria.customerCategory && criteria.customerCategory.length > 0 && !criteria.customerCategory.includes('All')) {
+      pool = pool.filter(c => criteria.customerCategory.includes(c.registrationType || 'Retail / General'));
+    }
+    return pool.map((c) => {
+      const code = c.customer_code || c.customerCode;
+      return code ? `[${code}] ${c.customerName}` : c.customerName;
+    }).filter(Boolean);
+  }, [customers, criteria.city, criteria.area, criteria.customerCategory]);
   const customerCategoryOptions = useMemo(() => {
     const fromCust = customers.map((c: any) => c.registrationType).filter(Boolean);
     const standard = ['Retail / General', 'Contractor / Builder', 'Wholesaler / Dealer', 'Registered Corporate'];
@@ -1017,6 +1092,39 @@ const DedicatedReportFilter: React.FC = () => {
                 options={customerCategoryOptions}
                 value={criteria.customerCategory}
                 onChange={(val) => handleInputChange('customerCategory', val)}
+              />
+            </div>
+          )}
+
+          {/* City Field */}
+          {f.includes('city') && (
+            <div>
+              <SearchableMultiSelect
+                label="City / Sub Area:"
+                placeholder="All Cities"
+                options={cityOptions}
+                value={criteria.city || []}
+                onChange={(val) => {
+                  handleInputChange('city', val);
+                  handleInputChange('area', []);
+                  handleInputChange('customer', []);
+                }}
+              />
+            </div>
+          )}
+
+          {/* Area Field */}
+          {f.includes('area') && (
+            <div>
+              <SearchableMultiSelect
+                label="Area / Market:"
+                placeholder="All Areas"
+                options={areaOptions}
+                value={criteria.area || []}
+                onChange={(val) => {
+                  handleInputChange('area', val);
+                  handleInputChange('customer', []);
+                }}
               />
             </div>
           )}
