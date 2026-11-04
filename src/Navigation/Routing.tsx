@@ -37,7 +37,7 @@ const AppRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     if (isTenantSegment) {
       const rest = segments.slice(1).join('/');
       const cleanPath = rest ? `/${rest}` : '/dashboard';
-      return <Navigate to={`${cleanPath}${search}${hash}`} replace />;
+      return <Navigate to={`${cleanPath}${search}${hash}`} replace state={location.state} />;
     }
   }
 
@@ -45,7 +45,7 @@ const AppRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const reservedPrefixes = ['purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'human-resources', 'human-resource', 'hr', 'crm'];
   if (segments.length >= 2 && reservedPrefixes.includes(segments[0].toLowerCase()) && reservedPrefixes.includes(segments[1].toLowerCase())) {
     const cleanPath = `/${segments.slice(1).join('/')}`;
-    return <Navigate to={`${cleanPath}${search}${hash}`} replace />;
+    return <Navigate to={`${cleanPath}${search}${hash}`} replace state={location.state} />;
   }
 
   return <>{children}</>;

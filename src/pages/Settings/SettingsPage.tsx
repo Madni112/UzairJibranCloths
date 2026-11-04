@@ -79,9 +79,20 @@ import {
   SidebarLayoutMode,
   getSidebarLayoutMode,
   setSidebarLayoutMode,
+  SidebarBehaviorMode,
+  getSidebarBehaviorMode,
+  setSidebarBehaviorMode,
   NavbarLayoutMode,
   getNavbarLayoutMode,
   setNavbarLayoutMode,
+  CURATED_THEME_SUITES,
+  ThemeSuite,
+  SIDEBAR_BG_OPTIONS,
+  SidebarBgOption,
+  getSidebarBgTheme,
+  setSidebarBgTheme,
+  getActiveThemeSuiteId,
+  applyThemeSuite,
 } from '../../constant/themeConfig';
 import {
   fetchSystemMasterConfig,
@@ -149,15 +160,15 @@ const SETTINGS_TABS: TabItem[] = [
     id: 'sound_effects',
     label: 'Audio & Sound Effects',
     urLabel: 'آواز اور آڈیو اثرات',
-    description: 'POS audio feedback for billing & scanning',
-    urDescription: 'بلنگ اور اسکیننگ پر آڈیو فیڈ بیک',
+    description: 'Audio feedback for vouchers & ledger transactions',
+    urDescription: 'واؤچرز اور لیجر ٹرانزیکشنز پر آڈیو فیڈ بیک',
     icon: LuVolume2,
   },
   {
     id: 'backup',
     label: 'Data Backup & Export',
     urLabel: 'ڈیٹا بیک اپ اور ایکسپورٹ',
-    description: 'Export records & complete ERP snapshots',
+    description: 'Export records & complete data snapshots',
     urDescription: 'ریکارڈز اور مکمل بیک اپ اسنیپ شاٹس',
     icon: LuHardDrive,
   },
@@ -339,7 +350,9 @@ const SettingsPage: React.FC = () => {
     if (p) setActiveTab(p);
   }, [location.search]);
 
-  const [themeSubTab, setThemeSubTab] = useState<'navbar' | 'sidebar'>('navbar');
+  const [themeSubTab, setThemeSubTab] = useState<'suites' | 'navbar' | 'sidebar'>('suites');
+  const [activeSuiteId, setActiveSuiteId] = useState<string>(() => getActiveThemeSuiteId());
+  const [sidebarBgThemeState, setSidebarBgThemeState] = useState<string>(() => getSidebarBgTheme());
   const [colorMode, setColorMode] = useColorMode();
 
   // Primary Accent Color State
@@ -362,6 +375,18 @@ const SettingsPage: React.FC = () => {
   // Layout Styles: Sidebar (Floating vs Classic) & Navbar (Sticky vs Normal)
   const [sidebarLayout, setSidebarLayout] = useState<SidebarLayoutMode>(() => getSidebarLayoutMode());
   const [navbarLayout, setNavbarLayout] = useState<NavbarLayoutMode>(() => getNavbarLayoutMode());
+  const [sidebarBehavior, setSidebarBehavior] = useState<SidebarBehaviorMode>(() => getSidebarBehaviorMode());
+
+  const handleSetSidebarBehavior = (mode: SidebarBehaviorMode) => {
+    setSidebarBehavior(mode);
+    setSidebarBehaviorMode(mode);
+    toast.success(
+      mode === 'auto_collapse'
+        ? (isRTL ? '⚡ خودکار بند رہنے والا سائیڈبار فعال ہو گیا!' : '⚡ Auto-Collapse Sidebar mode activated! Expands on hover/click.')
+        : (isRTL ? '📌 مستقل کھلا رہنے والا سائیڈبار فعال ہو گیا!' : '📌 Always Opened (Pinned) Sidebar mode activated!'),
+      { id: 'sidebar-behavior-toast' }
+    );
+  };
 
   const handleSetSidebarLayout = (mode: SidebarLayoutMode) => {
     setSidebarLayout(mode);
@@ -400,6 +425,7 @@ const SettingsPage: React.FC = () => {
 
   const handleResetLayoutToClassic = () => {
     handleApplyPreset('classic');
+    handleSetSidebarBehavior('pinned');
   };
 
   // System Master Permissions State
@@ -744,31 +770,31 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleExportProducts = async () => {
+  const handleExportVendors = async () => {
     try {
-      setExportingType('products');
-      const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
+      setExportingType('vendors');
+      const { data, error } = await supabase.from('vendors').select('*').order('vendor_name', { ascending: true });
       if (error) throw error;
 
-      const rows = (data || []).map((p: any, index: number) => ({
+      const rows = (data || []).map((v: any, index: number) => ({
         'S.No': index + 1,
-        'Product Name': p.name || '—',
-        'Item Code / SKU': p.code || p.sku || '—',
-        'Category': p.category || '—',
-        'Tile Size': p.size || '—',
-        'Sales Price': Number(p.sale_price || p.price || 0),
-        'Purchase Price': Number(p.purchase_price || 0),
-        'Current Stock': Number(p.stock || p.quantity || 0),
-        'Unit': p.unit || 'Box',
+        'Vendor Name': v.vendor_name || '—',
+        'Vendor Code': v.vendor_code || '—',
+        'Contact Person': v.contact_person || '—',
+        'Phone': v.phone || v.mobile || '—',
+        'City': v.city || '—',
+        'Address': v.address || '—',
+        'Payable Balance': Number(v.balance || v.opening_balance || 0),
+        'Balance Nature': v.balance_nature || 'Credit',
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Products');
+      XLSX.utils.book_append_sheet(wb, ws, 'Vendors');
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Products_Catalog_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Vendors_Directory_${new Date().toISOString().slice(0, 10)}.xlsx`);
       triggerFeedbackSound('success', userEmail);
-      toast.success('Product catalog exported to Excel!');
+      toast.success('Vendors directory exported to Excel!');
     } catch (err: any) {
       toast.error('Export failed: ' + err.message);
     } finally {
@@ -776,32 +802,32 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleExportInvoices = async () => {
+  const handleExportVouchers = async () => {
     try {
-      setExportingType('invoices');
-      const { data, error } = await supabase.from('sales_invoices').select('*').order('created_at', { ascending: false }).limit(2500);
+      setExportingType('vouchers');
+      const { data, error } = await supabase.from('financial_vouchers').select('*').order('id', { ascending: false });
       if (error) throw error;
 
-      const rows = (data || []).map((inv: any, index: number) => ({
+      const rows = (data || []).map((v: any, index: number) => ({
         'S.No': index + 1,
-        'Invoice #': inv.invoice_number || `#${inv.id}`,
-        'Date': inv.invoice_date || (inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—'),
-        'Customer Name': inv.customer_name || '—',
-        'Salesman': inv.salesman_name || '—',
-        'Gross Total': Number(inv.gross_amount || inv.total_amount || 0),
-        'Discount': Number(inv.discount_amount || 0),
-        'Net Total': Number(inv.net_amount || inv.total_amount || 0),
-        'Received Amount': Number(inv.received_amount || 0),
-        'Status': inv.payment_status || 'Completed',
+        'Voucher No': v.voucher_no || '—',
+        'Date': v.voucher_date || '—',
+        'Type': v.voucher_type || '—',
+        'Party / Account': v.account_title || v.account_code || '—',
+        'Account Code': v.account_code || '—',
+        'Debit': Number(v.debit || 0),
+        'Credit': Number(v.credit || 0),
+        'Total Amount': Number(v.total_amount || 0),
+        'Narration': v.narration || v.notes || '—',
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Sales Invoices');
+      XLSX.utils.book_append_sheet(wb, ws, 'Financial Vouchers');
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Sales_Invoices_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Financial_Vouchers_${new Date().toISOString().slice(0, 10)}.xlsx`);
       triggerFeedbackSound('success', userEmail);
-      toast.success('Sales invoices exported to Excel!');
+      toast.success('Financial vouchers exported to Excel!');
     } catch (err: any) {
       toast.error('Export failed: ' + err.message);
     } finally {
@@ -812,10 +838,11 @@ const SettingsPage: React.FC = () => {
   const handleExportFullERP = async () => {
     try {
       setExportingType('full');
-      const [custRes, prodRes, invRes] = await Promise.all([
+      const [custRes, vendRes, vchRes, coaRes] = await Promise.all([
         supabase.from('customers').select('*').order('customerName', { ascending: true }),
-        supabase.from('products').select('*').order('name', { ascending: true }),
-        supabase.from('sales_invoices').select('*').order('created_at', { ascending: false }).limit(3000),
+        supabase.from('vendors').select('*').order('vendor_name', { ascending: true }),
+        supabase.from('financial_vouchers').select('*').order('id', { ascending: false }),
+        supabase.from('chart_of_accounts').select('*').order('account_code', { ascending: true }),
       ]);
 
       const limits = await fetchCustomerCreditLimits();
@@ -828,56 +855,72 @@ const SettingsPage: React.FC = () => {
         'Customer Code': c.customer_code || c.customerCode || '—',
         'Phone': c.primaryPhone || c.phone || '—',
         'City': c.city || c.province || '—',
-        'Balance (Receivable)': Number(c.balance || 0),
+        'Balance (Receivable)': Number(c.balance || c.opening_balance || 0),
         'Credit Limit': Number(limits[String(c.id)] || 0),
         'Address': c.address || '—',
       }));
       const wsCust = XLSX.utils.json_to_sheet(custRows);
       XLSX.utils.book_append_sheet(wb, wsCust, 'Customers');
 
-      // Sheet 2: Products
-      const prodRows = (prodRes.data || []).map((p: any, index: number) => ({
+      // Sheet 2: Vendors
+      const vendRows = (vendRes.data || []).map((v: any, index: number) => ({
         'S.No': index + 1,
-        'Product Name': p.name || '—',
-        'Item Code / SKU': p.code || p.sku || '—',
-        'Category': p.category || '—',
-        'Tile Size': p.size || '—',
-        'Price': Number(p.sale_price || p.price || 0),
-        'Current Stock': Number(p.stock || p.quantity || 0),
-        'Unit': p.unit || 'Box',
+        'Vendor Name': v.vendor_name || '—',
+        'Vendor Code': v.vendor_code || '—',
+        'Contact Person': v.contact_person || '—',
+        'Phone': v.phone || v.mobile || '—',
+        'City': v.city || '—',
+        'Payable Balance': Number(v.balance || v.opening_balance || 0),
+        'Balance Nature': v.balance_nature || 'Credit',
       }));
-      const wsProd = XLSX.utils.json_to_sheet(prodRows);
-      XLSX.utils.book_append_sheet(wb, wsProd, 'Item Master');
+      const wsVend = XLSX.utils.json_to_sheet(vendRows);
+      XLSX.utils.book_append_sheet(wb, wsVend, 'Vendors');
 
-      // Sheet 3: Invoices
-      const invRows = (invRes.data || []).map((inv: any, index: number) => ({
+      // Sheet 3: Financial Vouchers
+      const vchRows = (vchRes.data || []).map((v: any, index: number) => ({
         'S.No': index + 1,
-        'Invoice #': inv.invoice_number || `#${inv.id}`,
-        'Date': inv.invoice_date || (inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—'),
-        'Customer Name': inv.customer_name || '—',
-        'Net Total': Number(inv.net_amount || inv.total_amount || 0),
-        'Received': Number(inv.received_amount || 0),
+        'Voucher No': v.voucher_no || '—',
+        'Date': v.voucher_date || '—',
+        'Type': v.voucher_type || '—',
+        'Account': v.account_title || v.account_code || '—',
+        'Debit': Number(v.debit || 0),
+        'Credit': Number(v.credit || 0),
+        'Total Amount': Number(v.total_amount || 0),
+        'Notes': v.narration || v.notes || '—',
       }));
-      const wsInv = XLSX.utils.json_to_sheet(invRows);
-      XLSX.utils.book_append_sheet(wb, wsInv, 'Sales Invoices');
+      const wsVch = XLSX.utils.json_to_sheet(vchRows);
+      XLSX.utils.book_append_sheet(wb, wsVch, 'Vouchers Ledger');
 
-      // Sheet 4: Backup Meta
+      // Sheet 4: Chart of Accounts
+      const coaRows = (coaRes.data || []).map((a: any, index: number) => ({
+        'S.No': index + 1,
+        'Account Code': a.account_code || '—',
+        'Account Title': a.account_title || '—',
+        'Account Type': a.account_type || '—',
+        'Balance Nature': a.balance_nature || '—',
+        'Opening Balance': Number(a.opening_balance || 0),
+      }));
+      const wsCOA = XLSX.utils.json_to_sheet(coaRows);
+      XLSX.utils.book_append_sheet(wb, wsCOA, 'Chart of Accounts');
+
+      // Sheet 5: Backup Meta
       const metaRows = [
         { 'System Attribute': 'Company Name', 'Value': businessName || getBrandConfig().fullName },
         { 'System Attribute': 'Exported By', 'Value': userEmail || 'Admin' },
         { 'System Attribute': 'Role', 'Value': role || 'Super Admin' },
         { 'System Attribute': 'Export Timestamp', 'Value': new Date().toLocaleString() },
         { 'System Attribute': 'Total Customers', 'Value': custRows.length },
-        { 'System Attribute': 'Total Items', 'Value': prodRows.length },
-        { 'System Attribute': 'Total Invoices', 'Value': invRows.length },
+        { 'System Attribute': 'Total Vendors', 'Value': vendRows.length },
+        { 'System Attribute': 'Total Vouchers', 'Value': vchRows.length },
+        { 'System Attribute': 'Total Accounts', 'Value': coaRows.length },
       ];
       const wsMeta = XLSX.utils.json_to_sheet(metaRows);
       XLSX.utils.book_append_sheet(wb, wsMeta, 'System Info');
 
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Full_ERP_Backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Uzair_Jibran_Cloth_Backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
       triggerFeedbackSound('success', userEmail);
-      toast.success('Complete multi-sheet ERP backup generated successfully!');
+      toast.success('Complete Wholesale Cloth backup generated successfully!');
     } catch (err: any) {
       toast.error('Backup failed: ' + err.message);
     } finally {
@@ -1180,12 +1223,26 @@ const SettingsPage: React.FC = () => {
               <div className="relative space-y-4">
                 {/* TOP FLOATING SEGMENTED SUB-NAVBAR: (Navbar & Brand Accent, Sidebar) */}
                 <div className="p-2 rounded-2xl bg-white/95 dark:bg-[#111827]/95 border border-slate-200/90 dark:border-slate-800 shadow-md backdrop-blur-md sticky top-2 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 w-full sm:w-auto">
-                  {/* SUB-TAB 1: NAVBAR & BRAND ACCENT */}
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 w-full sm:w-auto overflow-x-auto no-scrollbar">
+                  {/* SUB-TAB 1: CURATED THEME SUITES */}
+                  <button
+                    type="button"
+                    onClick={() => setThemeSubTab('suites')}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial justify-center select-none shrink-0 ${
+                      themeSubTab === 'suites'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 scale-102'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <LuSparkles className="text-amber-500 text-sm" />
+                    <span>{isRTL ? "کیوریٹڈ تھیم سوئیٹس" : "Curated Theme Suites"}</span>
+                  </button>
+
+                  {/* SUB-TAB 2: NAVBAR & BRAND ACCENT */}
                   <button
                     type="button"
                     onClick={() => setThemeSubTab('navbar')}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial justify-center select-none ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial justify-center select-none shrink-0 ${
                       themeSubTab === 'navbar'
                         ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 scale-102'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1195,27 +1252,27 @@ const SettingsPage: React.FC = () => {
                       className="w-2.5 h-2.5 rounded-full shadow-2xs shrink-0"
                       style={{ backgroundColor: selectedAccentColor }}
                     />
-                    <span>{isRTL ? "نیوبار اور برانڈ کا رنگ" : "Navbar & Brand Accent"}</span>
+                    <span>{isRTL ? "نیوبار اور برانڈ ایکسنٹ" : "Navbar & Accent"}</span>
                     {isAccentChanged && (
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Unapplied changes" />
                     )}
                   </button>
 
-                  {/* SUB-TAB 2: SIDEBAR */}
+                  {/* SUB-TAB 3: SIDEBAR */}
                   <button
                     type="button"
                     onClick={() => setThemeSubTab('sidebar')}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial justify-center select-none ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial justify-center select-none shrink-0 ${
                       themeSubTab === 'sidebar'
                         ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 scale-102'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     <span
-                      className="w-2.5 h-2.5 rounded-full shadow-2xs shrink-0"
-                      style={{ backgroundColor: selectedSidebarColor }}
+                      className="w-2.5 h-2.5 rounded-full shadow-2xs shrink-0 border border-slate-400/40"
+                      style={{ backgroundColor: sidebarBgThemeState }}
                     />
-                    <span>{isRTL ? "سائیڈبار" : "Sidebar"}</span>
+                    <span>{isRTL ? "سائیڈبار اور بیک گراؤنڈ" : "Sidebar & Background"}</span>
                     {isSidebarChanged && (
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Unapplied changes" />
                     )}
@@ -1225,10 +1282,210 @@ const SettingsPage: React.FC = () => {
                 <div className="flex items-center gap-2 px-2 text-xs font-medium text-slate-500 dark:text-slate-400 self-end sm:self-auto">
                   <span>{isRTL ? "حسب ضرورت:" : "Customizing:"}</span>
                   <strong className="text-slate-800 dark:text-slate-200 font-bold">
-                    {isRTL ? (themeSubTab === 'navbar' ? 'نیوبار اور برانڈ کا رنگ' : 'سائیڈبار کے رنگ') : (themeSubTab === 'navbar' ? 'Navbar & Brand Accent' : 'Sidebar Colors')}
+                    {isRTL ? (themeSubTab === 'suites' ? 'کیوریٹڈ ہم آہنگ تھیمز' : themeSubTab === 'navbar' ? 'نیوبار اور برانڈ کا رنگ' : 'سائیڈبار اور بیک گراؤنڈ') : (themeSubTab === 'suites' ? 'Curated Theme Suites' : themeSubTab === 'navbar' ? 'Navbar & Brand Accent' : 'Sidebar & Background')}
                   </strong>
                 </div>
               </div>
+
+              {/* SECTION 0: CURATED THEME SUITES */}
+              {themeSubTab === 'suites' && (
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm animate-fadeIn">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-6 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-tr from-amber-500 to-indigo-600 text-white shadow-xs">
+                        <LuSparkles size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>{isRTL ? "کیوریٹڈ تھیم سوئیٹس (1-کلک مکمل تھیم)" : "Curated Theme Suites"}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 uppercase font-black">
+                            1-Click Suites
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {isRTL
+                            ? "ایک کلک میں سائیڈبار، ایکسنٹ کلر اور کنٹراسٹ ٹیکسٹ کو خودکار ہم آہنگ بنائیں۔"
+                            : "One-click complete visual suites harmonizing your sidebar background, brand accent, and high-contrast typography."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5 Theme Suite Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {CURATED_THEME_SUITES.map((suite) => {
+                      const isActive = activeSuiteId === suite.id;
+                      const isLightSuite = suite.sidebarBg.toUpperCase() === '#FFFFFF';
+
+                      return (
+                        <div
+                          key={suite.id}
+                          onClick={() => {
+                            applyThemeSuite(suite.id);
+                            setActiveSuiteId(suite.id);
+                            setSidebarBgThemeState(suite.sidebarBg);
+                            setSelectedAccentColor(suite.accentColor);
+                            setAppliedAccentColor(suite.accentColor);
+                            setSelectedSidebarColor(suite.sidebarText);
+                            setAppliedSidebarColor(suite.sidebarText);
+                            toast.success(
+                              isRTL
+                                ? `✨ ${suite.nameUrdu} تھیم سوئیٹ لاگو ہو گیا!`
+                                : `✨ Applied ${suite.name} theme suite!`
+                            );
+                          }}
+                          className={`rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden relative group cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] ${
+                            isActive
+                              ? 'border-primary ring-2 ring-primary/25 bg-primary/5 dark:bg-primary/10 shadow-md'
+                              : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                        >
+                          {/* Live Mini Mockup Preview */}
+                          <div className="p-3 bg-slate-100/80 dark:bg-slate-950/60 border-b border-slate-200/80 dark:border-slate-800">
+                            <div className="h-28 rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-700/80 flex shadow-inner relative">
+                              {/* Left Sidebar Mini Strip */}
+                              <div
+                                className="w-14 shrink-0 p-1.5 flex flex-col justify-between border-r"
+                                style={{
+                                  backgroundColor: suite.sidebarBg,
+                                  borderColor: suite.sidebarBorder,
+                                }}
+                              >
+                                <div className="space-y-1.5">
+                                  <div className="w-4 h-4 rounded-md bg-current opacity-20 mb-2" style={{ color: suite.sidebarText }} />
+                                  <div
+                                    className="h-3 rounded-md flex items-center px-1"
+                                    style={{
+                                      backgroundColor: isLightSuite ? `${suite.accentColor}25` : `${suite.accentColor}35`,
+                                      border: `1px solid ${suite.accentColor}50`,
+                                    }}
+                                  >
+                                    <div className="w-2 h-1 rounded-sm" style={{ backgroundColor: suite.accentColor }} />
+                                  </div>
+                                  <div className="h-2 w-7 rounded-sm opacity-25" style={{ backgroundColor: suite.sidebarText }} />
+                                  <div className="h-2 w-6 rounded-sm opacity-25" style={{ backgroundColor: suite.sidebarText }} />
+                                </div>
+                                <div className="h-2 w-4 rounded-sm opacity-20" style={{ backgroundColor: suite.sidebarText }} />
+                              </div>
+
+                              {/* Content Canvas */}
+                              <div className="flex-1 bg-white dark:bg-slate-900 flex flex-col">
+                                <div className="h-5 border-b border-slate-100 dark:border-slate-800 px-2 flex items-center justify-between">
+                                  <div className="h-2 w-12 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                  <div className="h-2.5 w-8 rounded-full" style={{ backgroundColor: suite.accentColor }} />
+                                </div>
+                                <div className="p-2 space-y-1.5">
+                                  <div className="h-2 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
+                                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                                    <div className="h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-1">
+                                      <div className="h-1.5 w-6 rounded-full" style={{ backgroundColor: suite.accentColor }} />
+                                    </div>
+                                    <div className="h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-1">
+                                      <div className="h-1.5 w-6 rounded-full bg-slate-300 dark:bg-slate-600" />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card Content & Details */}
+                          <div className="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <span
+                                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    backgroundColor: `${suite.accentColor}18`,
+                                    color: suite.accentColor,
+                                    border: `1px solid ${suite.accentColor}30`,
+                                  }}
+                                >
+                                  {isRTL ? (suite.badgeUrdu || suite.badge) : suite.badge}
+                                </span>
+                                {isActive && (
+                                  <span className="flex items-center gap-1 text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300/60 dark:border-emerald-700/60">
+                                    <LuCheck size={11} strokeWidth={3} />
+                                    <span>{isRTL ? "فعال" : "Active"}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                                {isRTL ? suite.nameUrdu : suite.name}
+                              </h4>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                                {isRTL ? suite.descriptionUrdu : suite.description}
+                              </p>
+
+                              {/* Color Swatches */}
+                              <div className="flex items-center gap-3 pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-800 text-[11px]">
+                                <div className="flex items-center gap-1.5" title="Sidebar Color">
+                                  <span
+                                    className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shadow-2xs"
+                                    style={{ backgroundColor: suite.sidebarBg }}
+                                  />
+                                  <span className="font-mono text-[10px] text-slate-500">Sidebar</span>
+                                </div>
+                                <div className="flex items-center gap-1.5" title="Accent Color">
+                                  <span
+                                    className="w-3.5 h-3.5 rounded-full shadow-2xs"
+                                    style={{ backgroundColor: suite.accentColor }}
+                                  />
+                                  <span className="font-mono text-[10px] text-slate-500">Accent</span>
+                                </div>
+                                <div className="flex items-center gap-1.5" title="Text Color">
+                                  <span
+                                    className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shadow-2xs"
+                                    style={{ backgroundColor: suite.sidebarText }}
+                                  />
+                                  <span className="font-mono text-[10px] text-slate-500">Text</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* One-Click Apply Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyThemeSuite(suite.id);
+                                setActiveSuiteId(suite.id);
+                                setSidebarBgThemeState(suite.sidebarBg);
+                                setSelectedAccentColor(suite.accentColor);
+                                setAppliedAccentColor(suite.accentColor);
+                                setSelectedSidebarColor(suite.sidebarText);
+                                setAppliedSidebarColor(suite.sidebarText);
+                                toast.success(
+                                  isRTL
+                                    ? `✨ ${suite.nameUrdu} تھیم سوئیٹ لاگو ہو گیا!`
+                                    : `✨ Applied ${suite.name} theme suite!`
+                                );
+                              }}
+                              className={`mt-4 w-full py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs ${
+                                isActive
+                                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90'
+                                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary'
+                              }`}
+                            >
+                              {isActive ? (
+                                <>
+                                  <LuCheck size={13} strokeWidth={3} />
+                                  <span>{isRTL ? "یہ تھیم فعال ہے" : "Currently Active"}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <LuSparkles size={13} />
+                                  <span>{isRTL ? "تھیم سوئیٹ لاگو کریں" : "Apply Theme Suite"}</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* SECTION A: ACCENT COLOR THEME */}
               {themeSubTab === 'navbar' && (
@@ -1475,6 +1732,73 @@ const SettingsPage: React.FC = () => {
               {/* SECTION B: SIDEBAR FONT & ICON COLOR */}
               {themeSubTab === 'sidebar' && (
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm animate-fadeIn">
+
+                  {/* SUBSECTION: SIDEBAR BACKGROUND THEME */}
+                  <div className="mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-700/80">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{isRTL ? "سائیڈبار کا پس منظر اور مٹیریل" : "Sidebar Background Material & Color"}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-bold uppercase">
+                            Independent Style
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
+                          {isRTL
+                            ? "سائیڈبار کا بنیادی بیک گراؤنڈ منتخب کریں۔ ٹیکسٹ اور آئکنز کا کنٹراسٹ خود بخود محفوظ رہے گا۔"
+                            : "Choose the sidebar background. Text & icon contrast will automatically adapt to prevent invisibility."}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 self-start sm:self-auto">
+                        {sidebarBgThemeState.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {SIDEBAR_BG_OPTIONS.map((opt) => {
+                        const isCurrentBg = sidebarBgThemeState.toLowerCase() === opt.bgHex.toLowerCase();
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setSidebarBgTheme(opt.bgHex);
+                              setSidebarBgThemeState(opt.bgHex);
+                              toast.success(
+                                isRTL
+                                  ? `سائیڈبار کا بیک گراؤنڈ ${opt.nameUrdu} ہو گیا!`
+                                  : `Sidebar background set to ${opt.name}!`
+                              );
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[78px] relative ${
+                              isCurrentBg
+                                ? 'border-primary ring-2 ring-primary/25 bg-white dark:bg-slate-800 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/60 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span
+                                className="w-5 h-5 rounded-lg border border-slate-300 dark:border-slate-600 shadow-2xs"
+                                style={{ backgroundColor: opt.bgHex }}
+                              />
+                              {isCurrentBg && (
+                                <LuCheck className="text-primary text-sm stroke-[3]" />
+                              )}
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block">
+                                {isRTL ? opt.nameUrdu : opt.name}
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {opt.bgHex}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2.5">
                     <div
@@ -1794,7 +2118,7 @@ const SettingsPage: React.FC = () => {
                         {isRTL ? "ورک اسپیس نیویگیشن اور لے آؤٹ" : "Workspace Navigation & Layout"}
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Choose between a modern floating card layout or the classic edge-to-edge ERP interface.
+                        Choose between a modern floating card layout or the classic edge-to-edge interface.
                       </p>
                     </div>
                   </div>
@@ -1974,6 +2298,86 @@ const SettingsPage: React.FC = () => {
                         </p>
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                {/* Custom 3: Sidebar Open / Closed Behavior Mode */}
+                <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                        <LuSlidersHorizontal className="text-primary text-sm" />
+                        <span>{isRTL ? "سائیڈبار کی نمائش اور برتاؤ (کھلا یا خودکار بند)" : "Sidebar Open / Closed Behavior"}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
+                        {isRTL
+                          ? "منتخب کریں کہ سائیڈبار مستقل کھلا رہے یا ماؤس ہٹانے پر خودکار بند ہو جائے تاکہ کام کے لیے زیادہ جگہ مل سکے۔"
+                          : "Choose whether the sidebar stays permanently open or auto-collapses on mouse hover-out to maximize work area."}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 self-start sm:self-auto">
+                      {sidebarBehavior === 'auto_collapse'
+                        ? (isRTL ? 'خودکار بند / کھلا' : 'Auto-Collapse on Hover')
+                        : (isRTL ? 'مستقل کھلا (پن)' : 'Always Opened')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Keep Opened (Pinned) */}
+                    <button
+                      type="button"
+                      onClick={() => handleSetSidebarBehavior('pinned')}
+                      className={`p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[96px] ${
+                        sidebarBehavior === 'pinned'
+                          ? 'border-primary ring-2 ring-primary/20 bg-primary/5 dark:bg-primary/10 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">📌</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                            {isRTL ? "ہمیشہ کھلا رکھیں (مستقل پن)" : "Keep Sidebar Opened (Pinned)"}
+                          </span>
+                        </div>
+                        {sidebarBehavior === 'pinned' && (
+                          <LuCheck className="text-primary text-sm stroke-[3]" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {isRTL
+                          ? "سائیڈبار تمام صفحات پر مستقل کھلا رہے گا۔ ضرورت پڑنے پر تیر کے بٹن سے چھوٹا کیا جا سکتا ہے۔"
+                          : "Sidebar stays permanently open and fixed across pages. Ideal for large screens."}
+                      </p>
+                    </button>
+
+                    {/* Option 2: Keep Closed (Auto-expand on hover, collapse on hover-out) */}
+                    <button
+                      type="button"
+                      onClick={() => handleSetSidebarBehavior('auto_collapse')}
+                      className={`p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[96px] ${
+                        sidebarBehavior === 'auto_collapse'
+                          ? 'border-primary ring-2 ring-primary/20 bg-primary/5 dark:bg-primary/10 shadow-xs'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">⚡</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                            {isRTL ? "بند رکھیں (ماؤس لانے یا کلک پر کھلے گا)" : "Keep Closed (Expand on Hover / Click)"}
+                          </span>
+                        </div>
+                        {sidebarBehavior === 'auto_collapse' && (
+                          <LuCheck className="text-primary text-sm stroke-[3]" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {isRTL
+                          ? "سائیڈبار بند (آئکن بار) رہے گا۔ ماؤس لے جانے یا کلک کرنے پر کھلے گا، اور ماؤس ہٹاتے ہی خودکار بند ہو جائے گا۔"
+                          : "Sidebar stays compact by default. Hovering or clicking expands it; moving mouse away automatically collapses it."}
+                      </p>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2384,7 +2788,7 @@ const SettingsPage: React.FC = () => {
                       Data Backup & Export Locked
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-                      Exporting ERP records is restricted by the System Administrator. Permission controls for Super Admin and staff are governed in Master Dev Console (<code>/dev/master</code>).
+                      Exporting records is restricted by the System Administrator. Permission controls for Super Admin and staff are governed in Master Dev Console (<code>/dev/master</code>).
                     </p>
                   </div>
                   <div className="pt-2">
@@ -2406,10 +2810,10 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                        {isRTL ? "ERP ڈیٹا بیک اپ اور ایکسل ایکسپورٹ" : "ERP Data Backup & Excel Export"}
+                        {isRTL ? "ڈیٹا بیک اپ اور ایکسل ایکسپورٹ" : "Data Backup & Excel Export"}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Download comprehensive, clean Excel (.xlsx) snapshots of your customers, products, and sales history.
+                        Download comprehensive, clean Excel (.xlsx) snapshots of your customers, vendors, and vouchers ledger.
                       </p>
                     </div>
                   </div>
@@ -2447,37 +2851,37 @@ const SettingsPage: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Export 2: Products */}
+                  {/* Export 2: Vendors */}
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-xl shrink-0">
-                        <LuPackage />
+                        <LuBuilding2 />
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          {isRTL ? "آئٹم ماسٹر اور ٹائلز کیٹلاگ" : "Item Master & Tile Catalog"}
+                          {isRTL ? "وینڈرز اور سپلائرز ڈائریکٹری" : "Vendors & Suppliers Directory"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Full product registry, tile dimensions, prices, and inventory stock.
+                          Supplier profiles, vendor codes, phone, city, and payable balances.
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       disabled={exportingType !== null}
-                      onClick={handleExportProducts}
+                      onClick={handleExportVendors}
                       className="w-full py-2.5 px-4 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
                     >
-                      {exportingType === 'products' ? (
+                      {exportingType === 'vendors' ? (
                         <LuRefreshCw className="animate-spin text-sm" />
                       ) : (
                         <LuDownload className="text-sm" />
                       )}
-                      <span>Export Item Master (.xlsx)</span>
+                      <span>Export Vendors (.xlsx)</span>
                     </button>
                   </div>
 
-                  {/* Export 3: Invoices */}
+                  {/* Export 3: Financial Vouchers */}
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center text-xl shrink-0">
@@ -2485,25 +2889,25 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          {isRTL ? "سیلز انوائسز اور ریونیو لیجر" : "Sales Invoices & Revenue Ledger"}
+                          {isRTL ? "فنانشل واؤچرز لیجر" : "Financial Vouchers Ledger"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Invoice history, customer orders, payment status, and totals.
+                          Full vouchers history, sale slips, payments, receipts, and expenses.
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       disabled={exportingType !== null}
-                      onClick={handleExportInvoices}
+                      onClick={handleExportVouchers}
                       className="w-full py-2.5 px-4 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-700 text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
                     >
-                      {exportingType === 'invoices' ? (
+                      {exportingType === 'vouchers' ? (
                         <LuRefreshCw className="animate-spin text-sm" />
                       ) : (
                         <LuDownload className="text-sm" />
                       )}
-                      <span>Export Invoices (.xlsx)</span>
+                      <span>Export Vouchers (.xlsx)</span>
                     </button>
                   </div>
 
@@ -2515,10 +2919,10 @@ const SettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                          {isRTL ? "مکمل ERP اسنیپ شاٹ (ملٹی شیٹ)" : "Complete ERP Snapshot (Multi-Sheet)"}
+                          {isRTL ? "مکمل بیک اپ اسنیپ شاٹ (ملٹی شیٹ)" : "Complete Backup Snapshot (Multi-Sheet)"}
                         </h3>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Combines Customers, Products, and Invoices into one Excel workbook.
+                          Combines Customers, Vendors, Financial Vouchers, and Chart of Accounts.
                         </p>
                       </div>
                     </div>
@@ -2533,7 +2937,7 @@ const SettingsPage: React.FC = () => {
                       ) : (
                         <LuDownload className="text-sm" />
                       )}
-                      <span>{isRTL ? "مکمل ERP اسنیپ شاٹ ڈاؤنلوڈ کریں (.xlsx)" : "Download Complete ERP Snapshot (.xlsx)"}</span>
+                      <span>{isRTL ? "مکمل بیک اپ اسنیپ شاٹ ڈاؤنلوڈ کریں (.xlsx)" : "Download Complete Backup Snapshot (.xlsx)"}</span>
                     </button>
                   </div>
                 </div>

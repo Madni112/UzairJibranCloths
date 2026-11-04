@@ -52,21 +52,18 @@ export interface GlobalSearchItem {
 }
 
 const NAVIGATION_REGISTRY: GlobalSearchItem[] = [
-  // Sales & Billing
-  { id: 'nav-new-inv', title: 'New Sales Invoice', subtitle: 'Create POS sale or delivery challan', category: 'Pages', path: '/sales/invoice/add', icon: <LuPlus /> },
-  { id: 'nav-inv-dir', title: 'Sales Invoices Directory', subtitle: 'View past invoices, DC history & receipts', category: 'Pages', path: '/Sales/Invoice/List', icon: <LuReceipt /> },
-  { id: 'nav-returns', title: 'Sales Return & Exchange', subtitle: 'Process return items and customer refunds', category: 'Pages', path: '/Sales/Sales-Return/List', icon: <LuFileText /> },
-  { id: 'nav-quotes', title: 'Quotations & Estimates', subtitle: 'Draft and print pricing estimates', category: 'Pages', path: '/crm/quotations', icon: <LuFileText /> },
-
-  // Inventory & Products
-  { id: 'nav-prods', title: 'Product Catalog & Inventory', subtitle: 'Stock balances, tile sizing & prices', category: 'Pages', path: '/Administration/Products/List', icon: <LuPackage /> },
-  { id: 'nav-bulk', title: 'Bulk Products Upload', subtitle: 'Upload products via Excel spreadsheet', category: 'Pages', path: '/Administration/Products/Bulk-Upload', icon: <LuPlus /> },
+  // Vouchers & Ledgers
+  { id: 'nav-new-sale-vch', title: 'Sale Amount Voucher', subtitle: 'Create customer sale ledger entry (SAV)', category: 'Pages', path: '/Vouchers/Sale-Amount/Add', icon: <LuPlus /> },
+  { id: 'nav-sale-vch-list', title: 'Sale Amount Vouchers', subtitle: 'View customer sales & opening balance vouchers', category: 'Pages', path: '/Vouchers/Sale-Amount', icon: <LuReceipt /> },
+  { id: 'nav-crv', title: 'Customer Receive Voucher', subtitle: 'Receive payment from customer into cash/bank', category: 'Pages', path: '/Vouchers/Customer-Receive/Add', icon: <LuPlus /> },
+  { id: 'nav-pav', title: 'Purchase Amount Voucher', subtitle: 'Record vendor purchase in khata ledger (PAV)', category: 'Pages', path: '/Vouchers/Purchase-Amount/Add', icon: <LuPlus /> },
+  { id: 'nav-vpv', title: 'Vendor Payment Voucher', subtitle: 'Disburse payment to vendor from cash/bank', category: 'Pages', path: '/Vouchers/Vendor-Payment/Add', icon: <LuPlus /> },
+  { id: 'nav-exp', title: 'Expense Voucher', subtitle: 'Record shop expenses & bills (EXP)', category: 'Pages', path: '/Vouchers/Expense/Add', icon: <LuPlus /> },
+  { id: 'nav-all-vch', title: 'All Vouchers Ledger', subtitle: 'General ledger slips & transaction history', category: 'Pages', path: '/Registration/Vouchers/List', icon: <LuReceipt /> },
 
   // Contacts & Ledgers
-  { id: 'nav-custs', title: 'Customer Directory & Accounts', subtitle: 'Customer ledgers, phone & credit limits', category: 'Pages', path: '/Sales/Customers/List', icon: <LuUsers /> },
-  { id: 'nav-vends', title: 'Vendor & Supplier Accounts', subtitle: 'Vendor ledgers and payable bills', category: 'Pages', path: '/Purchase/Vendor/List', icon: <LuBuilding2 /> },
-  { id: 'nav-purchases', title: 'Purchase Orders & GRN', subtitle: 'Purchases, stock intake & vendor bills', category: 'Pages', path: '/Purchase/Purchases/List', icon: <LuPackage /> },
-  { id: 'nav-vouchers', title: 'Cash & Bank Vouchers', subtitle: 'Receipts, payment vouchers & ledgers', category: 'Pages', path: '/Registration/Vouchers/List', icon: <LuReceipt /> },
+  { id: 'nav-custs', title: 'Customer Directory & Accounts', subtitle: 'Customer ledgers, phone & balances', category: 'Pages', path: '/Sales/Customers/List', icon: <LuUsers /> },
+  { id: 'nav-vends', title: 'Vendor & Supplier Accounts', subtitle: 'Vendor directory and payable balances', category: 'Pages', path: '/Purchase/Vendor/List', icon: <LuBuilding2 /> },
 
   // Preferences & System
   { id: 'nav-settings-dev', title: 'Login Devices & Security', subtitle: 'Manage active workstations & remote logout', category: 'Pages', path: '/settings', icon: <LuShield /> },
@@ -416,18 +413,18 @@ const Header = (props: {
               </span>
             </div>
 
-            {/* Quick Action: New Sale Button (Harmonized with Sidebar Color) */}
+            {/* Quick Action: New Sale Voucher Button (Harmonized with Sidebar Color) */}
             <Link
-              to="/sales/invoice/add"
+              to="/Vouchers/Sale-Amount/Add"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0 border border-black/10 dark:border-white/10"
               style={{
                 backgroundColor: sidebarColor,
                 color: getContrastTextColor(sidebarColor),
               }}
-              title={isRTL ? 'نئی سیل انوائس بنائیں' : 'Create a New Sales Invoice'}
+              title={isRTL ? 'نیا سیل واؤچر بنائیں' : 'Create a Sale Amount Voucher'}
             >
               <LuPlus className="text-sm stroke-[3]" />
-              <span className="hidden md:inline">{isRTL ? 'نئی سیل' : 'New Sale'}</span>
+              <span className="hidden md:inline">{isRTL ? 'سیل واؤچر' : 'Sale Voucher'}</span>
             </Link>
           </div>
 
@@ -440,7 +437,7 @@ const Header = (props: {
             >
               <div className="flex items-center gap-2 min-w-0">
                 <LuSearch className="text-sm text-slate-400 shrink-0" />
-                <span className="truncate">{t('search_placeholder', 'Search invoices, customers, products...')}</span>
+                <span className="truncate">{t('search_placeholder', 'Search vouchers, customers, vendors...')}</span>
               </div>
               <kbd className="hidden 2xl:inline-flex items-center gap-0.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 shadow-2xs shrink-0">
                 <span>Ctrl</span>

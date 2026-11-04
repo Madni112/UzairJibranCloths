@@ -313,20 +313,28 @@ const AccountReport = () => {
         <p className="text-xs text-gray-400">Compile general ledgers, trial balance summaries, and corporate financial aging statements</p>
       </div>
 
-      <div className="flex flex-wrap border-b border-stroke dark:border-strokedark gap-1 bg-white dark:bg-boxdark font-black tracking-wider text-[10px] uppercase text-gray-500">
-        <button type="button" onClick={() => handleTabChange(13)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 13 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Customer Balance Detail</button>
-        <button type="button" onClick={() => handleTabChange(3)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 3 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Vendor Balance Detail</button>
-        <button type="button" onClick={() => handleTabChange(1)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 1 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>General Ledger</button>
-        <button type="button" onClick={() => handleTabChange(2)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 2 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Customer Summary</button>
-        <button type="button" onClick={() => handleTabChange(4)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 4 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Operational Expenses</button>
-        <button type="button" onClick={() => handleTabChange(5)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 5 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Chart of Accounts</button>
-        <button type="button" onClick={() => handleTabChange(6)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 6 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Vendor Outstanding</button>
-        <button type="button" onClick={() => handleTabChange(7)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 7 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Customer Recovery</button>
-        <button type="button" onClick={() => handleTabChange(8)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 8 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Voucher Report</button>
-        <button type="button" onClick={() => handleTabChange(9)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 9 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Cash & Bank Daybook</button>
-        <button type="button" onClick={() => handleTabChange(10)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 10 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Salesman Statement</button>
-        <button type="button" onClick={() => handleTabChange(11)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 11 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Trial Balance</button>
-        <button type="button" onClick={() => handleTabChange(12)} className={`py-2.5 px-4 transition border-b-2 cursor-pointer ${activeTab === 12 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black'}`}>Aging Report</button>
+      <div className="flex flex-wrap items-center border-b border-stroke dark:border-strokedark gap-1 bg-white dark:bg-boxdark font-black tracking-wider text-[10px] uppercase text-gray-500 px-1">
+        {/* Customer Group */}
+        <button type="button" onClick={() => handleTabChange(13)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 13 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Customer Balance Detail</button>
+        <button type="button" onClick={() => handleTabChange(2)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 2 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Customer Summary</button>
+        <button type="button" onClick={() => handleTabChange(7)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 7 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Customer Recovery</button>
+        <button type="button" onClick={() => handleTabChange(12)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 12 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Customer Aging</button>
+
+        <span className="h-4 w-[2px] bg-stroke dark:bg-strokedark mx-1"></span>
+
+        {/* Vendor Group */}
+        <button type="button" onClick={() => handleTabChange(3)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 3 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Vendor Balance Detail</button>
+        <button type="button" onClick={() => handleTabChange(6)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 6 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Vendor Outstanding</button>
+
+        <span className="h-4 w-[2px] bg-stroke dark:bg-strokedark mx-1"></span>
+
+        {/* Ledger & Accounts Group */}
+        <button type="button" onClick={() => handleTabChange(1)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 1 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>General Ledger</button>
+        <button type="button" onClick={() => handleTabChange(8)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 8 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Voucher Report</button>
+        <button type="button" onClick={() => handleTabChange(9)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 9 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Cash & Bank Daybook</button>
+        <button type="button" onClick={() => handleTabChange(4)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 4 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Operational Expenses</button>
+        <button type="button" onClick={() => handleTabChange(11)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 11 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Trial Balance</button>
+        <button type="button" onClick={() => handleTabChange(5)} className={`py-2.5 px-3 transition border-b-2 cursor-pointer ${activeTab === 5 ? 'border-primary text-primary font-black bg-primary/5' : 'border-transparent text-gray-400 hover:text-black dark:hover:text-white'}`}>Chart of Accounts</button>
       </div>
 
       <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">

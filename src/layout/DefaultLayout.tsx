@@ -2,10 +2,15 @@ import React, { useState, ReactNode, useEffect } from 'react';
 import Header from '../components/Header/index';
 import Sidebar from '../components/Sidebar/index';
 import Footer from '../components/Footer/index';
+import { getSidebarBehaviorMode } from '../constant/themeConfig';
 
 const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
+      const behavior = getSidebarBehaviorMode();
+      if (behavior === 'auto_collapse') {
+        return false;
+      }
       const saved = localStorage.getItem('sidebar_expanded');
       if (saved !== null) {
         return saved === 'true';
@@ -19,7 +24,10 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
     setSidebarOpen((prev) => {
       const nextVal = typeof arg === 'function' ? arg(prev) : arg;
       if (typeof window !== 'undefined' && window.innerWidth > 750) {
-        localStorage.setItem('sidebar_expanded', String(nextVal));
+        const behavior = getSidebarBehaviorMode();
+        if (behavior === 'pinned') {
+          localStorage.setItem('sidebar_expanded', String(nextVal));
+        }
       }
       return nextVal;
     });
@@ -30,17 +38,36 @@ const DefaultLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
       if (window.innerWidth <= 750) {
         setSidebarOpen(false);
       } else {
-        const saved = localStorage.getItem('sidebar_expanded');
-        if (saved !== null) {
-          setSidebarOpen(saved === 'true');
+        const behavior = getSidebarBehaviorMode();
+        if (behavior === 'auto_collapse') {
+          setSidebarOpen(false);
         } else {
-          setSidebarOpen(true);
+          const saved = localStorage.getItem('sidebar_expanded');
+          if (saved !== null) {
+            setSidebarOpen(saved === 'true');
+          } else {
+            setSidebarOpen(true);
+          }
         }
       }
     };
 
+    const handleBehaviorChange = () => {
+      const behavior = getSidebarBehaviorMode();
+      if (behavior === 'auto_collapse') {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('uzair_jibran_sidebar_behavior_changed', handleBehaviorChange);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('uzair_jibran_sidebar_behavior_changed', handleBehaviorChange);
+    };
   }, []);
 
   return (

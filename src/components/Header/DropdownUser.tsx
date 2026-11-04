@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ClickOutside from '../ClickOutside';
-import { LuLogOut, LuBuilding2, LuMail, LuSettings, LuLanguages, LuStore } from 'react-icons/lu';
+import { LuLogOut, LuBuilding2, LuMail, LuSettings, LuLanguages } from 'react-icons/lu';
 import { MdPerson } from 'react-icons/md';
 import { useAuth, detectPortalTenant } from '../../Context/Auth';
 import { useLanguage } from '../../Context/LanguageContext';
@@ -198,21 +198,6 @@ const DropdownUser = () => {
                 }}
               />
               <span>{isRTL ? 'سیٹنگز' : 'Settings'}</span>
-            </Link>
-
-                        {/* POS Terminal Direct Shortcut */}
-            <Link
-              to="/pos1"
-              onClick={() => setDropdownOpen(false)}
-              className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-meta-4/40 transition duration-150 ease-in-out cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <LuStore size={17} className="text-primary shrink-0" />
-                <span>{isRTL ? 'پی او ایس ٹرمینل' : 'Point of Sale (POS)'}</span>
-              </div>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                POS
-              </span>
             </Link>
 
             <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />

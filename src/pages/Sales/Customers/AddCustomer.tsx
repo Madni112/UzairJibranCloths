@@ -324,31 +324,35 @@ const AddCustomer: React.FC = () => {
           console.warn('Could not load areas from customers table:', e);
         }
 
-        // Derive next suggested customer ledger code (1020-xxx)
+        // Derive next suggested customer ledger code starting sequentially from 2020-001
         if (!isEditMode) {
-          let maxNum = 0;
           const coaList = coaRes.data || [];
           const custList = custRes.data || [];
+          const usedCodes = new Set<string>();
 
           coaList.forEach((a: any) => {
-            const match = String(a.account_code || '').match(/1020-(\d+)/);
-            if (match && match[1]) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNum) maxNum = num;
-            }
+            const code = String(a.account_code || '').trim().toUpperCase();
+            if (code) usedCodes.add(code);
           });
 
           custList.forEach((c: any) => {
-            const code = c.customer_code || c.customerCode || c.coa_code || '';
-            const match = String(code).match(/1020-(\d+)/);
-            if (match && match[1]) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNum) maxNum = num;
-            }
+            const code1 = String(c.customer_code || '').trim().toUpperCase();
+            const code2 = String(c.customerCode || '').trim().toUpperCase();
+            const code3 = String(c.coa_code || '').trim().toUpperCase();
+            if (code1) usedCodes.add(code1);
+            if (code2) usedCodes.add(code2);
+            if (code3) usedCodes.add(code3);
           });
 
-          const nextCode = `1020-${String(maxNum + 1).padStart(3, '0')}`;
-          setSuggestedCode(nextCode);
+          let seq = 1;
+          while (true) {
+            const candidate = `2020-${String(seq).padStart(3, '0')}`;
+            if (!usedCodes.has(candidate)) {
+              setSuggestedCode(candidate);
+              break;
+            }
+            seq++;
+          }
         }
       } catch (err: any) {
         console.error('Error loading metadata in AddCustomer:', err);
@@ -469,7 +473,7 @@ const AddCustomer: React.FC = () => {
         return;
       }
 
-      const cleanCode = values.customer_code ? values.customer_code.trim() : '';
+      const cleanCode = (values.customer_code || suggestedCode || '').trim();
       const parsedOpeningBal = Number(values.openingBalance || 0);
       const computedBalance = values.balanceNature === 'Credit' ? -Math.abs(parsedOpeningBal) : Math.abs(parsedOpeningBal);
 
@@ -668,6 +672,44 @@ const AddCustomer: React.FC = () => {
               .from('chart_of_accounts')
               .insert([coaPayload]);
           }
+
+          // --- TWO-WAY SYNC: UPDATE OR INSERT OPENING BALANCE FINANCIAL VOUCHER ---
+          try {
+            const { data: existingVoucher } = await supabase
+              .from('financial_vouchers')
+              .select('id')
+              .or(`account_code.eq.${cleanCode},account_title.eq.${trimmedName}`)
+              .maybeSingle();
+
+            const isDebit = values.balanceNature !== 'Credit';
+            const bal = Math.abs(parsedOpeningBal);
+            const voucherPayload: any = {
+              account_code: cleanCode,
+              account_title: trimmedName,
+              total_amount: bal,
+              debit: isDebit ? bal : 0,
+              credit: !isDebit ? bal : 0,
+              narration: `Opening Balance for Customer ${trimmedName}`,
+              items: []
+            };
+
+            if (existingVoucher) {
+              await supabase
+                .from('financial_vouchers')
+                .update(voucherPayload)
+                .eq('id', existingVoucher.id);
+            } else if (bal > 0) {
+              const vNum = cleanCode.replace('2020-', '');
+              await supabase.from('financial_vouchers').insert([{
+                voucher_no: `OB-${vNum}`,
+                voucher_type: 'Journal Voucher',
+                voucher_date: new Date().toISOString().split('T')[0],
+                ...voucherPayload
+              }]);
+            }
+          } catch (vErr) {
+            console.warn('Voucher auto-sync note:', vErr);
+          }
         } catch (coaErr) {
           console.warn('COA auto-sync note:', coaErr);
         }
@@ -786,7 +828,7 @@ const AddCustomer: React.FC = () => {
           customerName: '',
           subArea: '',
           area: '',
-          customer_code: '',
+          customer_code: suggestedCode || '',
           page_no: '',
           registrationType: '',
           primaryPhone: '',
@@ -820,7 +862,7 @@ const AddCustomer: React.FC = () => {
           >
 
             {/* Step Wizard Tabs Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-stroke dark:border-strokedark">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-stroke dark:border-strokedark">
               <button
                 type="button"
                 onClick={() => setActiveTab(1)}
@@ -833,7 +875,7 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 1 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>1</span>
-                <span className="truncate">{isRTL ? 'شناخت اور درجہ' : 'Identity'}</span>
+                <span className="truncate">{isRTL ? 'شناخت' : 'Identity'}</span>
               </button>
 
               <button
@@ -863,7 +905,7 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 3 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>3</span>
-                <span className="truncate">{isRTL ? 'کھاتہ اور لیجر' : 'Tax & Ledger'}</span>
+                <span className="truncate">{isRTL ? 'کھاتہ اور لیجر' : 'Account & Ledger'}</span>
               </button>
 
               <button
@@ -878,6 +920,21 @@ const AddCustomer: React.FC = () => {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   activeTab === 4 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                 }`}>4</span>
+                <span className="truncate">{isRTL ? 'ٹیکس اور قانونی' : 'Tax & Legal'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(5)}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === 5
+                    ? 'bg-white dark:bg-boxdark text-primary shadow-xs border border-stroke dark:border-strokedark'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeTab === 5 ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>5</span>
                 <span className="truncate">{isRTL ? 'فالو اپ نوٹس' : 'Follow-up Notes'}</span>
               </button>
             </div>
@@ -900,9 +957,9 @@ const AddCustomer: React.FC = () => {
                   <span className="text-[11px] font-semibold text-slate-400">* Required Fields</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-5">
                   {/* Customer Name */}
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                       Customer / Business Name <span className="text-red-500">*</span>
                     </label>
@@ -929,57 +986,8 @@ const AddCustomer: React.FC = () => {
                     )}
                   </div>
 
-
-                  {/* Customer Code / Account Code */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
-                        <MdTag size={14} className="text-primary" />
-                        <span>Customer / Account Code</span>
-                      </label>
-                      {!values.customer_code && suggestedCode && (
-                        <button
-                          type="button"
-                          onClick={() => setFieldValue('customer_code', suggestedCode)}
-                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
-                        >
-                          Use Suggested ({suggestedCode})
-                        </button>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      name="customer_code"
-                      onChange={handleChange}
-                      value={values.customer_code || ''}
-                      placeholder={suggestedCode || 'e.g. 1020-001 or CUST-100'}
-                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    />
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Auto-links with Chart of Accounts ledger code under Customers (1020-xxx)
-                    </p>
-                  </div>
-
-                  {/* Page Number */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Ledger Page # (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      name="page_no"
-                      onChange={handleChange}
-                      value={values.page_no || ''}
-                      placeholder="e.g. 142 or Pg-25"
-                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    />
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Physical ledger book reference number for traditional paper accounting cross-checks
-                    </p>
-                  </div>
-
                   {/* Customer Category / Tier (Searchable + Addable) */}
-                  <div className="md:col-span-2">
+                  <div>
                     <SearchableAddableDropdown
                       label="Customer Tier / Category"
                       placeholder="Customer Tier / Category"
@@ -993,70 +1001,6 @@ const AddCustomer: React.FC = () => {
                       options={tierOptions}
                       helperText="Select or type a new Customer Tier / Category (navigate with ↑ ↓ and Enter ↵)"
                     />
-                  </div>
-
-                  {/* Opening Balance & Balance Nature Pills */}
-                  <div className="md:col-span-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                      <div>
-                        <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
-                          <span className="flex items-center gap-1.5">
-                            <MdAccountBalance className="text-primary text-sm" />
-                            <span>Opening Balance (PKR)</span>
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-normal">Optional</span>
-                        </label>
-                        <input
-                          type="number"
-                          name="openingBalance"
-                          onChange={handleChange}
-                          value={values.openingBalance || ''}
-                          placeholder="0.00"
-                          className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        />
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Initial balance owed by customer or advance held
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                          Balance Nature:
-                        </label>
-                        <div className="flex items-center gap-2 pt-0.5">
-                          <button
-                            type="button"
-                            onClick={() => setFieldValue('balanceNature', 'Debit')}
-                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
-                              (values.balanceNature || 'Debit') === 'Debit'
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            {(values.balanceNature || 'Debit') === 'Debit' && <MdCheckCircle size={14} />}
-                            <span>Debit (Dr - Receivable)</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setFieldValue('balanceNature', 'Credit')}
-                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
-                              values.balanceNature === 'Credit'
-                                ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                                : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            {values.balanceNature === 'Credit' && <MdCheckCircle size={14} />}
-                            <span>Credit (Cr - Advance)</span>
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          {(values.balanceNature || 'Debit') === 'Debit'
-                            ? 'Customer owes this amount (Receivable)'
-                            : 'Customer paid advance / excess credit (Payable)'}
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1173,7 +1117,7 @@ const AddCustomer: React.FC = () => {
               </div>
             )}
 
-            {/* Card 3: Taxation, Identity & Opening Ledger Balance */}
+            {/* Card 3: Account & Ledger Configuration */}
             {activeTab === 3 && (
               <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
                 <div className="flex items-center gap-2 border-b border-stroke dark:border-strokedark pb-3">
@@ -1182,9 +1126,137 @@ const AddCustomer: React.FC = () => {
                   </span>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                      3. Taxation Details & Opening Ledger Balance
+                      3. Account & Ledger Configuration
                     </h4>
-                    <p className="text-[11px] text-slate-500">Corporate tax filings, CNIC identity, and initial financial balance</p>
+                    <p className="text-[11px] text-slate-500">Auto-linked Chart of Accounts code, physical page number, and opening balance</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Customer / Account Code */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                        <MdTag size={14} className="text-primary" />
+                        <span>Customer / Account Code</span>
+                      </label>
+                      {suggestedCode && (values.customer_code || suggestedCode) !== suggestedCode && (
+                        <button
+                          type="button"
+                          onClick={() => setFieldValue('customer_code', suggestedCode)}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                          Use Auto ({suggestedCode})
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      name="customer_code"
+                      onChange={handleChange}
+                      value={values.customer_code !== undefined && values.customer_code !== '' ? values.customer_code : (suggestedCode || '')}
+                      placeholder={suggestedCode || 'e.g. 2020-001'}
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Auto-assigned sequentially starting from 2020-001 under Chart of Accounts Customers
+                    </p>
+                  </div>
+
+                  {/* Ledger Page # (Optional) */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Ledger Page # (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="page_no"
+                      onChange={handleChange}
+                      value={values.page_no || ''}
+                      placeholder="e.g. 142 or Pg-25"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Physical ledger book reference number for traditional paper accounting cross-checks
+                    </p>
+                  </div>
+
+                  {/* Opening Balance (PKR) */}
+                  <div>
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                      <span className="flex items-center gap-1.5">
+                        <MdAccountBalance className="text-primary text-sm" />
+                        <span>Opening Balance (PKR)</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="openingBalance"
+                      onChange={handleChange}
+                      value={values.openingBalance || ''}
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Initial balance owed by customer or advance held
+                    </p>
+                  </div>
+
+                  {/* Balance Nature */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Balance Nature:
+                    </label>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setFieldValue('balanceNature', 'Debit')}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          (values.balanceNature || 'Debit') === 'Debit'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {(values.balanceNature || 'Debit') === 'Debit' && <MdCheckCircle size={14} />}
+                        <span>Debit (Dr - Receivable)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFieldValue('balanceNature', 'Credit')}
+                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                          values.balanceNature === 'Credit'
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {values.balanceNature === 'Credit' && <MdCheckCircle size={14} />}
+                        <span>Credit (Cr - Advance)</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {(values.balanceNature || 'Debit') === 'Debit'
+                        ? 'Customer owes this amount (Receivable)'
+                        : 'Customer paid advance / excess credit (Payable)'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Card 4: Taxation & Legal Identifiers */}
+            {activeTab === 4 && (
+              <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 border-b border-stroke dark:border-strokedark pb-3">
+                  <span className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 rounded-lg">
+                    <MdReceipt size={18} />
+                  </span>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      4. Taxation & Legal Identifiers
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Corporate tax filings, NTN, CNIC, and STRN credentials</p>
                   </div>
                 </div>
 
@@ -1233,64 +1305,12 @@ const AddCustomer: React.FC = () => {
                       className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
-
-                  {/* Opening Balance */}
-                  <div className="sm:col-span-2">
-                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Opening Balance (PKR)
-                    </label>
-                    <input
-                      type="number"
-                      name="openingBalance"
-                      onChange={handleChange}
-                      value={values.openingBalance || ''}
-                      placeholder="0.00"
-                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    />
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Debit = Customer owes you money (Receivable). Credit = You owe customer (Advance / Payable).
-                    </p>
-                  </div>
-
-                  {/* Balance Nature */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Balance Nature:
-                    </label>
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setFieldValue('balanceNature', 'Debit')}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
-                          (values.balanceNature || 'Debit') === 'Debit'
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        {(values.balanceNature || 'Debit') === 'Debit' && <MdCheckCircle size={14} />}
-                        <span>Debit (Dr - Receivable)</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFieldValue('balanceNature', 'Credit')}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
-                          values.balanceNature === 'Credit'
-                            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        {values.balanceNature === 'Credit' && <MdCheckCircle size={14} />}
-                        <span>Credit (Cr - Advance)</span>
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
 
-            {/* Card 4: CRM Follow-Up & Remarks */}
-            {activeTab === 4 && (
+            {/* Card 5: CRM Follow-Up & Remarks */}
+            {activeTab === 5 && (
               <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-sm p-6 space-y-5 animate-in fade-in duration-150">
                 <div className="flex items-center gap-2 border-b border-stroke dark:border-strokedark pb-3">
                   <span className="p-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 rounded-lg">
@@ -1298,7 +1318,7 @@ const AddCustomer: React.FC = () => {
                   </span>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                      4. Follow-up & Relationship Notes
+                      5. Follow-up & Relationship Notes
                     </h4>
                     <p className="text-[11px] text-slate-500">Scheduled reminders and customer-specific preferences</p>
                   </div>
@@ -1360,7 +1380,7 @@ const AddCustomer: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-3">
-                {activeTab < 4 ? (
+                {activeTab < 5 ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -1372,7 +1392,7 @@ const AddCustomer: React.FC = () => {
                         toast.error(isRTL ? 'فون نمبر درج کرنا ضروری ہے (مرحلہ 2)' : 'Primary Contact Phone is required (Step 2)');
                         return;
                       }
-                      setActiveTab(prev => Math.min(4, prev + 1));
+                      setActiveTab(prev => Math.min(5, prev + 1));
                     }}
                     className="px-6 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white font-bold text-xs transition shadow-md cursor-pointer flex items-center gap-1.5"
                   >

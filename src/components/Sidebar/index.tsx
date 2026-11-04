@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import SidebarLinkGroup from './SidebarLinkGroup';
 import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from 'react-icons/ai';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
@@ -14,6 +14,11 @@ import {
   getSafeSidebarColor,
   SidebarLayoutMode,
   getSidebarLayoutMode,
+  getSidebarBehaviorMode,
+  SidebarBehaviorMode,
+  getSidebarBgTheme,
+  getContrastTextColor,
+  getSavedAccentColor,
 } from '../../constant/themeConfig';
 import { getBrandConfig } from '../../utils/brand';
 import IconDark from '../../images/logo/icon-dark.png';
@@ -32,8 +37,9 @@ interface SidebarProps {
 }
 
 // Collapsed hover nested flyout component
-const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebarColor }: any) => {
+const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebarColor, isLightSidebar }: any) => {
   const { isRTL } = useLanguage();
+  const navigate = useNavigate();
   const [showSubFlyout, setShowSubFlyout] = useState(false);
   const destination = (item.path && getTenantPath ? getTenantPath(item.path) : item.path) || '#';
   const isActive = item.path && (pathname === destination || pathname === item.path);
@@ -48,6 +54,13 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
         <div
           className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-800/80 dark:hover:bg-slate-100 cursor-pointer"
           style={{ color: sidebarColor }}
+          onClick={(e) => {
+            if (item.path) {
+              e.preventDefault();
+              navigate(destination);
+              handleLinkClick();
+            }
+          }}
         >
           <span>{getSidebarLabel(item.label, isRTL)}</span>
           <AiOutlineRight size={10} style={{ color: sidebarColor, opacity: 0.7 }} />
@@ -55,7 +68,9 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
 
         {showSubFlyout && (
           <div
-            className="absolute left-full top-0 ml-1 min-w-[200px] rounded-xl border border-slate-700/90 dark:border-slate-200/90 bg-slate-900/95 dark:bg-white/95 p-1.5 shadow-2xl backdrop-blur-md z-99999"
+            className={`absolute left-full top-0 ml-1 min-w-[200px] rounded-xl border p-1.5 shadow-2xl backdrop-blur-md z-99999 ${
+              isLightSidebar ? 'border-slate-200 bg-white/95 text-slate-800' : 'border-slate-700/90 bg-slate-900/95 text-slate-100'
+            }`}
             style={{ animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
           >
             <div className="absolute top-0 -left-3 w-3 h-full bg-transparent" />
@@ -68,6 +83,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
                   handleLinkClick={handleLinkClick}
                   getTenantPath={getTenantPath}
                   sidebarColor={sidebarColor}
+                  isLightSidebar={isLightSidebar}
                 />
               ))}
             </ul>
@@ -111,7 +127,11 @@ const SidebarItem = ({
   getTenantPath,
   sidebarColor,
   layoutMode,
+  behaviorMode,
+  isLightSidebar,
+  accentColor,
 }: any) => {
+  const navigate = useNavigate();
   const { isRTL } = useLanguage();
   const itemRef = useRef<HTMLDivElement>(null);
   const menuUniqueKey = `${parentKey}-${item.label}`;
@@ -192,23 +212,33 @@ const SidebarItem = ({
           {(handleClick, isGroupOpen) => (
             <>
               <NavLink
-                to="#"
-                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
+                to={item.path ? ((getTenantPath ? getTenantPath(item.path) : item.path) || '#') : '#'}
+                className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
+                  isLightSidebar ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-white'
+                } ${
                   isChildActive && shouldShowLabels ? 'font-bold shadow-xs' : ''
                 } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
                 style={{
-                  paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined,
-                  color: sidebarColor,
-                  backgroundColor: isChildActive && shouldShowLabels ? `${sidebarColor}20` : undefined,
+                  paddingLeft: shouldShowLabels ? (depth === 0 ? '0.85rem' : depth === 1 ? '0.75rem' : '0.65rem') : undefined,
+                  color: isChildActive && shouldShowLabels ? (isLightSidebar ? accentColor : '#FFFFFF') : sidebarColor,
+                  backgroundColor: isChildActive && shouldShowLabels ? (isLightSidebar ? `${accentColor}18` : `${accentColor}25`) : undefined,
+                  boxShadow: isChildActive && shouldShowLabels ? `inset 0 0 0 1px ${accentColor}35` : undefined,
                 }}
                 onClick={(e) => {
                   e.preventDefault();
-                  const nextState = !open;
-                  setOpen(nextState);
-                  if (nextState && depth === 0) {
-                    setOpenMenuId(menuUniqueKey);
-                  } else if (!nextState && depth === 0 && openMenuId === menuUniqueKey) {
-                    setOpenMenuId(null);
+                  if (item.path) {
+                    const dest = (getTenantPath ? getTenantPath(item.path) : item.path) || '#';
+                    navigate(dest);
+                    if (isMobile && hideModal) hideModal();
+                    setOpen(true);
+                  } else {
+                    const nextState = !open;
+                    setOpen(nextState);
+                    if (nextState && depth === 0) {
+                      setOpenMenuId(menuUniqueKey);
+                    } else if (!nextState && depth === 0 && openMenuId === menuUniqueKey) {
+                      setOpenMenuId(null);
+                    }
                   }
                   handleClick();
                 }}
@@ -222,14 +252,26 @@ const SidebarItem = ({
                 {shouldShowLabels && (
                   <>
                     <span
-                      className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis flex flex-col gap-1 tracking-wide"
+                      className="text-xs font-semibold ml-2.5 whitespace-nowrap overflow-hidden text-ellipsis flex flex-col gap-1 tracking-wide flex-1"
                       style={{ color: sidebarColor }}
                     >
                       {getSidebarLabel(item.label, isRTL)}
                     </span>
                     <span
-                      className="ml-auto transition-transform duration-200"
+                      className="ml-auto p-1 transition-transform duration-200 hover:scale-110 cursor-pointer"
                       style={{ color: sidebarColor, opacity: 0.8 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const nextState = !open;
+                        setOpen(nextState);
+                        if (nextState && depth === 0) {
+                          setOpenMenuId(menuUniqueKey);
+                        } else if (!nextState && depth === 0 && openMenuId === menuUniqueKey) {
+                          setOpenMenuId(null);
+                        }
+                        handleClick();
+                      }}
                     >
                       {open ? <AiOutlineUp size={11} /> : <AiOutlineDown size={11} />}
                     </span>
@@ -240,7 +282,7 @@ const SidebarItem = ({
               {/* Collapsible Sub-item Drawer */}
               {shouldShowLabels && (
                 <div
-                  className="transition-all duration-300 ease-in-out overflow-hidden transform pl-3 ml-2 border-l"
+                  className="transition-all duration-300 ease-in-out overflow-hidden transform pl-2 ml-1.5 border-l"
                   style={{
                     maxHeight: open ? '1000px' : '0px',
                     opacity: open ? '100' : '0',
@@ -267,6 +309,9 @@ const SidebarItem = ({
                         getTenantPath={getTenantPath}
                         sidebarColor={sidebarColor}
                         layoutMode={layoutMode}
+                        behaviorMode={behaviorMode}
+                        isLightSidebar={isLightSidebar}
+                        accentColor={accentColor}
                       />
                     ))}
                   </ul>
@@ -279,7 +324,7 @@ const SidebarItem = ({
         {/* Collapsed Flyout Popover */}
         {!sidebarOpen && showFlyout && !isMobile && (
           <div
-            className="fixed z-99999 min-w-[210px] rounded-2xl border border-slate-700/90 dark:border-slate-200/90 bg-slate-900/95 dark:bg-white/95 p-2 shadow-2xl backdrop-blur-md"
+            className={`fixed z-99999 min-w-[210px] rounded-2xl border p-2 shadow-2xl backdrop-blur-md ${isLightSidebar ? "border-slate-200 bg-white/95 text-slate-900" : "border-slate-700/90 bg-slate-900/95 text-slate-100"}`}
             style={{
               top: `${flyoutTop}px`,
               left: `${flyoutLeft}px`,
@@ -342,13 +387,16 @@ const SidebarItem = ({
     >
       <NavLink
         to={singleDestination}
-        className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
+        className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
+          isLightSidebar ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-white'
+        } ${
           isDirectActive ? 'font-bold shadow-xs' : ''
         } ${shouldShowLabels ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
         style={{
           paddingLeft: shouldShowLabels ? `${(depth + 1) * 0.85}rem` : undefined,
-          color: sidebarColor,
-          backgroundColor: isDirectActive ? `${sidebarColor}20` : undefined,
+          color: isDirectActive && shouldShowLabels ? (isLightSidebar ? accentColor : '#FFFFFF') : sidebarColor,
+          backgroundColor: isDirectActive ? (isLightSidebar ? `${accentColor}18` : `${accentColor}25`) : undefined,
+          boxShadow: isDirectActive && shouldShowLabels ? `inset 0 0 0 1px ${accentColor}35` : undefined,
         }}
       >
         {item.icon && (
@@ -369,7 +417,9 @@ const SidebarItem = ({
 
       {!sidebarOpen && showFlyout && !isMobile && (
         <div
-          className="fixed z-99999 px-3 py-1.5 rounded-xl border border-slate-700/90 dark:border-slate-200/90 bg-slate-900/95 dark:bg-white/95 text-xs font-bold shadow-2xl backdrop-blur-md pointer-events-none whitespace-nowrap"
+          className={`fixed z-99999 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xl backdrop-blur-md pointer-events-none whitespace-nowrap ${
+            isLightSidebar ? 'border-slate-200 bg-white/95 text-slate-800' : 'border-slate-700/90 bg-slate-900/95 text-slate-100'
+          }`}
           style={{
             top: `${flyoutTop}px`,
             left: `${flyoutLeft}px`,
@@ -415,8 +465,42 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   // Dedicated sidebar font/icon color state with contrast protection
   const [currentSidebarColor, setCurrentSidebarColor] = useState(getSavedSidebarColor());
 
+  // Curated Suite & Background Theme State
+  const [sidebarBg, setSidebarBg] = useState<string>(getSidebarBgTheme());
+  const [accentColor, setAccentColor] = useState<string>(getSavedAccentColor());
+
+  useEffect(() => {
+    const handleBgChange = () => setSidebarBg(getSidebarBgTheme());
+    const handleThemeChange = () => {
+      setAccentColor(getSavedAccentColor());
+      setSidebarBg(getSidebarBgTheme());
+    };
+
+    window.addEventListener('uzair_jibran_sidebar_bg_changed', handleBgChange);
+    window.addEventListener('uzair_jibran_theme_suite_changed', handleThemeChange);
+    window.addEventListener('uzair_jibran_theme_color_changed', handleThemeChange);
+
+    return () => {
+      window.removeEventListener('uzair_jibran_sidebar_bg_changed', handleBgChange);
+      window.removeEventListener('uzair_jibran_theme_suite_changed', handleThemeChange);
+      window.removeEventListener('uzair_jibran_theme_color_changed', handleThemeChange);
+    };
+  }, []);
+
+  const isLightSidebar = sidebarBg.toUpperCase() === '#FFFFFF' || getContrastTextColor(sidebarBg) === '#0F172A';
+  const sidebarBorderColor = isLightSidebar ? '#E2E8F0' : '#1E293B';
+
   // Sidebar Layout Mode (Floating Modern vs Classic Edge)
   const [layoutMode, setLayoutMode] = useState<SidebarLayoutMode>(getSidebarLayoutMode());
+  const [behaviorMode, setBehaviorMode] = useState<SidebarBehaviorMode>(getSidebarBehaviorMode());
+
+  useEffect(() => {
+    const handleBehaviorChange = () => {
+      setBehaviorMode(getSidebarBehaviorMode());
+    };
+    window.addEventListener('uzair_jibran_sidebar_behavior_changed', handleBehaviorChange);
+    return () => window.removeEventListener('uzair_jibran_sidebar_behavior_changed', handleBehaviorChange);
+  }, []);
 
   useEffect(() => {
     const updateLayoutMode = () => {
@@ -459,29 +543,75 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleAsideMouseEnter = () => {
+    if (isMobile) return;
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (behaviorMode === 'auto_collapse' && !sidebarOpen) {
+      setSidebarOpen(true);
+    }
+  };
+
+  const handleAsideMouseLeave = () => {
+    if (isMobile) return;
+    if (behaviorMode === 'auto_collapse' && sidebarOpen) {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = setTimeout(() => {
+        setSidebarOpen(false);
+      }, 250);
+    }
+  };
+
+  const handleAsideClick = () => {
+    if (isMobile) return;
+    if (behaviorMode === 'auto_collapse' && !sidebarOpen) {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+      setSidebarOpen(true);
+    }
+  };
+
   const isMobile = windowWidth <= 750;
 
   return (
     <aside
       ref={sidebar}
-      className={`flex flex-col bg-[#0B0F17] dark:bg-white text-slate-100 dark:text-slate-900 duration-300 ease-in-out shadow-2xl select-none ${
+      onMouseEnter={handleAsideMouseEnter}
+      onMouseLeave={handleAsideMouseLeave}
+      onClick={handleAsideClick}
+      style={{
+        backgroundColor: sidebarBg,
+        borderColor: sidebarBorderColor,
+        color: isLightSidebar ? '#0F172A' : '#F8FAFC',
+      }}
+      className={`flex flex-col duration-300 ease-in-out shadow-2xl select-none ${
+        isLightSidebar ? 'text-slate-900' : 'text-slate-100'
+      } ${
         isMobile
           ? 'fixed left-0 top-0 z-99999 h-screen block'
           : `min-[751px]:relative min-[751px]:shrink-0 min-[751px]:z-30 ${
               layoutMode === 'floating'
-                ? 'min-[751px]:self-start min-[751px]:my-3 min-[751px]:ml-3 min-[751px]:h-fit min-[751px]:max-h-[calc(100vh-1.5rem)] min-[751px]:rounded-3xl min-[751px]:border min-[751px]:border-slate-800/90 dark:min-[751px]:border-slate-200/90 min-[751px]:shadow-2xl'
-                : 'min-[751px]:h-screen min-[751px]:rounded-none min-[751px]:border-r min-[751px]:border-slate-800/90 dark:min-[751px]:border-slate-200/90'
+                ? 'min-[751px]:self-start min-[751px]:my-3 min-[751px]:ml-3 min-[751px]:h-fit min-[751px]:max-h-[calc(100vh-1.5rem)] min-[751px]:rounded-3xl min-[751px]:border min-[751px]:shadow-2xl'
+                : 'min-[751px]:h-screen min-[751px]:rounded-none min-[751px]:border-r'
             }`
       } ${
         sidebarOpen
-          ? `w-72.5 translate-x-0 visible ${layoutMode === 'classic' ? 'border-r border-slate-800/90 dark:border-slate-200/90' : ''}`
-          : `w-0 -translate-x-full min-[751px]:w-18 ${layoutMode === 'floating' ? 'min-[751px]:translate-x-0' : 'min-[751px]:translate-x-0 min-[751px]:border-r min-[751px]:border-slate-800/90 dark:min-[751px]:border-slate-200/90'} max-[750px]:invisible`
+          ? `w-78 translate-x-0 visible ${layoutMode === 'classic' ? 'border-r' : ''}`
+          : `w-0 -translate-x-full min-[751px]:w-18 ${layoutMode === 'floating' ? 'min-[751px]:translate-x-0' : 'min-[751px]:translate-x-0 min-[751px]:border-r'} max-[750px]:invisible`
       }`}
     >
       {/* Brand Header */}
-      <div className={`flex items-center shrink-0 border-b border-slate-800/80 dark:border-slate-200/80 ${
-        sidebarOpen ? 'px-5 py-4' : 'justify-center p-3'
-      }`}>
+      <div
+        style={{ borderColor: isLightSidebar ? '#E2E8F0' : 'rgba(30, 41, 59, 0.8)' }}
+        className={`flex items-center shrink-0 border-b ${
+          sidebarOpen ? 'px-5 py-4' : 'justify-center p-3'
+        }`}>
         {sidebarOpen ? (
           <NavLink
             to="/dashboard"
@@ -493,11 +623,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             </div>
 
             <div className="flex flex-col min-w-0">
-              <span className={`font-black tracking-tight text-sm text-white dark:text-slate-900 leading-tight truncate ${isRTL ? 'font-sans' : 'font-cinzel'}`}>
+              <span
+                style={{ color: isLightSidebar ? '#0F172A' : '#FFFFFF' }}
+                className={`font-black tracking-tight text-sm leading-tight truncate ${isRTL ? 'font-sans' : 'font-cinzel'}`}
+              >
                 {isRTL ? 'عزیر جبران کلوتھ' : (brand.fullName || 'UZAIR JIBRAN CLOTH')}
               </span>
-              <span className="text-[10px] font-mono tracking-wider uppercase text-slate-400 dark:text-slate-500 font-bold">
-                {isRTL ? 'کلوتھ ERP' : 'CLOTH ERP'}
+              <span
+                style={{ color: isLightSidebar ? '#64748B' : '#94A3B8' }}
+                className="text-[10px] font-mono tracking-wider uppercase font-bold"
+              >
+                {isRTL ? 'کلوتھ کھاتہ' : 'CLOTH ACCOUNTS'}
               </span>
             </div>
           </NavLink>
@@ -517,7 +653,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       <button
         type="button"
         onClick={() => setSidebarOpen((prev) => !prev)}
-        className={`absolute top-1/2 -translate-y-1/2 z-40 flex items-center justify-center w-5 h-10 bg-[#0B0F17] dark:bg-white text-slate-400 dark:text-slate-600 hover:text-white dark:hover:text-black shadow-md cursor-pointer transition-all duration-200 hover:w-6 hover:text-primary dark:hover:text-primary group ${
+        style={{
+          backgroundColor: sidebarBg,
+          borderColor: isLightSidebar ? '#CBD5E1' : '#334155',
+          color: isLightSidebar ? '#475569' : '#94A3B8',
+        }}
+        className={`absolute top-1/2 -translate-y-1/2 z-40 flex items-center justify-center w-5 h-10 shadow-md cursor-pointer transition-all duration-200 hover:w-6 hover:text-primary dark:hover:text-primary group ${
           isRTL
             ? '-left-3.5 rounded-l-full border-y border-l border-slate-700/80 dark:border-slate-300'
             : '-right-3.5 rounded-r-full border-y border-r border-slate-700/80 dark:border-slate-300'
@@ -556,6 +697,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               getTenantPath={getTenantPath}
               sidebarColor={currentSidebarColor}
               layoutMode={layoutMode}
+              behaviorMode={behaviorMode}
+              isLightSidebar={isLightSidebar}
+              accentColor={accentColor}
             />
           ))}
 
@@ -563,7 +707,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           <li className="w-full mt-2">
             <NavLink
               to={getTenantPath('/settings')}
-              className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
+              className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
+                isLightSidebar ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-white'
+              } ${
                 pathname === getTenantPath('/settings') || pathname === '/settings' ? 'font-bold shadow-xs' : ''
               } ${sidebarOpen ? 'px-3.5 justify-start' : 'justify-center mx-auto w-10 h-10 px-0'}`}
               style={{

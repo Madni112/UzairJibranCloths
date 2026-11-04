@@ -474,6 +474,7 @@ export const POSOrders: React.FC<POSOrdersProps> = ({ embedded, defaultStatus, i
               <tr>
                 <th className="py-3 px-4">Ticket #</th>
                 <th className="py-3 px-4">Date & Time</th>
+                <th className="py-3 px-4">Cashier</th>
                 <th className="py-3 px-4">Customer</th>
                 <th className="py-3 px-4">Items</th>
                 <th className="py-3 px-4">Payment Tender</th>
@@ -485,7 +486,7 @@ export const POSOrders: React.FC<POSOrdersProps> = ({ embedded, defaultStatus, i
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <LuRotateCcw size={32} className="text-slate-300 dark:text-slate-600" />
                       <span className="font-bold text-sm text-slate-700 dark:text-slate-200">
@@ -533,6 +534,17 @@ export const POSOrders: React.FC<POSOrdersProps> = ({ embedded, defaultStatus, i
                           </div>
                         </div>
                       )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 capitalize">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] shrink-0 font-bold">
+                          {o.cashier_name ? o.cashier_name.charAt(0).toUpperCase() : 'C'}
+                        </span>
+                        <span className="truncate max-w-[120px]">{o.cashier_name || 'Cashier'}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 pl-6.5">
+                        {o.terminal_code ? o.terminal_code.replace(/\s*\(.*?\)/g, '') : 'Register 01'}
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="font-bold text-slate-800 dark:text-slate-200">

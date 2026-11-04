@@ -6,6 +6,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import { useAuth } from '../../../Context/Auth';
+import { posService } from '../../../service/posService';
 
 const AddBank = () => {
     const { tenantId } = useAuth();
@@ -36,15 +37,18 @@ const AddBank = () => {
     const handleSubmit = async (values: any) => {
         setLoading(true);
         try {
+            // Check if editData has a valid DB bigint ID
+            const isNumericDbId = isEditMode && editData?.id && !isNaN(Number(editData.id)) && !String(editData.id).startsWith('demo-');
+
             // 1. CHECK FOR DUPLICATES (Querying Supabase by Account Number)
             let query = supabase
                 .from('banks')
                 .select('id')
                 .eq('accountNumber', values.accountNumber.trim());
 
-            // If editing, ignore the current record's own ID
-            if (isEditMode) {
-                query = query.neq('id', editData.id);
+            // If editing a real DB record, ignore the current record's own ID
+            if (isEditMode && isNumericDbId) {
+                query = query.neq('id', Number(editData.id));
             }
 
             const { data: existingAccount, error: checkError } = await query;
@@ -58,40 +62,62 @@ const AddBank = () => {
                 return; // Stops form from saving
             }
 
+            // Prepare clean payload for Supabase 'banks' table (omit non-existent columns like address, phoneNumber, etc.)
+            const dbPayload: any = {
+                bank_name: values.bankName.trim(),
+                "bankName": values.bankName.trim(),
+                account_title: values.accountTitle.trim(),
+                "accountTitle": values.accountTitle.trim(),
+                account_number: values.accountNumber.trim(),
+                "accountNumber": values.accountNumber.trim(),
+                branch_name: values.branchName?.trim() || '',
+                current_balance: Number(values.openingBalance || 0)
+            };
+            if (tenantId) {
+                dbPayload.tenant_id = tenantId;
+            }
+
             // 3. PROCEED TO SAVE IF UNIQUE
-            if (isEditMode) {
+            if (isEditMode && isNumericDbId) {
                 const { error } = await supabase
                     .from('banks')
-                    .update(values)
-                    .eq('id', editData.id);
+                    .update(dbPayload)
+                    .eq('id', Number(editData.id));
                 if (error) throw error;
 
                 // Sync update in Chart of Accounts
-                await supabase
-                    .from('chart_of_accounts')
-                    .update({
-                        account_code: values.accountNumber.trim(),
-                        account_title: `${values.bankName.trim()} (A/C: ${values.accountNumber.trim()})`,
-                    })
-                    .eq('linked_bank_id', String(editData.id));
+                try {
+                    await supabase
+                        .from('chart_of_accounts')
+                        .update({
+                            account_code: values.accountNumber.trim(),
+                            account_title: `${values.bankName.trim()} (A/C: ${values.accountNumber.trim()})`,
+                            notes: `Auto-linked bank ledger for ${values.accountTitle}. Contact: ${values.contactPerson || ''} (${values.phoneNumber || ''})`
+                        })
+                        .eq('linked_bank_id', String(editData.id));
+                } catch {}
 
+                posService.syncBankToPOSAccount({ id: editData.id, ...values });
                 toast.success('Account Details Updated Successfully!');
                 navigate(`${tenantId ? `/${tenantId}` : ''}/Registration/Bank-Account/BankAccountList`);
             } else {
-                const { data: insertedBank, error } = await supabase.from('banks').insert([values]).select('id').single();
+                const { data: insertedBank, error } = await supabase.from('banks').insert([dbPayload]).select('id').single();
                 if (error) throw error;
 
                 // Auto-create corresponding Asset ledger in Chart of Accounts
-                await supabase.from('chart_of_accounts').insert([{
-                    account_code: values.accountNumber.trim(),
-                    account_title: `${values.bankName.trim()} (A/C: ${values.accountNumber.trim()})`,
-                    category_code: '1. ASSETS',
-                    sub_category_code: 'Current Assets',
-                    control_code: 'Banks',
-                    linked_bank_id: String(insertedBank?.id || ''),
-                    notes: `Auto-linked bank ledger for ${values.accountTitle}`
-                }]);
+                try {
+                    await supabase.from('chart_of_accounts').insert([{
+                        account_code: values.accountNumber.trim(),
+                        account_title: `${values.bankName.trim()} (A/C: ${values.accountNumber.trim()})`,
+                        category_code: '1. ASSETS',
+                        sub_category_code: 'Current Assets',
+                        control_code: 'Banks',
+                        linked_bank_id: String(insertedBank?.id || ''),
+                        notes: `Auto-linked bank ledger for ${values.accountTitle}. Branch: ${values.branchName || ''} (${values.branchCode || ''}). Contact: ${values.contactPerson || ''} (${values.phoneNumber || ''})`
+                    }]);
+                } catch {}
 
+                posService.syncBankToPOSAccount({ id: insertedBank?.id, ...values }, true);
                 toast.success('Bank Account Registered Successfully!');
                 navigate(`${tenantId ? `/${tenantId}` : ''}/Registration/Bank-Account/BankAccountList`);
             }

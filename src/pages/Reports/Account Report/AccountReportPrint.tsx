@@ -1979,7 +1979,7 @@ const AccountReportPrint = () => {
             `📅 *Period:* ${periodText}`,
             `📑 *Audited Entries:* ${reportRows.length}`,
             `━━━━━━━━━━━━━━━━━━━━━`,
-            `_Automated ERP Accounts Ledger_`
+            `_Automated Financial Accounts Ledger_`
         ];
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
     };

@@ -42,6 +42,16 @@ const STAT_THEMES: Record<string, StatTheme> = {
     iconBgClass: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60',
     borderHover: 'hover:border-indigo-300 dark:hover:border-indigo-700/60',
   },
+  payables: {
+    indicatorBg: 'bg-rose-500',
+    iconBgClass: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60',
+    borderHover: 'hover:border-rose-300 dark:hover:border-rose-700/60',
+  },
+  'vendor payables': {
+    indicatorBg: 'bg-rose-500',
+    iconBgClass: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60',
+    borderHover: 'hover:border-rose-300 dark:hover:border-rose-700/60',
+  },
   'stock assets': {
     indicatorBg: 'bg-amber-500',
     iconBgClass: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/70 dark:border-amber-800/60',

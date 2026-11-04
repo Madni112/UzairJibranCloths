@@ -33,8 +33,8 @@ const VendorList = () => {
         try {
             setLoading(true);
             const [vendRes, coaRes] = await Promise.all([
-                supabase.from('vendors').select('*').order('id', { ascending: false }),
-                supabase.from('chart_of_accounts').select('*')
+                supabase.from('vendors').select('*').order('vendor_code', { ascending: true }),
+                supabase.from('chart_of_accounts').select('*').order('account_code', { ascending: true })
             ]);
 
             if (vendRes.error) throw vendRes.error;
@@ -53,8 +53,9 @@ const VendorList = () => {
 
     const getVendorCOA = (vend: any) => {
         const vName = (vend.vendor_name || vend.name || '').trim().toLowerCase();
+        const vCode = String(vend.account_code || vend.vendor_code || vend.vendorCode || '').trim();
         return coaAccounts.find(a => 
-            (vend.account_code && String(a.account_code).trim() === String(vend.account_code).trim()) ||
+            (vCode && String(a.account_code).trim().toLowerCase() === vCode.toLowerCase()) ||
             ((a.control_code === 'Vendor' || a.control_code === 'Vendors') && (a.account_title || '').trim().toLowerCase() === vName) ||
             ((a.account_title || '').trim().toLowerCase() === vName)
         );
@@ -113,13 +114,16 @@ const VendorList = () => {
             }
 
             const vendorName = (selectedVendor.vendor_name || selectedVendor.name || '').trim();
+            const bal = Math.abs(Number(openingBalanceInput) || 0);
             const coaPayload: any = {
                 category_code: '2. LIABILITIES',
                 sub_category_code: 'Current Liabilities',
                 control_code: 'Vendor',
                 account_code: cleanCode,
                 account_title: vendorName,
-                notes: `Vendor ledger account for ${vendorName}${openingBalanceInput ? ` (Opening Balance: ${openingBalanceInput} ${balanceNatureInput})` : ''}`
+                opening_balance: bal,
+                balance_nature: balanceNatureInput,
+                notes: `Vendor ledger account for ${vendorName}${bal > 0 ? ` (Opening Balance: ${bal} ${balanceNatureInput})` : ''}`
             };
 
             if (existingCOA?.id) {
@@ -135,44 +139,58 @@ const VendorList = () => {
                 if (error) throw error;
             }
 
-            // Record Opening Balance in financial_vouchers if opening balance > 0
-            if (openingBalanceInput && Number(openingBalanceInput) > 0) {
-                const bal = Number(openingBalanceInput);
+            // Two-Way Live Sync with financial_vouchers
+            if (bal > 0) {
                 try {
-                    await supabase.from('financial_vouchers').insert([{
+                    const isDebit = balanceNatureInput === 'Debit';
+                    const vPayload: any = {
                         voucher_no: `OB-${cleanCode}`,
-                        voucher_type: 'JV',
+                        voucher_type: 'Journal Voucher',
                         voucher_date: new Date().toISOString().split('T')[0],
                         account_code: cleanCode,
                         account_title: vendorName,
-                        debit: balanceNatureInput === 'Debit' ? bal : 0,
-                        credit: balanceNatureInput === 'Credit' ? bal : 0,
-                        narration: `Opening Balance for Vendor ${vendorName}`
-                    }]);
-                } catch (_) {
-                    // Non-blocking
+                        total_amount: bal,
+                        debit: isDebit ? bal : 0,
+                        credit: !isDebit ? bal : 0,
+                        narration: `Opening Balance for Vendor ${vendorName}`,
+                        items: []
+                    };
+
+                    const { data: existV } = await supabase
+                        .from('financial_vouchers')
+                        .select('id')
+                        .or(`voucher_no.eq.OB-${cleanCode},account_code.eq.${cleanCode}`)
+                        .maybeSingle();
+
+                    if (existV) {
+                        await supabase.from('financial_vouchers').update(vPayload).eq('id', existV.id);
+                    } else {
+                        await supabase.from('financial_vouchers').insert([vPayload]);
+                    }
+                } catch (vErr) {
+                    console.warn('Vendor voucher sync note:', vErr);
                 }
             }
 
-            // Try updating vendor record with account_code and currentBalance
+            // Update vendor record with vendor_code, balance, currentBalance, opening_balance
             try {
-                const vendUpdates: any = { account_code: cleanCode };
-                if (openingBalanceInput) {
-                    const bal = Number(openingBalanceInput);
+                const vendUpdates: any = { 
+                    vendor_code: cleanCode,
+                    vendorCode: cleanCode,
+                    account_code: cleanCode
+                };
+                if (openingBalanceInput !== undefined && openingBalanceInput !== '') {
                     vendUpdates.balance = balanceNatureInput === 'Credit' ? bal : -bal;
+                    vendUpdates.currentBalance = balanceNatureInput === 'Credit' ? bal : -bal;
                     vendUpdates.opening_balance = bal;
+                    vendUpdates.balance_nature = balanceNatureInput;
                 }
                 await supabase
                     .from('vendors')
                     .update(vendUpdates)
                     .eq('id', selectedVendor.id);
-            } catch (_) {
-                try {
-                    await supabase
-                        .from('vendors')
-                        .update({ account_code: cleanCode })
-                        .eq('id', selectedVendor.id);
-                } catch (_) {}
+            } catch (vUpErr) {
+                console.warn('Vendor update note:', vUpErr);
             }
 
             toast.success(`Chart of Account for "${vendorName}" assigned successfully!`);
@@ -368,20 +386,8 @@ const VendorList = () => {
                     <table className="w-full table-auto border-collapse">
                         <thead>
                             <tr className="bg-gray-2 text-left dark:bg-meta-4 text-xs font-bold uppercase tracking-wider text-black dark:text-white border-b border-stroke dark:border-strokedark">
-                                <th 
-                                    onClick={() => setPageSortOrder(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
-                                    className="py-4 px-4 font-semibold min-w-[95px] cursor-pointer select-none hover:text-primary transition"
-                                    title="Click to toggle Page # sorting"
-                                >
-                                    <div className="flex items-center gap-1">
-                                        <span>Page #</span>
-                                        {pageSortOrder === 'asc' && <MdArrowUpward size={14} className="text-primary font-bold" />}
-                                        {pageSortOrder === 'desc' && <MdArrowDownward size={14} className="text-primary font-bold" />}
-                                        {!pageSortOrder && <span className="text-[10px] text-gray-400 font-normal">⇅</span>}
-                                    </div>
-                                </th>
-                                <th className="py-4 px-4 font-semibold min-w-[100px]">Code</th>
-                                <th className="py-4 px-4 font-semibold min-w-[170px]">Vendor / Business Name</th>
+                                <th className="py-4 px-4 font-semibold w-12 text-center">S#</th>
+                                <th className="py-4 px-4 font-semibold min-w-[170px]">Name</th>
                                 <th className="py-4 px-4 font-semibold min-w-[130px]">Contact Person</th>
                                 <th className="py-4 px-4 font-semibold min-w-[120px]">Mobile / Phone</th>
                                 <th className="py-4 px-4 font-semibold min-w-[130px]">City / Area</th>
@@ -392,41 +398,23 @@ const VendorList = () => {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={9} className="text-center py-12 text-sm"><Spinner /></td></tr>
+                                <tr><td colSpan={8} className="text-center py-12 text-sm"><Spinner /></td></tr>
                             ) : paginatedVendors.length === 0 ? (
-                                <tr><td colSpan={9} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400 italic">No business merchant vendors registered yet.</td></tr>
+                                <tr><td colSpan={8} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400 italic">No business merchant vendors registered yet.</td></tr>
                             ) : (
-                                paginatedVendors.map((vendor) => {
+                                paginatedVendors.map((vendor, index) => {
                                     const coa = getVendorCOA(vendor);
-                                    const vendCode = vendor.vendor_code || vendor.vendorCode;
-                                    const pageNo = vendor.page_no || vendor.pageNo;
                                     const loc = getVendorLocation(vendor);
+                                    const serialNumber = (currentPage - 1) * pageSize + index + 1;
 
                                     return (
                                         <tr key={vendor.id} className="border-b border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4/10 duration-150 font-semibold text-black dark:text-white text-xs">
-                                            {/* 1. Page # */}
-                                            <td className="py-3.5 px-4">
-                                                {pageNo ? (
-                                                    <span className="font-mono font-bold text-[11px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded">
-                                                        {pageNo}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 font-mono text-xs">-</span>
-                                                )}
+                                            {/* S# */}
+                                            <td className="py-3.5 px-4 text-center font-bold text-gray-500 font-mono">
+                                                {serialNumber}
                                             </td>
 
-                                            {/* 2. Code */}
-                                            <td className="py-3.5 px-4">
-                                                {vendCode ? (
-                                                    <span className="font-mono font-bold text-[11px] text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded">
-                                                        {vendCode}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 font-mono text-xs">-</span>
-                                                )}
-                                            </td>
-
-                                            {/* 3. Vendor Name */}
+                                            {/* Vendor Name */}
                                             <td className="py-3.5 px-4 font-bold text-primary dark:text-white">
                                                 <div className="flex items-center gap-1.5">
                                                     <MdBusiness className="text-gray-400 shrink-0" size={16} />
@@ -620,14 +608,32 @@ const VendorList = () => {
                                 </div>
                                 <div>
                                     <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Balance Nature:</label>
-                                    <select
-                                        value={balanceNatureInput}
-                                        onChange={(e) => setBalanceNatureInput(e.target.value as 'Debit' | 'Credit')}
-                                        className="w-full rounded border border-stroke dark:border-strokedark px-3 h-9 bg-transparent font-bold text-xs text-black dark:text-white outline-none focus:border-primary dark:bg-boxdark"
-                                    >
-                                        <option value="Credit">Credit (Cr - Normal Payable)</option>
-                                        <option value="Debit">Debit (Dr - Advance Paid)</option>
-                                    </select>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setBalanceNatureInput('Credit')}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition border cursor-pointer ${
+                                                balanceNatureInput === 'Credit'
+                                                    ? 'bg-amber-500 border-amber-600 text-white shadow-xs'
+                                                    : 'border-stroke dark:border-strokedark bg-gray-50 dark:bg-boxdark text-gray-600 dark:text-gray-400 hover:border-amber-400'
+                                            }`}
+                                        >
+                                            {balanceNatureInput === 'Credit' && <MdCheckCircle size={14} />}
+                                            <span>Credit (Cr - Payable)</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setBalanceNatureInput('Debit')}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-bold transition border cursor-pointer ${
+                                                balanceNatureInput === 'Debit'
+                                                    ? 'bg-blue-600 border-blue-700 text-white shadow-xs'
+                                                    : 'border-stroke dark:border-strokedark bg-gray-50 dark:bg-boxdark text-gray-600 dark:text-gray-400 hover:border-blue-400'
+                                            }`}
+                                        >
+                                            {balanceNatureInput === 'Debit' && <MdCheckCircle size={14} />}
+                                            <span>Debit (Dr - Advance)</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

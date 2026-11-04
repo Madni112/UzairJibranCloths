@@ -45,7 +45,8 @@ import {
   LuBarChart3,
   LuSettings,
   LuLogOut,
-  LuAlertTriangle
+  LuAlertTriangle,
+  LuHistory
 } from 'react-icons/lu';
 import { MdPointOfSale } from 'react-icons/md';
 import { IoBarcodeOutline } from 'react-icons/io5';
@@ -68,6 +69,7 @@ import POSRegister from './POSRegister';
 import {
   posService,
   PosOrder,
+  POSPaymentAccount,
   PosOrderItem,
   PosProductItem,
   PosCategoryItem,
@@ -654,6 +656,30 @@ export const POSTerminal: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Digital' | 'Split'>('Cash');
   const [cashTendered, setCashTendered] = useState<number>(0);
   const [isProcessingSale, setIsProcessingSale] = useState<boolean>(false);
+  const [selectedPaymentAccount, setSelectedPaymentAccount] = useState<POSPaymentAccount | null>(null);
+  const [accountSearchQuery, setAccountSearchQuery] = useState<string>('');
+  const [paymentRefNumber, setPaymentRefNumber] = useState<string>('');
+
+  const posPaymentAccounts = useMemo(() => {
+    return posService.getPOSActiveAccounts();
+  }, [isPayModalOpen]);
+
+  useEffect(() => {
+    if (posPaymentAccounts.length > 0 && !selectedPaymentAccount) {
+      setSelectedPaymentAccount(posPaymentAccounts[0]);
+    }
+  }, [posPaymentAccounts]);
+
+  const filteredPaymentAccounts = useMemo(() => {
+    if (!accountSearchQuery.trim()) return posPaymentAccounts;
+    const q = accountSearchQuery.toLowerCase();
+    return posPaymentAccounts.filter(a => 
+      a.bank_name.toLowerCase().includes(q) ||
+      a.account_title.toLowerCase().includes(q) ||
+      a.account_number.toLowerCase().includes(q) ||
+      (a.branch_name && a.branch_name.toLowerCase().includes(q))
+    );
+  }, [posPaymentAccounts, accountSearchQuery]);
 
   // Receipt Modal State
   const [completedOrder, setCompletedOrder] = useState<PosOrder | null>(null);
@@ -1122,6 +1148,9 @@ export const POSTerminal: React.FC = () => {
         cash_tendered: paymentMethod === 'Cash' ? cashTendered : grandTotal,
         change_due: paymentMethod === 'Cash' ? changeDue : 0,
         status: 'Completed',
+        notes: (paymentMethod === 'Digital' || paymentMethod === 'Card') && selectedPaymentAccount
+          ? `Paid via ${selectedPaymentAccount.bank_name} (${selectedPaymentAccount.account_number})${paymentRefNumber ? ` • Ref: ${paymentRefNumber}` : ''}`
+          : undefined,
         items: cartItems
       };
 
@@ -1139,6 +1168,8 @@ export const POSTerminal: React.FC = () => {
       setCartItems([]);
       setTicketNumber(updatedShift ? posService.getNextOrderNumber(updatedShift.business_date) : '');
       setDiscountPercent(0);
+      setPaymentRefNumber('');
+      setAccountSearchQuery('');
       setFulfillmentType(resolveInitialFulfillment(posConfig));
     } catch (err) {
       console.error('Failed to complete sale:', err);
@@ -2798,6 +2829,92 @@ export const POSTerminal: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Digital & Card Payment Destination Account Selector */}
+              {(paymentMethod === 'Digital' || paymentMethod === 'Card') && (
+                <div className="space-y-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <MdPointOfSale size={14} className="text-primary" />
+                      <span>Destination Account ({paymentMethod === 'Card' ? 'Card POS Terminal' : 'Digital / QR'}):</span>
+                    </label>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      {posPaymentAccounts.length} Active in POS
+                    </span>
+                  </div>
+
+                  {/* Search box if multiple accounts */}
+                  {posPaymentAccounts.length > 2 && (
+                    <div className="relative">
+                      <LuSearch size={13} className="absolute left-3 top-2.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={accountSearchQuery}
+                        onChange={(e) => setAccountSearchQuery(e.target.value)}
+                        placeholder="Search bank name or account #..."
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  )}
+
+                  {posPaymentAccounts.length === 0 ? (
+                    <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 text-center space-y-1.5">
+                      <div className="flex items-center justify-center gap-1.5 text-amber-700 dark:text-amber-400 font-bold text-xs">
+                        <LuAlertTriangle size={15} />
+                        <span>No Bank / Digital Accounts Configured</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                        No accounts are enabled for POS yet. Go to <b>Accounts &gt; Bank Account</b> and click <b>+ Add Bank Account</b> to register your accounts and enable <b>Show in POS</b>.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-0.5">
+                      {filteredPaymentAccounts.map((acc) => {
+                        const isSelected = selectedPaymentAccount?.id === acc.id;
+                        return (
+                          <button
+                            key={acc.id}
+                            type="button"
+                            onClick={() => setSelectedPaymentAccount(acc)}
+                            className={`p-2.5 rounded-xl text-left border transition flex items-start justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-primary/10 border-primary ring-1 ring-primary shadow-xs'
+                                : 'bg-white dark:bg-[#111622] border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="min-w-0 pr-1 space-y-0.5">
+                              <div className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                {acc.bank_name}
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold truncate">
+                                {acc.account_number}
+                              </div>
+                              <div className="text-[9px] text-slate-400 truncate">
+                                {acc.account_title}
+                              </div>
+                            </div>
+                            {isSelected && <LuCheck size={14} className="text-primary shrink-0 mt-0.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Transaction Reference / Approval Code */}
+                  <div className="pt-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      Transaction / Approval Ref # (Optional):
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentRefNumber}
+                      onChange={(e) => setPaymentRefNumber(e.target.value)}
+                      placeholder="e.g. TRX-99201, Raast Ref, or Slip #"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-primary text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -2970,6 +3087,11 @@ export const POSTerminal: React.FC = () => {
                     <span>Tendered ({completedOrder.payment_method}):</span>
                     <span className="font-mono">Rs. {completedOrder.cash_tendered.toLocaleString()}</span>
                   </div>
+                  {completedOrder.notes && (
+                    <div className="text-[9.5px] text-slate-700 font-mono py-0.5">
+                      {completedOrder.notes}
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold">
                     <span>Change Due:</span>
                     <span className="font-mono">Rs. {completedOrder.change_due.toLocaleString()}</span>

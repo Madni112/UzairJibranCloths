@@ -246,7 +246,7 @@ export const QUICK_MAP: Record<string, string> = {
   // Top Nav & Brand
     'uzair jibran cloth': 'عزیر جبران کلوتھ',
     'uzair jibran': 'عزیر جبران',
-    'cloth erp': 'کلوتھ ERP',
+    'cloth erp': 'کلوتھ کھاتہ',
     'cloth retail & wholesale': 'کلوتھ ریٹیل اینڈ ہول سیل',
     'retail & wholesale': 'ریٹیل اینڈ ہول سیل',
     'super admin': 'سپر ایڈمن',

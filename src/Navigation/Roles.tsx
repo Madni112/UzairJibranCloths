@@ -1,11 +1,11 @@
 import {
-  MdDashboard, MdReceipt, MdPeople, MdAdminPanelSettings, MdEmojiTransportation,
+  MdDashboard, MdReceipt, MdPeople, MdBusiness, MdAdminPanelSettings, MdEmojiTransportation,
   MdEdit, MdInventory2, MdClass, MdAccountBox, MdCategory, MdStraighten, MdDomain,
   MdInventory, MdBadge, MdShoppingCart, MdLocationOn, MdLocalShipping, MdCompareArrows,
   MdFormatListBulleted, MdAccountTree, MdReceiptLong, MdAccountBalance, MdLaptop,
   MdLaptopChromebook, MdMan, MdRequestPage, MdOutlineRequestPage, MdPageview,
   MdSpaceDashboard, MdOutlineLaptop, MdTexture, MdPayment, MdAssignmentReturn,
-  MdAssessment, MdDashboardCustomize, MdTrendingUp, MdBarChart, MdAccountBalanceWallet,
+  MdAssessment, MdDashboardCustomize, MdTrendingUp, MdPayments, MdKeyboardReturn, MdBarChart, MdAccountBalanceWallet,
   MdBalance, MdPauseCircleFilled, MdInbox, MdPointOfSale, MdWarehouse, MdSecurity,
   MdPrecisionManufacturing
 } from 'react-icons/md';
@@ -132,8 +132,21 @@ export const adminRoutes = [
     hideFromSidebar: true,
   },
   {
+    path: '/Sales/Customers/List',
+    component: <CustomerHistory />,
+    label: 'Customers',
+    icon: MdPeople,
+  },
+  {
+    path: '/Purchase/Vendor/List',
+    component: <VendorList />,
+    label: 'Vendors',
+    icon: MdBusiness,
+  },
+  {
     label: 'Point of Sale (POS)',
     icon: MdPointOfSale,
+    hideFromSidebar: true,
     children: [
       {
         path: '/pos/terminals',
@@ -164,6 +177,7 @@ export const adminRoutes = [
   {
     label: 'Inventory',
     icon: MdInventory2,
+    hideFromSidebar: true,
     children: [
       {
         path: '/Administration/Categories/List',
@@ -236,16 +250,102 @@ export const adminRoutes = [
     icon: MdAccountBalance,
     children: [
       {
-        path: '/Registration/Chart-of-Account/List',
-        component: <ChartOfAccountList />,
-        label: 'Chart Of Account',
-        icon: MdAccountTree
-      },
-      {
         path: '/Registration/Vouchers/List',
         component: <VoucherList />,
-        label: 'Vouchers',
-        icon: MdReceiptLong
+        label: 'All Vouchers',
+        icon: MdReceipt,
+        children: [
+          {
+            path: '/Vouchers/Sale-Amount',
+            component: <VoucherList voucherTypePreset="SAV" />,
+            label: 'Sale Amount Voucher',
+            icon: MdReceiptLong
+          },
+          {
+            path: '/Vouchers/Sale-Amount/Add',
+            component: <AddVoucher voucherTypePreset="SAV" />,
+            label: 'Add Sale Amount Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Vouchers/Sale-Return',
+            component: <VoucherList voucherTypePreset="SRV" />,
+            label: 'Sale Amount Return',
+            icon: MdAssignmentReturn
+          },
+          {
+            path: '/Vouchers/Sale-Return/Add',
+            component: <AddVoucher voucherTypePreset="SRV" />,
+            label: 'Add Sale Return Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Vouchers/Customer-Receive',
+            component: <VoucherList voucherTypePreset="CRV" />,
+            label: 'Customer Receive Voucher',
+            icon: MdPayments
+          },
+          {
+            path: '/Vouchers/Customer-Receive/Add',
+            component: <AddVoucher voucherTypePreset="CRV" />,
+            label: 'Add Customer Receive Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Vouchers/Purchase-Amount',
+            component: <VoucherList voucherTypePreset="PAV" />,
+            label: 'Purchase Amount Voucher',
+            icon: MdShoppingCart
+          },
+          {
+            path: '/Vouchers/Purchase-Amount/Add',
+            component: <AddVoucher voucherTypePreset="PAV" />,
+            label: 'Add Purchase Amount Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Vouchers/Purchase-Return',
+            component: <VoucherList voucherTypePreset="PRV" />,
+            label: 'Purchase Amount Return',
+            icon: MdKeyboardReturn
+          },
+          {
+            path: '/Vouchers/Purchase-Return/Add',
+            component: <AddVoucher voucherTypePreset="PRV" />,
+            label: 'Add Purchase Return Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Vouchers/Vendor-Payment',
+            component: <VoucherList voucherTypePreset="VPV" />,
+            label: 'Vendor Payment Voucher',
+            icon: MdPayment
+          },
+          {
+            path: '/Vouchers/Vendor-Payment/Add',
+            component: <AddVoucher voucherTypePreset="VPV" />,
+            label: 'Add Vendor Payment Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Vouchers/Expense',
+            component: <VoucherList voucherTypePreset="EXP" />,
+            label: 'Expense Voucher',
+            icon: MdAccountBalanceWallet
+          },
+          {
+            path: '/Vouchers/Expense/Add',
+            component: <AddVoucher voucherTypePreset="EXP" />,
+            label: 'Add Expense Voucher',
+            hideFromSidebar: true
+          },
+          {
+            path: '/Registration/Vouchers/Add',
+            component: <AddVoucher />,
+            label: 'Add General Voucher',
+            hideFromSidebar: true
+          },
+        ]
       },
       {
         path: '/Registration/Bank-Account/BankAccountList',
@@ -254,16 +354,17 @@ export const adminRoutes = [
         icon: MdAccountBalance
       },
       {
-        path: '/Inventory/OpeningStock/List',
-        component: <OpeningStockList />,
-        label: 'Opening Stock',
-        icon: MdInventory
+        path: '/Registration/Chart-of-Account/List',
+        component: <ChartOfAccountList />,
+        label: 'Chart Of Account',
+        icon: MdAccountTree
       },
     ]
   },
   {
     label: 'Sales',
     icon: MdReceipt,
+    hideFromSidebar: true,
     children: [
       {
         label: 'Quotations',
@@ -312,6 +413,7 @@ export const adminRoutes = [
   {
     label: 'Purchase',
     icon: MdLaptop,
+    hideFromSidebar: true,
     children: [
       {
         label: 'Purchases',
@@ -404,6 +506,7 @@ export const adminRoutes = [
   {
     label: 'Human Resource',
     icon: MdBadge,
+    hideFromSidebar: true,
     children: [
       {
         label: 'Employees',

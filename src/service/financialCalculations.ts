@@ -184,6 +184,44 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
         }
       }
     });
+
+    // Also calculate Sales and Purchases from Specialized Financial Vouchers (SAV, SRV, PAV, PRV)
+    vouchersList.forEach((v: any) => {
+      const vNo = String(v.voucher_no || '').toUpperCase();
+      const vType = String(v.voucher_type || '').toLowerCase();
+      const vAmt = Number(v.total_amount || v.amount || 0);
+      const vDateStr = String(v.voucher_date || v.created_at || '').split('T')[0];
+      const isToday = vDateStr === todayStr;
+      let isInThisMonth = false;
+      if (vDateStr) {
+        const d = new Date(vDateStr);
+        if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+          isInThisMonth = true;
+        }
+      }
+
+      // Sale Amount Voucher (SAV)
+      if (vNo.startsWith('SAV') || vType.includes('sale amount voucher')) {
+        if (isToday) todaysSales += vAmt;
+        if (isInThisMonth) thisMonthSales += vAmt;
+      }
+      // Sale Amount Return (SRV)
+      else if (vNo.startsWith('SRV') || vType.includes('sale amount return')) {
+        if (isToday) todaysSales -= vAmt;
+        if (isInThisMonth) thisMonthSales -= vAmt;
+      }
+      // Purchase Amount Voucher (PAV)
+      else if (vNo.startsWith('PAV') || vType.includes('purchase amount voucher')) {
+        if (isInThisMonth) thisMonthPurchases += vAmt;
+      }
+      // Purchase Amount Return Voucher (PRV)
+      else if (vNo.startsWith('PRV') || vType.includes('purchase amount return')) {
+        if (isInThisMonth) thisMonthPurchases -= vAmt;
+      }
+    });
+
+    todaysSales = Math.max(0, todaysSales);
+    thisMonthSales = Math.max(0, thisMonthSales);
     thisMonthPurchases = Math.max(0, thisMonthPurchases);
 
     // --- 3. Calculate Cash Balance (App Cash Drawer Liquidity) ---
@@ -692,6 +730,29 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
         const key = `${monthsName[d.getMonth()]} ${d.getFullYear()}`;
         if (monthlySalesTrendMap[key]) {
           monthlySalesTrendMap[key].purchases = Math.max(0, monthlySalesTrendMap[key].purchases - Number(pret.total_amount || pret.total_net_amount || 0));
+        }
+      }
+    });
+
+    // Also include specialized financial vouchers into monthly trends
+    vouchersList.forEach((v: any) => {
+      const d = new Date(v.voucher_date || v.created_at);
+      if (!isNaN(d.getTime())) {
+        const key = `${monthsName[d.getMonth()]} ${d.getFullYear()}`;
+        const vNo = String(v.voucher_no || '').toUpperCase();
+        const vType = String(v.voucher_type || '').toLowerCase();
+        const amt = Number(v.total_amount || v.amount || 0);
+
+        if (monthlySalesTrendMap[key]) {
+          if (vNo.startsWith('SAV') || vType.includes('sale amount voucher')) {
+            monthlySalesTrendMap[key].sales += amt;
+          } else if (vNo.startsWith('SRV') || vType.includes('sale amount return')) {
+            monthlySalesTrendMap[key].sales = Math.max(0, monthlySalesTrendMap[key].sales - amt);
+          } else if (vNo.startsWith('PAV') || vType.includes('purchase amount voucher')) {
+            monthlySalesTrendMap[key].purchases += amt;
+          } else if (vNo.startsWith('PRV') || vType.includes('purchase amount return')) {
+            monthlySalesTrendMap[key].purchases = Math.max(0, monthlySalesTrendMap[key].purchases - amt);
+          }
         }
       }
     });

@@ -18,6 +18,51 @@ interface CardTheme {
 }
 
 const CARD_THEMES: Record<string, CardTheme> = {
+  'sale voucher': {
+    accentHex: '#059669',
+    indicatorBg: 'bg-emerald-500',
+    iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
+  },
+  'customer receive': {
+    accentHex: '#0D9488',
+    indicatorBg: 'bg-teal-500',
+    iconBgClass: 'bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400 border border-teal-200/70 dark:border-teal-800/60',
+  },
+  'purchase voucher': {
+    accentHex: '#2563EB',
+    indicatorBg: 'bg-blue-500',
+    iconBgClass: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/70 dark:border-blue-800/60',
+  },
+  'vendor payment': {
+    accentHex: '#8B5CF6',
+    indicatorBg: 'bg-purple-500',
+    iconBgClass: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200/70 dark:border-purple-800/60',
+  },
+  'expense voucher': {
+    accentHex: '#EA580C',
+    indicatorBg: 'bg-orange-500',
+    iconBgClass: 'bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 border border-orange-200/70 dark:border-orange-800/60',
+  },
+  'purchase return': {
+    accentHex: '#E11D48',
+    indicatorBg: 'bg-rose-500',
+    iconBgClass: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/70 dark:border-rose-800/60',
+  },
+  'all vouchers': {
+    accentHex: '#475569',
+    indicatorBg: 'bg-slate-500',
+    iconBgClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+  },
+  'customers khata': {
+    accentHex: '#059669',
+    indicatorBg: 'bg-emerald-500',
+    iconBgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/60',
+  },
+  'vendors khata': {
+    accentHex: '#4F46E5',
+    indicatorBg: 'bg-indigo-500',
+    iconBgClass: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60',
+  },
   sales: {
     accentHex: '#059669',
     indicatorBg: 'bg-emerald-500',

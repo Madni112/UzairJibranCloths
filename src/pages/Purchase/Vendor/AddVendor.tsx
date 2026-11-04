@@ -295,8 +295,12 @@ const AddVendor = () => {
       <Formik
         initialValues={{
           vendorName: editData?.vendor_name || editData?.name || '',
-          vendor_code: editData?.vendor_code || editData?.vendorCode || '',
+          vendor_code: editData?.vendor_code || editData?.vendorCode || suggestedCode || '',
           page_no: editData?.page_no || editData?.pageNo || '',
+          opening_balance: editData?.opening_balance !== undefined && editData?.opening_balance !== null
+            ? String(editData.opening_balance)
+            : (editData?.balance ? String(Math.abs(Number(editData.balance))) : ''),
+          balance_nature: editData?.balance_nature || (Number(editData?.balance) < 0 ? 'Debit' : 'Credit'),
           contactName: editData?.contact_name || '',
           cellNo: editData?.cell_no || editData?.phone || '',
           phoneNo: editData?.phone_no || '',
@@ -328,6 +332,10 @@ const AddVendor = () => {
             }
 
             const cleanCode = values.vendor_code ? values.vendor_code.trim() : (suggestedCode || '');
+            const parsedOpeningBal = Math.abs(Number(values.opening_balance) || 0);
+            const isDebit = values.balance_nature === 'Debit';
+            const nature = isDebit ? 'Debit' : 'Credit';
+            const signedBal = isDebit ? -parsedOpeningBal : parsedOpeningBal;
 
             const databasePayload: any = {
               vendor_name: trimmedName,
@@ -336,6 +344,10 @@ const AddVendor = () => {
               vendorCode: cleanCode || null,
               page_no: values.page_no ? String(values.page_no).trim() : null,
               pageNo: values.page_no ? String(values.page_no).trim() : null,
+              opening_balance: parsedOpeningBal,
+              balance: signedBal,
+              currentBalance: signedBal,
+              balance_nature: nature,
               contact_name: values.contactName ? values.contactName.trim() : null,
               cell_no: values.cellNo ? values.cellNo.trim() : null,
               phone: values.cellNo ? values.cellNo.trim() : null,
@@ -390,7 +402,7 @@ const AddVendor = () => {
 
             if (saveResponse.error) throw saveResponse.error;
 
-            // Optional auto-sync with Chart of Accounts (COA) under Current Liabilities / Suppliers
+            // Two-Way Sync with Chart of Accounts (COA) & financial_vouchers
             if (cleanCode) {
               try {
                 const coaPayload: any = {
@@ -399,7 +411,9 @@ const AddVendor = () => {
                   control_code: 'Vendor',
                   account_code: cleanCode,
                   account_title: trimmedName,
-                  notes: `Vendor ledger account for ${trimmedName} (Synced from Vendors module)`
+                  opening_balance: parsedOpeningBal,
+                  balance_nature: nature,
+                  notes: `Vendor ledger account for ${trimmedName}${parsedOpeningBal > 0 ? ` (Opening Balance: ${parsedOpeningBal} ${nature})` : ''}`
                 };
 
                 const { data: existingCOA } = await supabase
@@ -412,6 +426,34 @@ const AddVendor = () => {
                   await supabase.from('chart_of_accounts').update(coaPayload).eq('id', existingCOA.id);
                 } else {
                   await supabase.from('chart_of_accounts').insert([coaPayload]);
+                }
+
+                // Two-way sync to financial_vouchers if opening balance > 0
+                if (parsedOpeningBal > 0) {
+                  const vPayload: any = {
+                    voucher_no: `OB-${cleanCode}`,
+                    voucher_type: 'Journal Voucher',
+                    voucher_date: new Date().toISOString().split('T')[0],
+                    account_code: cleanCode,
+                    account_title: trimmedName,
+                    total_amount: parsedOpeningBal,
+                    debit: isDebit ? parsedOpeningBal : 0,
+                    credit: !isDebit ? parsedOpeningBal : 0,
+                    narration: `Opening Balance for Vendor ${trimmedName}`,
+                    items: []
+                  };
+
+                  const { data: existV } = await supabase
+                    .from('financial_vouchers')
+                    .select('id')
+                    .or(`voucher_no.eq.OB-${cleanCode},account_code.eq.${cleanCode}`)
+                    .maybeSingle();
+
+                  if (existV) {
+                    await supabase.from('financial_vouchers').update(vPayload).eq('id', existV.id);
+                  } else {
+                    await supabase.from('financial_vouchers').insert([vPayload]);
+                  }
                 }
               } catch (coaErr) {
                 console.warn('Vendor COA auto-sync note:', coaErr);
@@ -521,6 +563,61 @@ const AddVendor = () => {
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Physical ledger book reference number for traditional paper accounting cross-checks
+                  </p>
+                </div>
+
+                {/* Opening Balance (PKR) */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Opening Balance (PKR) <span className="text-[10px] font-normal text-slate-400 font-sans">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="opening_balance"
+                    onChange={handleChange}
+                    value={values.opening_balance}
+                    placeholder="0.00"
+                    className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono font-bold outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Initial balance owed to vendor or advance payment held
+                  </p>
+                </div>
+
+                {/* Balance Nature Pill Buttons */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Balance Nature:
+                  </label>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setFieldValue('balance_nature', 'Credit')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                        values.balance_nature === 'Credit'
+                          ? 'bg-amber-500 border-amber-600 text-white shadow-xs'
+                          : 'border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-600 dark:text-slate-400 hover:border-amber-400'
+                      }`}
+                    >
+                      {values.balance_nature === 'Credit' && <MdCheckCircle size={15} />}
+                      <span>Credit (Cr - Payable)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFieldValue('balance_nature', 'Debit')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                        values.balance_nature === 'Debit'
+                          ? 'bg-blue-600 border-blue-700 text-white shadow-xs'
+                          : 'border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-600 dark:text-slate-400 hover:border-blue-400'
+                      }`}
+                    >
+                      {values.balance_nature === 'Debit' && <MdCheckCircle size={15} />}
+                      <span>Debit (Dr - Advance)</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    {values.balance_nature === 'Credit' ? 'You owe this amount to the vendor (Payable)' : 'Vendor holds advance payment from you (Receivable)'}
                   </p>
                 </div>
               </div>

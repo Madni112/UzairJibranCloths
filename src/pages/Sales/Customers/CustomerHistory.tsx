@@ -42,6 +42,106 @@ const CustomerHistory = () => {
     fetchCustomersAndCOA(); 
   }, []); 
 
+  const autoAssign2020CustomerCodes = async (silent = false) => {
+    try {
+      setLoading(true);
+      const { data: allCusts, error: custErr } = await supabase
+        .from('customers')
+        .select('*');
+
+      if (custErr) throw custErr;
+      if (!allCusts || allCusts.length === 0) return;
+
+      // Sort customers: preserve 001 (آصف اقبال) and 002 (ابراہیم کلاٹھ) at the top, then sort others
+      const sorted = [...allCusts].sort((a, b) => {
+        const codeA = String(a.customer_code || a.customerCode || a.coa_code || '').trim();
+        const codeB = String(b.customer_code || b.customerCode || b.coa_code || '').trim();
+        if (codeA === '001' || codeA === '2020-001') return -1;
+        if (codeB === '001' || codeB === '2020-001') return 1;
+        if (codeA === '002' || codeA === '2020-002') return -1;
+        if (codeB === '002' || codeB === '2020-002') return 1;
+        return (a.customerName || a.name || '').localeCompare(b.customerName || b.name || '');
+      });
+
+      const coaInserts: any[] = [];
+      const voucherInserts: any[] = [];
+
+      for (let i = 0; i < sorted.length; i++) {
+        const c = sorted[i];
+        const assignedCode = `2020-${String(i + 1).padStart(3, '0')}`;
+        const custName = c.customerName || c.customername || c.customer_name || c.name || `Customer #${assignedCode}`;
+
+        // 1. Update customer record
+        try {
+          await supabase.from('customers').update({
+            customer_code: assignedCode,
+            customerCode: assignedCode,
+            coa_code: assignedCode
+          }).eq('id', c.id);
+        } catch {}
+
+        // 2. Prepare COA ledger
+        coaInserts.push({
+          account_code: assignedCode,
+          account_title: custName,
+          category_code: '1. ASSETS',
+          sub_category_code: 'Current Assets',
+          control_code: 'Customers',
+          notes: `Customer ledger account for ${custName} (Auto-assigned)`
+        });
+
+        // 3. Prepare opening balance voucher if has balance
+        const rawBal = c.opening_balance ?? c.openingBalance ?? c.balance ?? c.currentBalance;
+        const bal = Math.abs(Number(rawBal) || 0);
+        if (bal > 0) {
+          const nature = c.balance_nature || c.balanceNature || 'Debit';
+          const isDebit = String(nature).toLowerCase() === 'debit';
+          voucherInserts.push({
+            voucher_no: `OB-${assignedCode}`,
+            voucher_type: 'Journal Voucher',
+            voucher_date: c.created_at ? c.created_at.split('T')[0] : '2026-10-31',
+            account_code: assignedCode,
+            account_title: custName,
+            total_amount: bal,
+            debit: isDebit ? bal : 0,
+            credit: !isDebit ? bal : 0,
+            narration: `Opening Balance for Customer ${custName}`
+          });
+        }
+      }
+
+      // Upsert into chart_of_accounts
+      for (const coa of coaInserts) {
+        try {
+          const { data: existing } = await supabase.from('chart_of_accounts').select('id').eq('account_code', coa.account_code).maybeSingle();
+          if (existing?.id) {
+            await supabase.from('chart_of_accounts').update(coa).eq('id', existing.id);
+          } else {
+            await supabase.from('chart_of_accounts').insert([coa]);
+          }
+        } catch {}
+      }
+
+      // Replace old OB- vouchers with the clean 2020- vouchers in financial_vouchers
+      try {
+        await supabase.from('financial_vouchers').delete().like('voucher_no', 'OB-%');
+        if (voucherInserts.length > 0) {
+          await supabase.from('financial_vouchers').insert(voucherInserts);
+        }
+      } catch {}
+
+      if (!silent) {
+        toast.success(`Assigned auto account numbers (2020-001 to 2020-${String(sorted.length).padStart(3, '0')}) to all customers!`);
+      }
+      await fetchCustomersAndCOA();
+    } catch (err: any) {
+      console.error(err);
+      if (!silent) toast.error('Error assigning 2020 codes: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchCustomersAndCOA = async () => { 
     setLoading(true); 
     try { 
@@ -70,54 +170,54 @@ const CustomerHistory = () => {
     );
   };
 
-  const getNextSuggestedCode = () => {
-    let maxNum = 0;
-
-    // 1. Scan Chart of Accounts
-    const custAccounts = coaAccounts.filter(a => a.control_code === 'Customers' || String(a.account_code).startsWith('1020-'));
-    custAccounts.forEach(a => {
-      const match = String(a.account_code || '').match(/1020-(\d+)/);
-      if (match && match[1]) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
-    });
-
-    // 2. Scan existing customer records
-    customers.forEach((c: any) => {
-      const code = c.customer_code || c.customerCode || c.coa_code || c.account_code || '';
-      const match = String(code).match(/1020-(\d+)/);
-      if (match && match[1]) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
-    });
-
-    return `1020-${String(maxNum + 1).padStart(3, '0')}`;
+    const normalizeAccountCode = (code?: string | null) => {
+    if (!code) return '';
+    const s = String(code).trim();
+    if (s.startsWith('2020-')) return s;
+    const match = s.match(/^\d+$/);
+    if (match) {
+      return `2020-${s.padStart(3, '0')}`;
+    }
+    return s;
   };
 
-  const getLinkedLiabilityCode = (assetCode: string) => {
-    const clean = assetCode.trim();
-    const match = clean.match(/1020-(\d+)/);
-    if (match && match[1]) {
-      return `2020-${match[1]}`;
+  const getNextSuggestedCode = () => {
+    const usedCodes = new Set<string>();
+
+    coaAccounts.forEach(a => {
+      const code = String(a.account_code || '').trim().toUpperCase();
+      if (code) usedCodes.add(code);
+    });
+
+    customers.forEach((c: any) => {
+      const code1 = String(c.customer_code || '').trim().toUpperCase();
+      const code2 = String(c.customerCode || '').trim().toUpperCase();
+      const code3 = String(c.coa_code || '').trim().toUpperCase();
+      const code4 = String(c.account_code || '').trim().toUpperCase();
+      if (code1) usedCodes.add(code1);
+      if (code2) usedCodes.add(code2);
+      if (code3) usedCodes.add(code3);
+      if (code4) usedCodes.add(code4);
+    });
+
+    let seq = 1;
+    while (true) {
+      const candidate = `2020-${String(seq).padStart(3, '0')}`;
+      if (!usedCodes.has(candidate)) {
+        return candidate;
+      }
+      seq++;
     }
-    const cleanDigits = clean.replace(/^[^\d]*/, '');
-    return cleanDigits ? `2020-${cleanDigits}` : `2020-${clean}`;
   };
 
   const handleOpenAccountModal = (cust: any) => {
     setSelectedCustomer(cust);
     const existingCOA = getCustomerCOA(cust);
-    if (existingCOA) {
-      setAccountCodeInput(existingCOA.account_code || '');
-      setOpeningBalanceInput(existingCOA.opening_balance !== undefined && existingCOA.opening_balance !== null ? String(existingCOA.opening_balance) : '');
-      setBalanceNatureInput(existingCOA.balance_nature || 'Debit');
-    } else {
-      setAccountCodeInput(getNextSuggestedCode());
-      setOpeningBalanceInput('');
-      setBalanceNatureInput('Debit');
-    }
+    const rawCode = existingCOA?.account_code || cust.customer_code || cust.customerCode || cust.coa_code || cust.account_code || '';
+    const initialCode = rawCode ? normalizeAccountCode(rawCode) : getNextSuggestedCode();
+    setAccountCodeInput(initialCode);
+    setOpeningBalanceInput(existingCOA?.opening_balance !== undefined && existingCOA?.opening_balance !== null ? String(existingCOA.opening_balance) : (cust.opening_balance || cust.balance ? String(Math.abs(Number(cust.opening_balance || cust.balance))) : ''));
+    setBalanceNatureInput(existingCOA?.balance_nature || cust.balance_nature || 'Debit');
     setShowAccountModal(true);
   };
 
@@ -170,49 +270,43 @@ const CustomerHistory = () => {
         if (error) throw error;
       }
 
-      // 2. Auto-Create or Update Linked Customer Freight Liability Account (2020-xxx)
-      const liabilityCode = getLinkedLiabilityCode(cleanCode);
-      const existingLiabilityCOA = coaAccounts.find(a => 
-        String(a.account_code).trim().toLowerCase() === liabilityCode.toLowerCase() ||
-        (a.control_code === 'Customer Freight Liability' && (a.account_title || '').toLowerCase() === `${customerName.toLowerCase()} - freight liability`)
-      );
-
-      const liabilityPayload: any = {
-        category_code: '2. LIABILITIES',
-        sub_category_code: 'Current Liabilities',
-        control_code: 'Customer Freight Liability',
-        account_code: liabilityCode,
-        account_title: `${customerName} - Freight Liability`,
-        notes: `Customer freight charges payable liability for ${customerName}`
-      };
-
-      if (existingLiabilityCOA?.id) {
-        await supabase
-          .from('chart_of_accounts')
-          .update(liabilityPayload)
-          .eq('id', existingLiabilityCOA.id);
-      } else {
-        await supabase
-          .from('chart_of_accounts')
-          .insert([liabilityPayload]);
-      }
-
-      // Record Opening Balance in financial_vouchers if opening balance > 0
-      if (openingBalanceInput && Number(openingBalanceInput) > 0) {
-        const bal = Number(openingBalanceInput);
+      // --- TWO-WAY SYNC: UPDATE OR INSERT OPENING BALANCE FINANCIAL VOUCHER ---
+      if (openingBalanceInput !== undefined && openingBalanceInput !== '') {
+        const bal = Math.abs(Number(openingBalanceInput) || 0);
         try {
-          await supabase.from('financial_vouchers').insert([{
-            voucher_no: `OB-${cleanCode}`,
-            voucher_type: 'JV',
-            voucher_date: new Date().toISOString().split('T')[0],
+          const { data: existingVoucher } = await supabase
+            .from('financial_vouchers')
+            .select('id')
+            .or(`account_code.eq.${cleanCode},account_title.eq.${customerName}`)
+            .maybeSingle();
+
+          const isDebit = balanceNatureInput === 'Debit';
+          const voucherPayload: any = {
             account_code: cleanCode,
             account_title: customerName,
-            debit: balanceNatureInput === 'Debit' ? bal : 0,
-            credit: balanceNatureInput === 'Credit' ? bal : 0,
-            narration: `Opening Balance for Customer ${customerName}`
-          }]);
-        } catch (_) {
-          // Non-blocking if financial_vouchers has different required constraints
+            total_amount: bal,
+            debit: isDebit ? bal : 0,
+            credit: !isDebit ? bal : 0,
+            narration: `Opening Balance for Customer ${customerName}`,
+            items: []
+          };
+
+          if (existingVoucher) {
+            await supabase
+              .from('financial_vouchers')
+              .update(voucherPayload)
+              .eq('id', existingVoucher.id);
+          } else if (bal > 0) {
+            const vNum = cleanCode.replace('2020-', '');
+            await supabase.from('financial_vouchers').insert([{
+              voucher_no: `OB-${vNum}`,
+              voucher_type: 'Journal Voucher',
+              voucher_date: new Date().toISOString().split('T')[0],
+              ...voucherPayload
+            }]);
+          }
+        } catch (vErr) {
+          console.warn('Voucher sync note:', vErr);
         }
       }
 
@@ -235,7 +329,7 @@ const CustomerHistory = () => {
         console.warn('Customer record sync note:', err);
       }
 
-      toast.success(`Asset (${cleanCode}) & Freight Liability (${liabilityCode}) accounts assigned for "${getCustomerDisplayName(selectedCustomer)}"!`);
+      toast.success(`Customer account (${cleanCode}) assigned for "${getCustomerDisplayName(selectedCustomer)}"!`);
       setShowAccountModal(false);
       await fetchCustomersAndCOA();
     } catch (err: any) {
@@ -342,6 +436,11 @@ const CustomerHistory = () => {
     })
     .sort((a, b) => {
       if (!pageSortOrder) {
+        const rawCodeA = String(a.customer_code || a.customerCode || a.coa_code || a.account_code || '');
+        const rawCodeB = String(b.customer_code || b.customerCode || b.coa_code || b.account_code || '');
+        const numA = parseInt(rawCodeA.replace(/\D/g, '') || '999999', 10);
+        const numB = parseInt(rawCodeB.replace(/\D/g, '') || '999999', 10);
+        if (numA !== numB) return numA - numB;
         return getCustomerDisplayName(a).localeCompare(getCustomerDisplayName(b));
       }
 
@@ -450,61 +549,30 @@ const CustomerHistory = () => {
         <table className="w-full table-auto border-collapse"> 
           <thead> 
             <tr className={`bg-gray-2 dark:bg-meta-4 ${isRTL ? 'text-right' : 'text-left'}`}> 
-              <th 
-                onClick={() => setPageSortOrder(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
-                className="min-w-[95px] py-4 px-4 font-medium text-black dark:text-white text-sm cursor-pointer select-none hover:text-primary transition"
-                title="Click to toggle Page # sorting"
-              >
-                <div className="flex items-center gap-1">
-                  <span>{t('page_hash', 'Page #')}</span>
-                  {pageSortOrder === 'asc' && <MdArrowUpward size={14} className="text-primary font-bold" />}
-                  {pageSortOrder === 'desc' && <MdArrowDownward size={14} className="text-primary font-bold" />}
-                  {!pageSortOrder && <span className="text-[10px] text-gray-400 font-normal">⇅</span>}
-                </div>
-              </th>
-              <th className="min-w-[100px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('code', 'Code')}</th> 
-              <th className="min-w-[170px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('name', 'Name')}</th> 
-              <th className="min-w-[110px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('phone', 'Phone')}</th> 
-              <th className="min-w-[130px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('city_area', 'City / Area')}</th> 
-              <th className="min-w-[160px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('address', 'Address')}</th> 
-              <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white text-sm">{t('accounts', 'Accounts')}</th> 
-              <th className="py-4 px-4 font-medium text-black dark:text-white text-sm text-center w-28">{t('actions', 'Actions')}</th> 
+              <th className="w-16 py-4 px-4 font-bold text-black dark:text-white text-xs text-center">S#</th>
+              <th className="min-w-[170px] py-4 px-4 font-bold text-black dark:text-white text-xs">{t('name', 'Name')}</th> 
+              <th className="min-w-[110px] py-4 px-4 font-bold text-black dark:text-white text-xs">{t('phone', 'Phone')}</th> 
+              <th className="min-w-[130px] py-4 px-4 font-bold text-black dark:text-white text-xs">{t('city_area', 'City / Area')}</th> 
+              <th className="min-w-[160px] py-4 px-4 font-bold text-black dark:text-white text-xs">{t('address', 'Address')}</th> 
+              <th className="min-w-[150px] py-4 px-4 font-bold text-black dark:text-white text-xs text-center">{t('accounts', 'Account Code')}</th> 
+              <th className="py-4 px-4 font-bold text-black dark:text-white text-xs text-center w-28">{t('actions', 'Actions')}</th> 
             </tr> 
           </thead> 
           <tbody> 
             {loading ? ( 
-              <tr><td colSpan={8} className="text-center py-12"><Spinner /></td></tr> 
+              <tr><td colSpan={7} className="text-center py-12"><Spinner /></td></tr> 
             ) : paginatedCustomers.length === 0 ? ( 
-              <tr><td colSpan={8} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No matching customer entries found.</td></tr> 
+              <tr><td colSpan={7} className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">No matching customer entries found.</td></tr> 
             ) : ( 
-              paginatedCustomers.map((c) => {
+              paginatedCustomers.map((c, idx) => {
                 const coa = getCustomerCOA(c);
-                const custCode = c.customer_code || c.customerCode;
-                const pageNo = c.page_no || c.pageNo;
                 const loc = getCustomerLocation(c);
 
                 return ( 
                   <tr key={c.id} className="border-b border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4/10 duration-150"> 
-                    {/* 1. Page # */}
-                    <td className="py-3.5 px-4 text-sm">
-                      {pageNo ? (
-                        <span className="font-mono font-bold text-[11px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded">
-                          {pageNo}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-mono text-xs">-</span>
-                      )}
-                    </td>
-
-                    {/* 2. Code */}
-                    <td className="py-3.5 px-4 text-sm">
-                      {custCode ? (
-                        <span className="font-mono font-bold text-[11px] text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded">
-                          {custCode}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-mono text-xs">-</span>
-                      )}
+                    {/* 1. S# */}
+                    <td className="py-3.5 px-4 text-xs font-mono font-bold text-slate-700 dark:text-slate-300 text-center">
+                      {startIndex + idx + 1}
                     </td>
 
                     {/* 3. Name */}
@@ -554,20 +622,20 @@ const CustomerHistory = () => {
                       </p>
                     </td>
 
-                    {/* 8. Accounts */}
-                    <td className="py-3.5 px-4 text-sm">
-                      {coa ? (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-mono font-black text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 px-2 py-0.5 rounded shadow-2xs">
-                            {coa.account_code}
+                    {/* Accounts Code */}
+                    <td className="py-3.5 px-4 text-xs text-center">
+                      {c.customer_code || c.customerCode || c.coa_code || coa?.account_code ? (
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <span className="font-mono font-black text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 px-2.5 py-1 rounded-lg shadow-2xs">
+                            {normalizeAccountCode(c.customer_code || c.customerCode || c.coa_code || coa?.account_code)}
                           </span>
                           <button
                             type="button"
                             onClick={() => handleOpenAccountModal(c)}
-                            className="text-[11px] text-primary hover:underline font-bold cursor-pointer inline-flex items-center gap-0.5"
+                            className="text-[10px] text-primary hover:underline font-bold cursor-pointer inline-flex items-center gap-0.5"
                             title="Edit Account Code"
                           >
-                            <MdEdit size={12} /> Edit
+                            <MdEdit size={11} /> Edit
                           </button>
                         </div>
                       ) : (
@@ -710,40 +778,59 @@ const CustomerHistory = () => {
                   type="text"
                   value={accountCodeInput}
                   onChange={(e) => setAccountCodeInput(e.target.value)}
-                  placeholder="e.g. 1020-001"
+                  placeholder="e.g. 2020-001"
                   required
                   className="w-full rounded border border-stroke dark:border-strokedark px-3 h-10 bg-transparent font-mono font-bold text-sm text-black dark:text-white outline-none focus:border-primary"
                 />
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 p-2 rounded">
-                  <span>
-                    Linked Freight Liability: <strong className="font-mono text-purple-700 dark:text-purple-300 font-bold">{getLinkedLiabilityCode(accountCodeInput || '1020-001')}</strong>
-                  </span>
-                  <span className="text-[10px] text-gray-400 font-medium">(Auto-creates in 2. LIABILITIES)</span>
-                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
+                  Auto-links customer ledger under Chart of Accounts: <strong className="text-black dark:text-white font-mono">Customers ({accountCodeInput || '2020-xxx'})</strong>
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Opening Balance:</label>
+                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1.5">Opening Balance (PKR):</label>
                   <input
                     type="number"
                     step="any"
                     value={openingBalanceInput}
                     onChange={(e) => setOpeningBalanceInput(e.target.value)}
                     placeholder="0.00"
-                    className="w-full rounded border border-stroke dark:border-strokedark px-3 h-9 bg-transparent font-mono font-bold text-xs text-black dark:text-white outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-stroke dark:border-strokedark px-3 py-2 bg-slate-50/50 dark:bg-boxdark font-mono font-bold text-xs text-black dark:text-white outline-none focus:border-primary"
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">Initial balance owed or advance held</p>
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Balance Nature:</label>
-                  <select
-                    value={balanceNatureInput}
-                    onChange={(e) => setBalanceNatureInput(e.target.value as 'Debit' | 'Credit')}
-                    className="w-full rounded border border-stroke dark:border-strokedark px-3 h-9 bg-transparent font-bold text-xs text-black dark:text-white outline-none focus:border-primary dark:bg-boxdark"
-                  >
-                    <option value="Debit">Debit (Dr - Normal)</option>
-                    <option value="Credit">Credit (Cr - Advance)</option>
-                  </select>
+                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1.5">Balance Nature:</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBalanceNatureInput('Debit')}
+                      className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer border ${
+                        balanceNatureInput === 'Debit'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {balanceNatureInput === 'Debit' && <MdCheckCircle size={13} />}
+                      <span>Debit (Dr - Receivable)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBalanceNatureInput('Credit')}
+                      className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer border ${
+                        balanceNatureInput === 'Credit'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {balanceNatureInput === 'Credit' && <MdCheckCircle size={13} />}
+                      <span>Credit (Cr - Advance)</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {balanceNatureInput === 'Debit' ? 'Customer owes this amount (Receivable)' : 'Customer paid advance (Excess Credit)'}
+                  </p>
                 </div>
               </div>
 
