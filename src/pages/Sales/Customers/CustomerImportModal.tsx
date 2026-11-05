@@ -32,12 +32,14 @@ export interface ParsedCustomer {
   province: string;
   balance: number;
   balanceNature: 'Debit' | 'Credit';
+  assignedCode?: string;
   isValid: boolean;
   validationError?: string;
   isExisting?: boolean;
   existingId?: string | number;
   existingBalance?: number;
   existingCity?: string;
+  existingCode?: string;
 }
 
 export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
@@ -146,21 +148,49 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       return;
     }
 
-    // 1. Pre-fetch existing customers from database for duplicate/update detection
+    // 1. Pre-fetch existing customers and Chart of Accounts for duplicate/update detection & sequential code assignment
     let existingDbCustomers: any[] = [];
+    const usedCodes = new Set<string>();
+
     try {
-      const { data: dbCusts, error: custErr } = await supabase
-        .from('customers')
-        .select('id, customerName, customername, customer_name, city, province, address, balance, currentBalance, opening_balance');
-      if (!custErr && dbCusts) {
-        existingDbCustomers = dbCusts;
-      } else {
-        const { data: fallbackCusts } = await supabase.from('customers').select('*');
-        if (fallbackCusts) existingDbCustomers = fallbackCusts;
+      const [custQuery, coaQuery] = await Promise.all([
+        supabase
+          .from('customers')
+          .select('id, customerName, customername, customer_name, city, province, address, balance, currentBalance, opening_balance, customer_code, customerCode, coa_code, account_code'),
+        supabase
+          .from('chart_of_accounts')
+          .select('account_code')
+      ]);
+
+      if (custQuery.data) {
+        existingDbCustomers = custQuery.data;
+        custQuery.data.forEach((c: any) => {
+          ['customer_code', 'customerCode', 'coa_code', 'account_code'].forEach((k) => {
+            if (c[k]) usedCodes.add(String(c[k]).trim().toUpperCase());
+          });
+        });
+      }
+
+      if (coaQuery.data) {
+        coaQuery.data.forEach((a: any) => {
+          if (a.account_code) usedCodes.add(String(a.account_code).trim().toUpperCase());
+        });
       }
     } catch (e) {
-      console.warn('Could not query existing customers for duplicate detection:', e);
+      console.warn('Could not query existing customers or COA for code generation:', e);
     }
+
+    let nextCustomerSeq = 1;
+    const generateNextAccountCode = () => {
+      while (true) {
+        const candidate = `2020-${String(nextCustomerSeq).padStart(3, '0')}`;
+        nextCustomerSeq++;
+        if (!usedCodes.has(candidate)) {
+          usedCodes.add(candidate);
+          return candidate;
+        }
+      }
+    };
 
     // 2. Find header row indices (case-insensitive substring matches supporting English and Urdu)
     const headerRow = matrix[0].map((h) => String(h || '').trim().toLowerCase());
@@ -361,6 +391,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       const existingId = matchedDbCustomer?.id;
       const existingBalance = matchedDbCustomer?.currentBalance ?? matchedDbCustomer?.balance ?? matchedDbCustomer?.opening_balance;
       const existingCity = matchedDbCustomer?.city;
+      const existingCode = matchedDbCustomer?.customer_code || matchedDbCustomer?.customerCode || matchedDbCustomer?.coa_code || matchedDbCustomer?.account_code;
+      const assignedCode = isExisting && existingCode ? existingCode : generateNextAccountCode();
 
       list.push({
         id: `row-${r}-${Date.now()}`,
@@ -373,12 +405,14 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         province: province || 'Sindh',
         balance,
         balanceNature,
+        assignedCode,
         isValid,
         validationError,
         isExisting,
         existingId,
         existingBalance: existingBalance !== undefined ? Number(existingBalance) : undefined,
-        existingCity
+        existingCity,
+        existingCode
       });
     }
 
@@ -549,6 +583,13 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
 
           if (dbColumns.length === 0) {
             item['customerName'] = r.name;
+            if (r.assignedCode) {
+              item['customer_code'] = r.assignedCode;
+              item['customerCode'] = r.assignedCode;
+              item['coa_code'] = r.assignedCode;
+              item['account_code'] = r.assignedCode;
+            }
+            item['balance_nature'] = r.balanceNature || 'Debit';
             if (r.phone) item['primaryPhone'] = r.phone;
             item['city'] = r.city;
             item['province'] = r.province || 'Sindh';
@@ -565,6 +606,15 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
             setCol('customername', r.name);
             setCol('customer_name', r.name);
             setCol('name', r.name);
+
+            if (r.assignedCode) {
+              setCol('customer_code', r.assignedCode);
+              setCol('customerCode', r.assignedCode);
+              setCol('coa_code', r.assignedCode);
+              setCol('account_code', r.assignedCode);
+            }
+            setCol('balance_nature', r.balanceNature || 'Debit');
+            setCol('balanceNature', r.balanceNature || 'Debit');
 
             if (r.tier) {
               setCol('registrationType', r.tier);
@@ -627,6 +677,70 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
 
           if (error) throw error;
           insertedCount += batch.length;
+        }
+
+        // 4. Automatically create / sync Chart of Accounts ledgers for all new customers
+        for (const r of toInsert) {
+          if (r.assignedCode) {
+            const rawBal = Number(r.balance) || 0;
+            const coaPayload = {
+              account_code: r.assignedCode,
+              account_title: r.name,
+              category_code: '1. ASSETS',
+              sub_category_code: 'Current Assets',
+              control_code: 'Customers',
+              opening_balance: Math.abs(rawBal),
+              balance_nature: r.balanceNature || 'Debit',
+              notes: `Customer ledger account for ${r.name} (Auto-assigned from Excel import)`
+            };
+            try {
+              const { data: existingCOA } = await supabase
+                .from('chart_of_accounts')
+                .select('id')
+                .eq('account_code', r.assignedCode)
+                .maybeSingle();
+
+              if (existingCOA?.id) {
+                await supabase.from('chart_of_accounts').update(coaPayload).eq('id', existingCOA.id);
+              } else {
+                await supabase.from('chart_of_accounts').insert([coaPayload]);
+              }
+            } catch (coaErr) {
+              console.warn('COA auto-sync note in Excel import:', coaErr);
+            }
+          }
+        }
+
+        // 5. Automatically create Opening Balance Journal Vouchers (financial_vouchers)
+        const voucherInserts: any[] = [];
+        for (const r of toInsert) {
+          const rawBal = Number(r.balance) || 0;
+          const bal = Math.abs(rawBal);
+          if (bal > 0 && r.assignedCode) {
+            const isDebit = r.balanceNature !== 'Credit';
+            const vNum = r.assignedCode.replace('2020-', '');
+            voucherInserts.push({
+              voucher_no: `OB-${vNum}`,
+              voucher_type: 'Journal Voucher',
+              voucher_date: new Date().toISOString().split('T')[0],
+              account_code: r.assignedCode,
+              account_title: r.name,
+              total_amount: bal,
+              debit: isDebit ? bal : 0,
+              credit: !isDebit ? bal : 0,
+              narration: `Opening Balance for Customer ${r.name}`,
+              items: []
+            });
+          }
+        }
+
+        if (voucherInserts.length > 0) {
+          try {
+            const { error: vErr } = await supabase.from('financial_vouchers').insert(voucherInserts);
+            if (vErr) console.warn('Opening balance vouchers insert note:', vErr);
+          } catch (vErr) {
+            console.warn('Voucher insert note:', vErr);
+          }
         }
       }
 
@@ -834,6 +948,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                     <tr>
                       <th className="py-2.5 px-3 w-8">#</th>
                       <th className="py-2.5 px-3">Customer Name *</th>
+                      <th className="py-2.5 px-3 text-center">Account Code</th>
                       <th className="py-2.5 px-3 text-center">Action</th>
                       <th className="py-2.5 px-3">City *</th>
                       <th className="py-2.5 px-3">Area</th>
@@ -868,6 +983,17 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                             <span className="text-[10px] text-slate-400 block font-normal">
                               {row.tier}
                             </span>
+                          )}
+                        </td>
+
+                        {/* Account Code (Auto-assigned row-wise e.g. 2020-034) */}
+                        <td className="py-2 px-3 text-center">
+                          {row.assignedCode ? (
+                            <span className="font-mono font-bold text-primary dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded text-[11px]">
+                              {row.assignedCode}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-mono text-[11px]">-</span>
                           )}
                         </td>
 
