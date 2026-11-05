@@ -153,6 +153,18 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<string>('voucher_no');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'total_amount' || field === 'voucher_date' ? 'desc' : 'asc');
+    }
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     fetchVoucherLedgerHistory();
@@ -210,11 +222,38 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
     v.narration?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalEntries = filteredVouchers.length;
+  const sortedVouchers = [...filteredVouchers].sort((a, b) => {
+    let valA: any = a[sortField];
+    let valB: any = b[sortField];
+
+    if (sortField === 'total_amount') {
+      valA = Number(valA || a.debit || a.credit || 0);
+      valB = Number(valB || b.debit || b.credit || 0);
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    }
+
+    if (sortField === 'voucher_date') {
+      const timeA = new Date(valA || a.created_at || 0).getTime();
+      const timeB = new Date(valB || b.created_at || 0).getTime();
+      return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+    }
+
+    if (sortField === 'voucher_no') {
+      return sortDirection === 'asc'
+        ? String(valA || '').localeCompare(String(valB || ''), undefined, { numeric: true, sensitivity: 'base' })
+        : String(valB || '').localeCompare(String(valA || ''), undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    const strA = String(valA || a.narration || a.notes || '').toLowerCase();
+    const strB = String(valB || b.narration || b.notes || '').toLowerCase();
+    return sortDirection === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+  });
+
+  const totalEntries = sortedVouchers.length;
   const totalPages = Math.ceil(totalEntries / pageSize);
   const startIndex = totalEntries === 0 ? 0 : (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalEntries);
-  const paginatedVouchers = filteredVouchers.slice(startIndex, startIndex + pageSize);
+  const paginatedVouchers = sortedVouchers.slice(startIndex, startIndex + pageSize);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -225,6 +264,17 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
   const addRoute = activeConfig ? activeConfig.addRoute : '/Registration/Vouchers/Add';
   const addLabel = activeConfig ? activeConfig.addLabel : '+ Add New Voucher';
   const HeaderIcon = activeConfig ? activeConfig.icon : MdReceipt;
+
+  const renderSortIndicator = (field: string) => {
+    if (sortField !== field) {
+      return <span className="text-[10px] text-gray-400 opacity-40 group-hover:opacity-100 transition">↕</span>;
+    }
+    return (
+      <span className="text-[10px] text-primary font-bold">
+        {sortDirection === 'asc' ? '▲' : '▼'}
+      </span>
+    );
+  };
 
   return (
     <div className="mx-auto max-w-7xl flex flex-col gap-6 relative text-xs">
@@ -281,11 +331,56 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
             <thead>
               <tr className="bg-gray-2 text-left dark:bg-meta-4 text-xs font-bold uppercase tracking-wider text-black dark:text-white border-b border-stroke dark:border-strokedark">
                 <th className="py-4 px-4 font-semibold w-16 text-center">S#</th>
-                <th className="py-4 px-4 font-semibold w-36">Voucher Slip No</th>
-                <th className="py-4 px-4 font-semibold w-48">Classification Type</th>
-                <th className="py-4 px-4 font-semibold">Description Note / Accounts</th>
-                <th className="py-4 px-4 font-semibold text-right w-36">Total Amount</th>
-                <th className="py-4 px-4 font-semibold text-center w-32">Voucher Date</th>
+                <th
+                  onClick={() => handleSort('voucher_no')}
+                  className="py-4 px-4 font-semibold w-36 cursor-pointer select-none hover:text-primary transition group"
+                  title="Click to sort by Voucher Slip No"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Voucher Slip No</span>
+                    {renderSortIndicator('voucher_no')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('voucher_type')}
+                  className="py-4 px-4 font-semibold w-48 cursor-pointer select-none hover:text-primary transition group"
+                  title="Click to sort by Classification Type"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Classification Type</span>
+                    {renderSortIndicator('voucher_type')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('account_title')}
+                  className="py-4 px-4 font-semibold cursor-pointer select-none hover:text-primary transition group"
+                  title="Click to sort by Description Note / Accounts"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Description Note / Accounts</span>
+                    {renderSortIndicator('account_title')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('total_amount')}
+                  className="py-4 px-4 font-semibold text-right w-36 cursor-pointer select-none hover:text-primary transition group"
+                  title="Click to sort by Total Amount"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Total Amount</span>
+                    {renderSortIndicator('total_amount')}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort('voucher_date')}
+                  className="py-4 px-4 font-semibold text-center w-36 cursor-pointer select-none hover:text-primary transition group"
+                  title="Click to sort by Voucher Date"
+                >
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>Voucher Date</span>
+                    {renderSortIndicator('voucher_date')}
+                  </div>
+                </th>
                 <th className="py-4 px-4 font-semibold text-center w-24">Actions</th>
               </tr>
             </thead>
