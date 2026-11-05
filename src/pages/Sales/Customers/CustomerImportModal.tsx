@@ -32,6 +32,7 @@ export interface ParsedCustomer {
   province: string;
   balance: number;
   balanceNature: 'Debit' | 'Credit';
+  openingDate?: string;
   assignedCode?: string;
   isValid: boolean;
   validationError?: string;
@@ -52,6 +53,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
   const [fileName, setFileName] = useState<string>('');
   const [importing, setImporting] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [batchOpeningDate, setBatchOpeningDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Clear state on modal close
@@ -203,6 +205,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
     let provinceIdx = -1;
     let balIdx = -1;
     let natureIdx = -1;
+    let dateIdx = -1;
 
     headerRow.forEach((col, idx) => {
       // Customer Name
@@ -318,6 +321,18 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       ) {
         if (natureIdx === -1) natureIdx = idx;
       }
+      // Opening Balance Date
+      else if (
+        col.includes('opening date') ||
+        col.includes('balance date') ||
+        col.includes('voucher date') ||
+        col.includes('ob date') ||
+        col.includes('entry date') ||
+        col.includes('تاریخ') ||
+        col === 'date'
+      ) {
+        if (dateIdx === -1) dateIdx = idx;
+      }
     });
 
     // Fallbacks if exact headers were omitted
@@ -330,6 +345,33 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
     if (natureIdx === -1 && matrix[0].length > 6) natureIdx = 6;
 
     const list: ParsedCustomer[] = [];
+
+    const parseExcelDate = (val: any): string => {
+      if (!val) return '';
+      if (typeof val === 'number') {
+        try {
+          const parsed = XLSX.SSF.parse_date_code(val);
+          if (parsed) {
+            return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+          }
+        } catch {}
+      }
+      const s = String(val).trim();
+      if (!s) return '';
+      const isoMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (isoMatch) {
+        return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-${String(isoMatch[3]).padStart(2, '0')}`;
+      }
+      const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (dmyMatch) {
+        return `${dmyMatch[3]}-${String(dmyMatch[2]).padStart(2, '0')}-${String(dmyMatch[1]).padStart(2, '0')}`;
+      }
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+      }
+      return '';
+    };
 
     const normalizeText = (s: string) =>
       String(s || '')
@@ -368,6 +410,10 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         balanceNature = 'Debit';
       }
 
+      // Opening Balance Date
+      const rawDate = dateIdx !== -1 && row[dateIdx] !== undefined ? row[dateIdx] : '';
+      const openingDate = parseExcelDate(rawDate) || batchOpeningDate;
+
       // City validation & preservation
       let isValid = true;
       let validationError = '';
@@ -405,6 +451,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         province: province || 'Sindh',
         balance,
         balanceNature,
+        openingDate,
         assignedCode,
         isValid,
         validationError,
@@ -442,7 +489,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         'Delivery Address',
         'Province',
         'Opening Balance',
-        'Balance Nature'
+        'Balance Nature',
+        'Opening Balance Date'
       ],
       [
         'Tariq Fabric Centre',
@@ -453,7 +501,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         'Shop # 14, Resham Gali Market',
         'Sindh',
         85000,
-        'Debit'
+        'Debit',
+        '2026-10-31'
       ],
       [
         'Al-Madina Cloth House',
@@ -464,7 +513,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         'مین بازار، نزد اسٹیشن روڈ، ماتلی',
         'Sindh',
         15000,
-        'Debit'
+        'Debit',
+        '2026-10-31'
       ],
       [
         'Ibrahim Textile Traders',
@@ -475,7 +525,8 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
         'Shop 4, Main Sarafa Bazaar',
         'Sindh',
         25000,
-        'Credit'
+        'Credit',
+        '2026-10-31'
       ],
     ];
 
@@ -490,6 +541,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       { wch: 16 }, // Province
       { wch: 18 }, // Opening Balance
       { wch: 16 }, // Balance Nature
+      { wch: 20 }, // Opening Balance Date
     ];
 
     const wb = XLSX.utils.book_new();
@@ -722,7 +774,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
             voucherInserts.push({
               voucher_no: `OB-${vNum}`,
               voucher_type: 'Journal Voucher',
-              voucher_date: new Date().toISOString().split('T')[0],
+              voucher_date: r.openingDate || batchOpeningDate || new Date().toISOString().split('T')[0],
               account_code: r.assignedCode,
               account_title: r.name,
               total_amount: bal,
@@ -928,17 +980,32 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setParsedData([]);
-                    setFileName('');
-                  }}
-                  className="text-xs text-rose-500 hover:text-rose-700 font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  <MdDeleteOutline size={15} />
-                  <span>Clear List</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-boxdark px-2.5 py-1 rounded-lg border border-stroke dark:border-strokedark">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      Default OB Date:
+                    </label>
+                    <input
+                      type="date"
+                      value={batchOpeningDate}
+                      onChange={(e) => setBatchOpeningDate(e.target.value)}
+                      className="bg-transparent font-mono text-xs font-semibold text-black dark:text-white outline-none cursor-pointer"
+                      title="Fallback date for Opening Balance vouchers if row doesn't have a date"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setParsedData([]);
+                      setFileName('');
+                    }}
+                    className="text-xs text-rose-500 hover:text-rose-700 font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <MdDeleteOutline size={15} />
+                    <span>Clear List</span>
+                  </button>
+                </div>
               </div>
 
               {/* Data Table */}
@@ -957,6 +1024,7 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                       <th className="py-2.5 px-3">Phone</th>
                       <th className="py-2.5 px-3 text-right">Opening Bal.</th>
                       <th className="py-2.5 px-3 text-center">Nature</th>
+                      <th className="py-2.5 px-3 text-center">OB Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stroke dark:divide-strokedark">
@@ -1060,6 +1128,10 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                           >
                             {row.balanceNature === 'Credit' ? 'Credit (Cr)' : 'Debit (Dr)'}
                           </span>
+                        </td>
+
+                        <td className="py-2 px-3 text-center font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                          {row.openingDate || batchOpeningDate}
                         </td>
                       </tr>
                     ))}

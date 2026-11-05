@@ -261,6 +261,37 @@ const AddCustomer: React.FC = () => {
   // Extract customer data if passed via navigation (Edit Mode) or fetched from DB
   const editData = location.state?.customer || fetchedCustomer;
   const isEditMode = !!(id || editData);
+  const [existingOBDate, setExistingOBDate] = useState<string>('');
+
+  useEffect(() => {
+    if (editData) {
+      const code = editData.customer_code || editData.customerCode || editData.coa_code;
+      const name = editData.customerName || editData.customername || editData.customer_name || editData.name;
+      if (code || name) {
+        let q = supabase
+          .from('financial_vouchers')
+          .select('voucher_date')
+          .like('voucher_no', 'OB-%');
+
+        if (code && name) {
+          q = q.or(`account_code.eq.${code},account_title.eq.${name}`);
+        } else if (code) {
+          q = q.eq('account_code', code);
+        } else {
+          q = q.eq('account_title', name);
+        }
+
+        q.order('id', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data?.voucher_date) {
+              setExistingOBDate(data.voucher_date);
+            }
+          });
+      }
+    }
+  }, [editData]);
 
   // Universal redirect helper back to customer list
   const handleNavigateToList = () => {
@@ -559,11 +590,14 @@ const AddCustomer: React.FC = () => {
       setCol('notes', values.notes ? values.notes.trim() : '');
       setCol('followUpDate', values.followUpDate || null);
 
+      const obDate = values.openingBalanceDate || new Date().toISOString().split('T')[0];
       setCol('opening_balance', Math.abs(parsedOpeningBal));
       setCol('balance', computedBalance);
       setCol('currentBalance', computedBalance);
       setCol('balance_nature', values.balanceNature || 'Debit');
       setCol('balanceNature', values.balanceNature || 'Debit');
+      setCol('opening_balance_date', obDate);
+      setCol('openingBalanceDate', obDate);
 
       // If Sub Area or Area was entered but DB has no dedicated columns, preserve in notes
       const sVal = values.subArea ? values.subArea.trim() : '';
@@ -675,17 +709,39 @@ const AddCustomer: React.FC = () => {
 
           // --- TWO-WAY SYNC: UPDATE OR INSERT OPENING BALANCE FINANCIAL VOUCHER ---
           try {
-            const { data: existingVoucher } = await supabase
+            let voucherQuery = supabase
               .from('financial_vouchers')
               .select('id')
-              .or(`account_code.eq.${cleanCode},account_title.eq.${trimmedName}`)
-              .maybeSingle();
+              .like('voucher_no', 'OB-%');
+
+            if (cleanCode && trimmedName) {
+              voucherQuery = voucherQuery.or(`account_code.eq.${cleanCode},account_title.eq.${trimmedName}`);
+            } else if (cleanCode) {
+              voucherQuery = voucherQuery.eq('account_code', cleanCode);
+            } else {
+              voucherQuery = voucherQuery.eq('account_title', trimmedName);
+            }
+
+            let { data: existingVoucher } = await voucherQuery.maybeSingle();
+
+            if (!existingVoucher) {
+              const { data: fallbackVoucher } = await supabase
+                .from('financial_vouchers')
+                .select('id')
+                .ilike('narration', '%Opening Balance%')
+                .or(`account_code.eq.${cleanCode},account_title.eq.${trimmedName}`)
+                .maybeSingle();
+              if (fallbackVoucher) {
+                existingVoucher = fallbackVoucher;
+              }
+            }
 
             const isDebit = values.balanceNature !== 'Credit';
             const bal = Math.abs(parsedOpeningBal);
             const voucherPayload: any = {
               account_code: cleanCode,
               account_title: trimmedName,
+              voucher_date: obDate,
               total_amount: bal,
               debit: isDebit ? bal : 0,
               credit: !isDebit ? bal : 0,
@@ -703,7 +759,6 @@ const AddCustomer: React.FC = () => {
               await supabase.from('financial_vouchers').insert([{
                 voucher_no: `OB-${vNum}`,
                 voucher_type: 'Journal Voucher',
-                voucher_date: new Date().toISOString().split('T')[0],
                 ...voucherPayload
               }]);
             }
@@ -823,7 +878,8 @@ const AddCustomer: React.FC = () => {
             : (editData.currentBalance !== undefined && editData.currentBalance !== null && editData.currentBalance !== ''
                 ? Math.abs(Number(editData.currentBalance))
                 : (editData.balance !== undefined && editData.balance !== null && editData.balance !== '' ? Math.abs(Number(editData.balance)) : '')),
-          balanceNature: editData.balance_nature || editData.balanceNature || ((editData.currentBalance && Number(editData.currentBalance) < 0) || (editData.balance && Number(editData.balance) < 0) ? 'Credit' : 'Debit')
+          balanceNature: editData.balance_nature || editData.balanceNature || ((editData.currentBalance && Number(editData.currentBalance) < 0) || (editData.balance && Number(editData.balance) < 0) ? 'Credit' : 'Debit'),
+          openingBalanceDate: existingOBDate || editData.opening_balance_date || editData.openingBalanceDate || (editData.created_at ? editData.created_at.split('T')[0] : new Date().toISOString().split('T')[0])
         } : {
           customerName: '',
           subArea: '',
@@ -844,7 +900,8 @@ const AddCustomer: React.FC = () => {
           notes: '',
           followUpDate: '',
           openingBalance: '',
-          balanceNature: 'Debit'
+          balanceNature: 'Debit',
+          openingBalanceDate: new Date().toISOString().split('T')[0]
         }}
         enableReinitialize={true}
         validationSchema={validationSchema}
@@ -1203,16 +1260,37 @@ const AddCustomer: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Balance Nature */}
+                  {/* Opening Balance Date */}
                   <div>
+                    <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                      <span className="flex items-center gap-1.5">
+                        <MdCalendarToday className="text-primary text-sm" />
+                        <span>Opening Balance Date</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Effective Date</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="openingBalanceDate"
+                      onChange={handleChange}
+                      value={values.openingBalanceDate || ''}
+                      className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Date assigned to Opening Balance journal voucher in ledger statements
+                    </p>
+                  </div>
+
+                  {/* Balance Nature */}
+                  <div className="md:col-span-2">
                     <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                       Balance Nature:
                     </label>
-                    <div className="flex items-center gap-2 pt-0.5">
+                    <div className="flex items-center gap-3 pt-0.5">
                       <button
                         type="button"
                         onClick={() => setFieldValue('balanceNature', 'Debit')}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
                           (values.balanceNature || 'Debit') === 'Debit'
                             ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                             : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1225,7 +1303,7 @@ const AddCustomer: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setFieldValue('balanceNature', 'Credit')}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
+                        className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border ${
                           values.balanceNature === 'Credit'
                             ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
                             : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1235,7 +1313,7 @@ const AddCustomer: React.FC = () => {
                         <span>Credit (Cr - Advance)</span>
                       </button>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-slate-400 mt-1.5">
                       {(values.balanceNature || 'Debit') === 'Debit'
                         ? 'Customer owes this amount (Receivable)'
                         : 'Customer paid advance / excess credit (Payable)'}
