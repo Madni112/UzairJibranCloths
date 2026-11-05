@@ -636,6 +636,9 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
               ? (effectiveDebit > 0 ? effectiveDebit : effectiveCredit)
               : sumDebits;
 
+            const isCust = activePreset === 'SAV' || activePreset === 'SRV' || activePreset === 'CRV' || (firstItem.accountCode && String(firstItem.accountCode).startsWith('2020'));
+            const isVend = activePreset === 'PAV' || activePreset === 'PRV' || activePreset === 'VPV' || (firstItem.accountCode && String(firstItem.accountCode).startsWith('2010'));
+
             const databasePayload: any = {
               voucher_no: values.voucherNo,
               voucher_type: values.voucherType,
@@ -648,7 +651,13 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
               debit: isSingleRowMode ? effectiveDebit : sumDebits,
               credit: isSingleRowMode ? effectiveCredit : sumCredits,
               notes: values.notes.trim(),
-              status: editData?.status || 'Posted'
+              status: editData?.status || 'Posted',
+              metadata: {
+                preset: activePreset,
+                party_type: isCust ? 'customer' : isVend ? 'vendor' : 'general',
+                party_code: firstItem.accountCode || editData?.account_code || '',
+                party_name: firstAcc?.account_title || editData?.account_title || ''
+              }
             };
 
             const executeSave = async (payloadToTry: any) => {

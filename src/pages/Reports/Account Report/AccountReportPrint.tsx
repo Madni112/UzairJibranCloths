@@ -236,9 +236,18 @@ const AccountReportPrint = () => {
                         // Match returns for this customer
                         const custReturns = allReturns.filter(r => (r.customer_name || '').trim().toLowerCase() === custName.toLowerCase());
 
-                        // Match vouchers/receipts specifically for this customer (exact customer name matching only)
+                        const custCode = String(cust.customer_code || cust.customerCode || '').trim().toLowerCase();
+                        const custNameLower = custName.toLowerCase();
+
+                        // Match all vouchers for this customer (SAV, SRV, CRV, BRV, JV, etc.)
                         const custVouchers = allVouchers.filter(v => {
-                            const voucherCust = (
+                            const vCode = String(v.account_code || v.customer_code || v.metadata?.customer_code || '').trim().toLowerCase();
+                            if (custCode && (vCode === custCode || vCode.endsWith(custCode) || custCode.endsWith(vCode))) {
+                                return true;
+                            }
+
+                            const vTitle = String(
+                                v.account_title || 
                                 v.customer_name || 
                                 v.customerName || 
                                 v.metadata?.customer_name || 
@@ -246,24 +255,141 @@ const AccountReportPrint = () => {
                                 v.meta?.customer_name || 
                                 v.meta?.customerName || 
                                 ''
-                            ).trim();
+                            ).trim().toLowerCase();
 
-                            const isReceiptType = !v.voucher_type || 
-                                v.voucher_type.toLowerCase().includes('receipt') || 
-                                v.voucher_type.toLowerCase().includes('crv') || 
-                                v.voucher_type.toLowerCase().includes('brv') || 
-                                v.meta?.moduleSource === 'sales_receipt' ||
-                                v.metadata?.moduleSource === 'sales_receipt';
+                            if (custNameLower && vTitle) {
+                                if (vTitle === custNameLower) return true;
+                                if (custNameLower.length >= 3 && vTitle.includes(custNameLower)) return true;
+                                if (vTitle.length >= 3 && custNameLower.includes(vTitle)) return true;
+                            }
 
-                            if (!isReceiptType) return false;
-
-                            // Direct customer name match
-                            if (voucherCust && voucherCust.toLowerCase() === custName.toLowerCase()) {
-                                return true;
+                            if (Array.isArray(v.items) && v.items.length > 0) {
+                                return v.items.some((it: any) => {
+                                    const itCode = String(it.accountCode || it.account_code || '').trim().toLowerCase();
+                                    const itTitle = String(it.accountTitle || it.account_title || '').trim().toLowerCase();
+                                    if (custCode && (itCode === custCode || itCode.endsWith(custCode))) return true;
+                                    if (custNameLower && (itTitle === custNameLower || (custNameLower.length >= 3 && itTitle.includes(custNameLower)))) return true;
+                                    return false;
+                                });
                             }
 
                             return false;
                         });
+
+                        // Helper to calculate impact of a voucher on this customer
+                        const getVoucherImpact = (vch: any) => {
+                            const vNo = String(vch.voucher_no || '').trim().toUpperCase();
+                            const vType = String(vch.voucher_type || '').toLowerCase();
+                            const narration = String(vch.narration || vch.notes || '').toLowerCase();
+
+                            // 1. Skip OB (Opening balance vouchers - e.g. OB-002, OB-2020-002)
+                            // Because rawCustOpening already accounts for the opening balance!
+                            const isOpening = vNo.startsWith('OB-') || narration.includes('opening balance');
+                            if (isOpening) {
+                                return { isOpening: true, debit: 0, credit: 0, type: 'Opening Balance Voucher', notes: '' };
+                            }
+
+                            // 2. SAV: Sale Amount Voucher (Sales Debit)
+                            if (vNo.startsWith('SAV-') || vType.includes('sale amount') || vType.includes('sales amount')) {
+                                const amt = Number(vch.total_amount || vch.debit || 0);
+                                return {
+                                    isOpening: false,
+                                    debit: amt,
+                                    credit: 0,
+                                    type: 'Sale Amount Voucher',
+                                    notes: vch.narration || vch.notes || 'Sale Amount Voucher Issued'
+                                };
+                            }
+
+                            // 3. SRV: Sale Return Voucher (Sales Return Credit)
+                            if (vNo.startsWith('SRV-') || vType.includes('sale return') || vType.includes('sales return')) {
+                                const amt = Number(vch.total_amount || vch.credit || 0);
+                                return {
+                                    isOpening: false,
+                                    debit: 0,
+                                    credit: amt,
+                                    type: 'Sale Return Voucher',
+                                    notes: vch.narration || vch.notes || 'Sale Return'
+                                };
+                            }
+
+                            // 4. CRV / BRV / Cash Receipt / Bank Receipt Voucher (Payment/Receipt Credit)
+                            if (vNo.startsWith('CRV-') || vNo.startsWith('BRV-') || vType.includes('receipt') || vType.includes('receive')) {
+                                const amt = Number(vch.total_amount || vch.credit || vch.amount || 0);
+                                return {
+                                    isOpening: false,
+                                    debit: 0,
+                                    credit: amt,
+                                    type: 'Receipt Voucher',
+                                    notes: vch.original_invoice_no 
+                                        ? `Against Invoice ${vch.original_invoice_no}` 
+                                        : (vch.narration || vch.notes || (vch.payment_mode ? `Mode: ${vch.payment_mode}` : 'Cash Drawer Payment'))
+                                };
+                            }
+
+                            // 5. Multi-row items check if present
+                            if (Array.isArray(vch.items) && vch.items.length > 0) {
+                                let itDr = 0;
+                                let itCr = 0;
+                                vch.items.forEach((it: any) => {
+                                    const itCode = String(it.accountCode || it.account_code || '').trim().toLowerCase();
+                                    const itTitle = String(it.accountTitle || it.account_title || '').trim().toLowerCase();
+                                    const match = (custCode && (itCode === custCode || itCode.endsWith(custCode))) ||
+                                                  (custNameLower && (itTitle === custNameLower || (custNameLower.length >= 3 && itTitle.includes(custNameLower))));
+                                    if (match) {
+                                        itDr += Number(it.debit || 0);
+                                        itCr += Number(it.credit || 0);
+                                    }
+                                });
+                                if (itDr > 0 || itCr > 0) {
+                                    return {
+                                        isOpening: false,
+                                        debit: itDr,
+                                        credit: itCr,
+                                        type: vch.voucher_type || 'Journal Voucher',
+                                        notes: vch.narration || vch.notes || 'Journal Entry'
+                                    };
+                                }
+                            }
+
+                            // 6. Generic voucher: check debit/credit
+                            const d = Number(vch.debit || 0);
+                            const c = Number(vch.credit || 0);
+                            if (d > 0 && c === 0) {
+                                return {
+                                    isOpening: false,
+                                    debit: d,
+                                    credit: 0,
+                                    type: vch.voucher_type || 'Voucher (Dr)',
+                                    notes: vch.narration || vch.notes || 'Voucher Debit Entry'
+                                };
+                            }
+                            if (c > 0 && d === 0) {
+                                return {
+                                    isOpening: false,
+                                    debit: 0,
+                                    credit: c,
+                                    type: vch.voucher_type || 'Receipt Voucher',
+                                    notes: vch.narration || vch.notes || 'Voucher Credit Entry'
+                                };
+                            }
+
+                            const tot = Number(vch.total_amount || 0);
+                            return {
+                                isOpening: false,
+                                debit: tot,
+                                credit: 0,
+                                type: vch.voucher_type || 'Voucher',
+                                notes: vch.narration || vch.notes || ''
+                            };
+                        };
+
+                        const isVoucherLinkedToInvoice = (v: any) => {
+                            const impact = getVoucherImpact(v);
+                            if (impact.isOpening || impact.credit <= 0) return false;
+                            const ref = String(v.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
+                            return Boolean(ref && customerInvoiceIdSet.has(ref));
+                        };
 
                         // Map invoice IDs for customer
                         const customerInvoiceIdSet = new Set(custInvoices.map(i => String(i.id).trim().toLowerCase()));
@@ -296,10 +422,12 @@ const AccountReportPrint = () => {
                                 const initialPaid = Number(inv.cash_amount_paid || inv.amount_paid || 0);
 
                                 const linkedVouchers = custVouchers.filter(v => {
+                                    const impact = getVoucherImpact(v);
+                                    if (impact.isOpening || impact.credit <= 0) return false;
                                     const ref = String(v.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
                                     return ref === invIdStr;
                                 });
-                                const linkedVouchersSum = linkedVouchers.reduce((s, v) => s + Number(v.total_amount || v.amount || 0), 0);
+                                const linkedVouchersSum = linkedVouchers.reduce((s, v) => s + getVoucherImpact(v).credit, 0);
 
                                 const linkedReturns = custReturns.filter(r => {
                                     const ref = String(r.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
@@ -314,15 +442,16 @@ const AccountReportPrint = () => {
                             }
                         });
 
-                        // Unlinked vouchers prior to DateFrom (general advances / on-account receipts)
+                        // Unlinked vouchers prior to DateFrom (general advances / on-account receipts / SAV debits)
                         custVouchers.forEach(vch => {
-                            const ref = String(vch.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
-                            const isUnlinked = !ref || !customerInvoiceIdSet.has(ref);
-                            if (isUnlinked) {
+                            const impact = getVoucherImpact(vch);
+                            if (impact.isOpening) return;
+                            if (!isVoucherLinkedToInvoice(vch)) {
                                 const d = vch.voucher_date || vch.created_at;
                                 const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
                                 if (t < startTimestamp) {
-                                    openingCredit += Number(vch.total_amount || vch.amount || 0);
+                                    openingDebit += impact.debit;
+                                    openingCredit += impact.credit;
                                 }
                             }
                         });
@@ -356,10 +485,12 @@ const AccountReportPrint = () => {
                                 const initialPaid = Number(inv.cash_amount_paid || inv.amount_paid || 0);
 
                                 const linkedVouchers = custVouchers.filter(v => {
+                                    const impact = getVoucherImpact(v);
+                                    if (impact.isOpening || impact.credit <= 0) return false;
                                     const ref = String(v.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
                                     return ref === invIdStr;
                                 });
-                                const linkedVouchersSum = linkedVouchers.reduce((s, v) => s + Number(v.total_amount || v.amount || 0), 0);
+                                const linkedVouchersSum = linkedVouchers.reduce((s, v) => s + getVoucherImpact(v).credit, 0);
 
                                 const linkedReturns = custReturns.filter(r => {
                                     const ref = String(r.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
@@ -375,15 +506,16 @@ const AccountReportPrint = () => {
                             }
                         });
 
-                        // Unlinked vouchers within period (general advances / on-account receipts)
+                        // Unlinked vouchers within period (SAV debits, general advances, receipts)
                         custVouchers.forEach(vch => {
-                            const ref = String(vch.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
-                            const isUnlinked = !ref || !customerInvoiceIdSet.has(ref);
-                            if (isUnlinked) {
+                            const impact = getVoucherImpact(vch);
+                            if (impact.isOpening) return;
+                            if (!isVoucherLinkedToInvoice(vch)) {
                                 const d = vch.voucher_date || vch.created_at;
                                 const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
                                 if (t >= startTimestamp && t <= endTimestamp) {
-                                    periodCredit += Number(vch.total_amount || vch.amount || 0);
+                                    periodDebit += impact.debit;
+                                    periodCredit += impact.credit;
                                     txCount++;
                                 }
                             }
@@ -415,8 +547,12 @@ const AccountReportPrint = () => {
                             const initialPaid = Number(inv.cash_amount_paid || inv.amount_paid || 0);
                             const invIdStr = String(inv.id).trim().toLowerCase();
                             const linkedVouchersSum = custVouchers
-                                .filter(v => String(v.original_invoice_no || '').replace('INV-', '').trim().toLowerCase() === invIdStr)
-                                .reduce((s, v) => s + Number(v.total_amount || v.amount || 0), 0);
+                                .filter(v => {
+                                    const impact = getVoucherImpact(v);
+                                    if (impact.isOpening || impact.credit <= 0) return false;
+                                    return String(v.original_invoice_no || '').replace('INV-', '').trim().toLowerCase() === invIdStr;
+                                })
+                                .reduce((s, v) => s + getVoucherImpact(v).credit, 0);
 
                             const linkedReturnsSum = custReturns
                                 .filter(r => String(r.original_invoice_no || '').replace('INV-', '').trim().toLowerCase() === invIdStr)
@@ -435,14 +571,20 @@ const AccountReportPrint = () => {
                             balanceReasons.push(`Unpaid Invoices (${unpaidInvoices.length}): ${unpaidInvoices.slice(0, 3).map(u => `${u.invNo} [Rs. ${u.due.toLocaleString()}]`).join(', ')}${unpaidInvoices.length > 3 ? '...' : ''}`);
                         }
 
-                        // 2. Unlinked advances
+                        // 2. Unlinked vouchers
                         let unlinkedAdvTotal = 0;
+                        let unlinkedDebitTotal = 0;
                         custVouchers.forEach(vch => {
-                            const ref = String(vch.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
-                            if (!ref || !customerInvoiceIdSet.has(ref)) {
-                                unlinkedAdvTotal += Number(vch.total_amount || vch.amount || 0);
+                            const impact = getVoucherImpact(vch);
+                            if (impact.isOpening) return;
+                            if (!isVoucherLinkedToInvoice(vch)) {
+                                if (impact.credit > 0) unlinkedAdvTotal += impact.credit;
+                                if (impact.debit > 0) unlinkedDebitTotal += impact.debit;
                             }
                         });
+                        if (unlinkedDebitTotal > 0.01) {
+                            balanceReasons.push(`Sale Amount Vouchers: Rs. ${unlinkedDebitTotal.toLocaleString()}`);
+                        }
                         if (unlinkedAdvTotal > 0.01) {
                             balanceReasons.push(`Advance Receipts Logged: Rs. ${unlinkedAdvTotal.toLocaleString()}`);
                         }
@@ -496,24 +638,39 @@ const AccountReportPrint = () => {
                                     debit: totAmt,
                                     credit: 0
                                 });
-                            }
-                        });
 
-                        // Vouchers within period
-                        custVouchers.forEach(vch => {
-                            const d = vch.voucher_date || vch.created_at;
-                            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
-                            if (t >= startTimestamp && t <= endTimestamp) {
-                                const vAmt = Number(vch.total_amount || vch.amount || 0);
-                                if (vAmt > 0) {
+                                const initialPaid = Number(inv.cash_amount_paid || inv.amount_paid || 0);
+                                if (initialPaid > 0) {
                                     rawTransactions.push({
                                         date: String(d).split('T')[0],
                                         raw_date: String(d),
-                                        type: 'Receipt Voucher',
-                                        refNo: vch.voucher_no || `CRV-${vch.id}`,
-                                        notes: vch.original_invoice_no ? `Against Invoice ${vch.original_invoice_no}` : (vch.payment_mode || 'Cash Drawer Payment'),
+                                        type: 'Cash Paid at Sale',
+                                        refNo: inv.invoice_no || `INV-${inv.id}`,
+                                        notes: `Upfront payment on Invoice #${inv.invoice_no || inv.id}`,
                                         debit: 0,
-                                        credit: vAmt
+                                        credit: initialPaid
+                                    });
+                                }
+                            }
+                        });
+
+                        // Vouchers within period (SAV, SRV, CRV, BRV, etc.)
+                        custVouchers.forEach(vch => {
+                            const impact = getVoucherImpact(vch);
+                            if (impact.isOpening) return;
+
+                            const d = vch.voucher_date || vch.created_at;
+                            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+                            if (t >= startTimestamp && t <= endTimestamp) {
+                                if (impact.debit > 0 || impact.credit > 0) {
+                                    rawTransactions.push({
+                                        date: String(d).split('T')[0],
+                                        raw_date: String(d),
+                                        type: impact.type,
+                                        refNo: vch.voucher_no || `VCH-${vch.id}`,
+                                        notes: impact.notes || (vch.narration || vch.notes || 'Voucher Entry'),
+                                        debit: impact.debit,
+                                        credit: impact.credit
                                     });
                                 }
                             }
@@ -775,17 +932,132 @@ const AccountReportPrint = () => {
 
                         const vendPurchases = allPurchases.filter(p => (p.supplier_name || p.vendor_name || '').trim().toLowerCase() === vName);
 
+                        const vendCode = String(vend.vendor_code || vend.vendorCode || vend.account_code || '').trim().toLowerCase();
+                        const vNameLower = vName.toLowerCase();
+
+                        // Match all vouchers for this vendor (PAV, PRV, VPV, CPV, BPV, JV, etc.)
                         const vendVouchers = allVouchers.filter(v => {
-                            const vParty = (v.supplier_name || v.vendor_name || v.customer_name || v.customerName || v.metadata?.vendor_name || v.metadata?.party_name || '').trim().toLowerCase();
-                            const isPaymentType = !v.voucher_type ||
-                                v.voucher_type.toLowerCase().includes('payment') ||
-                                v.voucher_type.toLowerCase().includes('bpv') ||
-                                v.voucher_type.toLowerCase().includes('cpv');
-                            if (!isPaymentType) return false;
-                            return vParty === vName;
+                            const vCode = String(v.account_code || v.vendor_code || v.metadata?.vendor_code || '').trim().toLowerCase();
+                            if (vendCode && (vCode === vendCode || vCode.endsWith(vendCode) || vendCode.endsWith(vCode))) {
+                                return true;
+                            }
+
+                            const vParty = String(
+                                v.supplier_name || 
+                                v.vendor_name || 
+                                v.account_title || 
+                                v.metadata?.vendor_name || 
+                                v.metadata?.party_name || 
+                                ''
+                            ).trim().toLowerCase();
+
+                            if (vNameLower && vParty) {
+                                if (vParty === vNameLower) return true;
+                                if (vNameLower.length >= 3 && vParty.includes(vNameLower)) return true;
+                                if (vParty.length >= 3 && vNameLower.includes(vParty)) return true;
+                            }
+
+                            if (Array.isArray(v.items) && v.items.length > 0) {
+                                return v.items.some((it: any) => {
+                                    const itCode = String(it.accountCode || it.account_code || '').trim().toLowerCase();
+                                    const itTitle = String(it.accountTitle || it.account_title || '').trim().toLowerCase();
+                                    if (vendCode && (itCode === vendCode || itCode.endsWith(vendCode))) return true;
+                                    if (vNameLower && (itTitle === vNameLower || (vNameLower.length >= 3 && itTitle.includes(vNameLower)))) return true;
+                                    return false;
+                                });
+                            }
+
+                            return false;
                         });
 
-                        const vendReturns = allReturns.filter(r => (r.supplier_name || r.vendor_name || '').trim().toLowerCase() === vName);
+                        // Helper to calculate impact of a voucher on this vendor
+                        const getVendorVoucherImpact = (vch: any) => {
+                            const vNo = String(vch.voucher_no || '').trim().toUpperCase();
+                            const vType = String(vch.voucher_type || '').toLowerCase();
+                            const narration = String(vch.narration || vch.notes || '').toLowerCase();
+
+                            // Skip OB vouchers
+                            const isOpening = vNo.startsWith('OB-') || narration.includes('opening balance');
+                            if (isOpening) {
+                                return { isOpening: true, debit: 0, credit: 0, type: 'Opening Balance Voucher', notes: '' };
+                            }
+
+                            // PAV: Purchase Amount Voucher -> Credit (Payable to vendor)
+                            if (vNo.startsWith('PAV-') || vType.includes('purchase amount')) {
+                                const amt = Number(vch.total_amount || vch.credit || 0);
+                                return {
+                                    isOpening: false,
+                                    credit: amt,
+                                    debit: 0,
+                                    type: 'Purchase Amount Voucher',
+                                    notes: vch.narration || vch.notes || 'Purchase Amount Voucher'
+                                };
+                            }
+
+                            // PRV: Purchase Return Voucher -> Debit (Reduces payable)
+                            if (vNo.startsWith('PRV-') || vType.includes('purchase return')) {
+                                const amt = Number(vch.total_amount || vch.debit || 0);
+                                return {
+                                    isOpening: false,
+                                    credit: 0,
+                                    debit: amt,
+                                    type: 'Purchase Return Voucher',
+                                    notes: vch.narration || vch.notes || 'Purchase Return Voucher'
+                                };
+                            }
+
+                            // VPV / CPV / BPV / Payment Voucher -> Debit (Reduces payable)
+                            if (vNo.startsWith('VPV-') || vNo.startsWith('CPV-') || vNo.startsWith('BPV-') || vType.includes('payment')) {
+                                const amt = Number(vch.total_amount || vch.debit || vch.amount || 0);
+                                return {
+                                    isOpening: false,
+                                    credit: 0,
+                                    debit: amt,
+                                    type: 'Payment Voucher',
+                                    notes: vch.narration || vch.notes || (vch.payment_mode ? `Paid via ${vch.payment_mode}` : 'Supplier Payout')
+                                };
+                            }
+
+                            // Multi-row items check
+                            if (Array.isArray(vch.items) && vch.items.length > 0) {
+                                let itDr = 0;
+                                let itCr = 0;
+                                vch.items.forEach((it: any) => {
+                                    const itCode = String(it.accountCode || it.account_code || '').trim().toLowerCase();
+                                    const itTitle = String(it.accountTitle || it.account_title || '').trim().toLowerCase();
+                                    const match = (vendCode && (itCode === vendCode || itCode.endsWith(vendCode))) ||
+                                                  (vNameLower && (itTitle === vNameLower || (vNameLower.length >= 3 && itTitle.includes(vNameLower))));
+                                    if (match) {
+                                        itDr += Number(it.debit || 0);
+                                        itCr += Number(it.credit || 0);
+                                    }
+                                });
+                                if (itDr > 0 || itCr > 0) {
+                                    return {
+                                        isOpening: false,
+                                        debit: itDr,
+                                        credit: itCr,
+                                        type: vch.voucher_type || 'Journal Voucher',
+                                        notes: vch.narration || vch.notes || 'Journal Entry'
+                                    };
+                                }
+                            }
+
+                            // Generic debit / credit
+                            const d = Number(vch.debit || 0);
+                            const c = Number(vch.credit || 0);
+                            if (d > 0 && c === 0) {
+                                return { isOpening: false, debit: d, credit: 0, type: vch.voucher_type || 'Payment Voucher', notes: vch.narration || vch.notes || '' };
+                            }
+                            if (c > 0 && d === 0) {
+                                return { isOpening: false, debit: 0, credit: c, type: vch.voucher_type || 'Purchase Voucher', notes: vch.narration || vch.notes || '' };
+                            }
+
+                            const tot = Number(vch.total_amount || 0);
+                            return { isOpening: false, debit: tot, credit: 0, type: vch.voucher_type || 'Payment Voucher', notes: vch.narration || vch.notes || '' };
+                        };
+
+                        const vendReturns = allReturns.filter(r => (r.supplier_name || r.vendor_name || '').trim().toLowerCase() === vNameLower);
 
                         let openingCredit = 0; // Purchases (Payable)
                         let openingDebit = 0;  // Payments / Debit Notes (Reduces Payable)
@@ -816,10 +1088,13 @@ const AccountReportPrint = () => {
                         });
 
                         vendVouchers.forEach(vch => {
+                            const impact = getVendorVoucherImpact(vch);
+                            if (impact.isOpening) return;
                             const d = vch.voucher_date || vch.created_at;
                             const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
                             if (t < startTimestamp) {
-                                openingDebit += Number(vch.total_amount || vch.amount || 0);
+                                openingCredit += impact.credit;
+                                openingDebit += impact.debit;
                             }
                         });
 
@@ -850,10 +1125,13 @@ const AccountReportPrint = () => {
                         });
 
                         vendVouchers.forEach(vch => {
+                            const impact = getVendorVoucherImpact(vch);
+                            if (impact.isOpening) return;
                             const d = vch.voucher_date || vch.created_at;
                             const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
                             if (t >= startTimestamp && t <= endTimestamp) {
-                                periodDebit += Number(vch.total_amount || vch.amount || 0);
+                                periodCredit += impact.credit;
+                                periodDebit += impact.debit;
                                 txCount++;
                             }
                         });
