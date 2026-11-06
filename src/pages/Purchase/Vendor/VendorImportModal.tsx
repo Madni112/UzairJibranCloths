@@ -624,6 +624,12 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
           currentBalance: computedBal,
         };
 
+        const vendorCode = r.assignedCode || r.existingCode;
+        if (vendorCode) {
+          updatePayload.vendor_code = vendorCode;
+          updatePayload.vendorCode = vendorCode;
+        }
+
         if (hasCol('opening_balance')) updatePayload.opening_balance = Math.abs(rawBal);
         if (hasCol('current_balance')) updatePayload.current_balance = computedBal;
         if (hasCol('address')) updatePayload.address = fullAddress;
@@ -650,7 +656,6 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         }
 
         // Sync Chart of Accounts for updated vendor if code exists
-        const vendorCode = r.existingCode || r.assignedCode;
         if (vendorCode) {
           const coaPayload = {
             account_code: vendorCode,
@@ -674,8 +679,39 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
             } else {
               await supabase.from('chart_of_accounts').insert([coaPayload]);
             }
+
+            // Sync Opening Balance voucher for updated vendor if balance > 0
+            const bal = Math.abs(rawBal);
+            if (bal > 0) {
+              const isCredit = r.balanceNature !== 'Debit';
+              const vNum = vendorCode.replace('2010-', '');
+              const voucherPayload = {
+                voucher_no: `OB-${vNum}`,
+                voucher_type: 'Journal Voucher',
+                voucher_date: r.openingDate || batchOpeningDate || new Date().toISOString().split('T')[0],
+                account_code: vendorCode,
+                account_title: r.companyName ? `${r.name} (${r.companyName})` : r.name,
+                total_amount: bal,
+                debit: !isCredit ? bal : 0,
+                credit: isCredit ? bal : 0,
+                narration: `Opening Balance for Vendor ${r.name}`,
+                items: []
+              };
+
+              const { data: existV } = await supabase
+                .from('financial_vouchers')
+                .select('id')
+                .eq('voucher_no', `OB-${vNum}`)
+                .maybeSingle();
+
+              if (existV?.id) {
+                await supabase.from('financial_vouchers').update(voucherPayload).eq('id', existV.id);
+              } else {
+                await supabase.from('financial_vouchers').insert([voucherPayload]);
+              }
+            }
           } catch (coaErr) {
-            console.warn('COA sync note for updated vendor:', coaErr);
+            console.warn('COA/Voucher sync note for updated vendor:', coaErr);
           }
         }
       }
