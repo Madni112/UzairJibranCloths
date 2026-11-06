@@ -476,10 +476,10 @@ const VendorList = () => {
                                                 {vendor.address || '-'}
                                             </td>
                                             <td className="py-3.5 px-4">
-                                                {coa ? (
+                                                {(vendor.vendor_code || vendor.vendorCode || coa?.account_code) ? (
                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                         <span className="font-mono font-black text-[11px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-300 dark:border-purple-700 px-2 py-0.5 rounded shadow-2xs">
-                                                            {coa.account_code}
+                                                            {vendor.vendor_code || vendor.vendorCode || coa?.account_code}
                                                         </span>
                                                         <button
                                                             type="button"
