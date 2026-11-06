@@ -188,7 +188,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
       const [vendQuery, coaQuery] = await Promise.all([
         supabase
           .from('vendors')
-          .select('id, vendor_name, name, company_name, city, province, address, balance, currentBalance, opening_balance, vendor_code, vendorCode'),
+          .select('id, vendor_name, name, company_name, address, province, balance, currentBalance, vendor_code, vendorCode'),
         supabase
           .from('chart_of_accounts')
           .select('account_code')
