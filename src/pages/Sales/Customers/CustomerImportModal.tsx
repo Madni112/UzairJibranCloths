@@ -984,18 +984,20 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-boxdark px-2.5 py-1 rounded-lg border border-stroke dark:border-strokedark">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                      Default OB Date:
-                    </label>
-                    <input
-                      type="date"
-                      value={batchOpeningDate}
-                      onChange={(e) => setBatchOpeningDate(e.target.value)}
-                      className="bg-transparent font-mono text-xs font-semibold text-black dark:text-white outline-none cursor-pointer"
-                      title="Fallback date for Opening Balance vouchers if row doesn't have a date"
-                    />
-                  </div>
+                  {parsedData.some((r) => !r.openingDate) && (
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-boxdark px-2.5 py-1 rounded-lg border border-stroke dark:border-strokedark">
+                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        Fallback OB Date (for empty rows):
+                      </label>
+                      <input
+                        type="date"
+                        value={batchOpeningDate}
+                        onChange={(e) => setBatchOpeningDate(e.target.value)}
+                        className="bg-transparent font-mono text-xs font-semibold text-black dark:text-white outline-none cursor-pointer"
+                        title="Fallback date for Opening Balance vouchers if row doesn't have a date"
+                      />
+                    </div>
+                  )}
 
                   <button
                     type="button"

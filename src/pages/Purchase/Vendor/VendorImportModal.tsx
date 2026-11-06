@@ -1027,26 +1027,28 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 shadow-2xs">
-                    <label className="text-[10.5px] font-semibold text-slate-500 whitespace-nowrap">
-                      Default OB Date:
-                    </label>
-                    <input
-                      type="date"
-                      value={batchOpeningDate}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setBatchOpeningDate(val);
-                        setParsedData((prev) =>
-                          prev.map((row) => ({
-                            ...row,
-                            openingDate: row.openingDate || val,
-                          }))
-                        );
-                      }}
-                      className="text-xs font-mono font-medium text-slate-700 dark:text-slate-200 bg-transparent outline-none cursor-pointer"
-                    />
-                  </div>
+                  {parsedData.some((r) => !r.openingDate) && (
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 shadow-2xs">
+                      <label className="text-[10.5px] font-semibold text-slate-500 whitespace-nowrap">
+                        Fallback OB Date (for empty rows):
+                      </label>
+                      <input
+                        type="date"
+                        value={batchOpeningDate}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBatchOpeningDate(val);
+                          setParsedData((prev) =>
+                            prev.map((row) => ({
+                              ...row,
+                              openingDate: row.openingDate || val,
+                            }))
+                          );
+                        }}
+                        className="text-xs font-mono font-medium text-slate-700 dark:text-slate-200 bg-transparent outline-none cursor-pointer"
+                      />
+                    </div>
+                  )}
 
                   <button
                     type="button"
