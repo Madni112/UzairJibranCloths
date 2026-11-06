@@ -613,12 +613,20 @@ const AccountReportPrint = () => {
                         }> = [];
 
                         // Beginning / Opening Balance line (Always shown as initial ledger line)
+                        const obVch = custVouchers.find(v => {
+                            const vNo = String(v.voucher_no || '').toUpperCase();
+                            const narr = String(v.narration || v.notes || '').toLowerCase();
+                            return vNo.startsWith('OB-') || narr.includes('opening balance');
+                        });
+                        const obDateStr = obVch?.voucher_date || filters.dateFrom || 'Opening';
+                        const obRawDate = obVch?.voucher_date ? obVch.voucher_date + 'T00:00:00' : (filters.dateFrom ? filters.dateFrom + 'T00:00:00' : '1970-01-01');
+
                         rawTransactions.push({
-                            date: filters.dateFrom || 'Opening',
-                            raw_date: filters.dateFrom ? filters.dateFrom + 'T00:00:00' : '1970-01-01',
-                            type: 'Beginning Balance (B/F)',
-                            refNo: '-',
-                            notes: 'Beginning / Opening Balance Brought Forward',
+                            date: obDateStr,
+                            raw_date: obRawDate,
+                            type: 'Opening Balance',
+                            refNo: obVch?.voucher_no || '-',
+                            notes: 'Opening Balance',
                             debit: openingBalance > 0 ? openingBalance : 0,
                             credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
                         });
@@ -1159,12 +1167,20 @@ const AccountReportPrint = () => {
                         }> = [];
 
                         // Beginning / Opening Balance line (Always shown as initial vendor ledger line)
+                        const obVendVch = vendVouchers.find(v => {
+                            const vNo = String(v.voucher_no || '').toUpperCase();
+                            const narr = String(v.narration || v.notes || '').toLowerCase();
+                            return vNo.startsWith('OB-') || narr.includes('opening balance');
+                        });
+                        const obVendDateStr = obVendVch?.voucher_date || filters.dateFrom || 'Opening';
+                        const obVendRawDate = obVendVch?.voucher_date ? obVendVch.voucher_date + 'T00:00:00' : (filters.dateFrom ? filters.dateFrom + 'T00:00:00' : '1970-01-01');
+
                         rawTransactions.push({
-                            date: filters.dateFrom || 'Opening',
-                            raw_date: filters.dateFrom ? filters.dateFrom + 'T00:00:00' : '1970-01-01',
-                            type: 'Beginning Balance (B/F)',
-                            refNo: '-',
-                            notes: 'Beginning / Opening Balance Brought Forward',
+                            date: obVendDateStr,
+                            raw_date: obVendRawDate,
+                            type: 'Opening Balance',
+                            refNo: obVendVch?.voucher_no || '-',
+                            notes: 'Opening Balance',
                             debit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
                             credit: openingBalance > 0 ? openingBalance : 0,
                         });

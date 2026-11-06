@@ -213,6 +213,122 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
     }
   };
 
+  const handleDeleteVoucher = async (voucher: any) => {
+    const rawNo = String(voucher.voucher_no || '').trim().toUpperCase();
+    const isOB = rawNo.startsWith('OB-') || 
+      String(voucher.voucher_type || '').toLowerCase().includes('opening balance') || 
+      String(voucher.narration || '').toLowerCase().includes('opening balance') || 
+      String(voucher.notes || '').toLowerCase().includes('opening balance');
+
+    if (isOB) {
+      toast.error('Opening Balance vouchers cannot be deleted.');
+      return;
+    }
+
+    const vNo = voucher.voucher_no || `VCH-${voucher.id}`;
+    const amountFormatted = Number(voucher.total_amount || voucher.debit || voucher.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+    
+    if (!window.confirm(`Are you sure you want to permanently delete voucher "${vNo}" (Rs. ${amountFormatted})?\n\nThis action will remove the voucher and reverse its khata balance impact.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const effectiveAmt = Number(voucher.total_amount || voucher.debit || voucher.credit || 0);
+      const vType = String(voucher.voucher_type || '').toLowerCase();
+      const vPrefix = rawNo.split('-')[0] || '';
+      const metadata = voucher.metadata || {};
+      const activePreset = metadata.preset || vPrefix;
+
+      // 1. Reversal of balance impacts for Customers
+      if (activePreset === 'SAV' || activePreset === 'SRV' || activePreset === 'CRV' || vType.includes('sale') || vType.includes('customer receive')) {
+        const custItem = Array.isArray(voucher.items)
+          ? voucher.items.find((it: any) => (it.accountCode || it.account_code || '').startsWith('2020-'))
+          : null;
+        const custCode = custItem ? (custItem.accountCode || custItem.account_code || '').trim() : (String(voucher.account_code || '').startsWith('2020-') ? voucher.account_code.trim() : '');
+
+        if (custCode) {
+          const { data: cData } = await supabase
+            .from('customers')
+            .select('id, balance, currentBalance')
+            .or(`customer_code.eq.${custCode},account_code.eq.${custCode}`)
+            .maybeSingle();
+
+          if (cData) {
+            const curBal = Number(cData.currentBalance ?? cData.balance ?? 0);
+            let newBal = curBal;
+            if (activePreset === 'SAV' || vType.includes('sale amount voucher')) {
+              newBal = curBal - effectiveAmt; // Reversing SAV: subtract debit
+            } else if (activePreset === 'SRV' || activePreset === 'CRV' || vType.includes('return') || vType.includes('receive')) {
+              newBal = curBal + effectiveAmt; // Reversing CRV/SRV: add back credit
+            }
+            await supabase.from('customers').update({ balance: newBal, currentBalance: newBal }).eq('id', cData.id);
+          }
+        }
+      }
+
+      // 2. Reversal of balance impacts for Vendors
+      if (activePreset === 'PAV' || activePreset === 'PRV' || activePreset === 'VPV' || vType.includes('purchase') || vType.includes('vendor payment')) {
+        const vendItem = Array.isArray(voucher.items)
+          ? voucher.items.find((it: any) => (it.accountCode || it.account_code || '').startsWith('2010-'))
+          : null;
+        const vendCode = vendItem ? (vendItem.accountCode || vendItem.account_code || '').trim() : (String(voucher.account_code || '').startsWith('2010-') ? voucher.account_code.trim() : '');
+
+        if (vendCode) {
+          const { data: vData } = await supabase
+            .from('vendors')
+            .select('id, balance, currentBalance, current_balance')
+            .eq('vendor_code', vendCode)
+            .maybeSingle();
+
+          if (vData) {
+            const curBal = Number(vData.currentBalance ?? vData.current_balance ?? vData.balance ?? 0);
+            let newBal = curBal;
+            if (activePreset === 'PAV' || vType.includes('purchase amount voucher')) {
+              newBal = curBal - effectiveAmt; // Reversing PAV: subtract credit
+            } else if (activePreset === 'PRV' || activePreset === 'VPV' || vType.includes('return') || vType.includes('payment')) {
+              newBal = curBal + effectiveAmt; // Reversing VPV/PRV: add back debit
+            }
+            await supabase.from('vendors').update({ balance: newBal, currentBalance: newBal, current_balance: newBal }).eq('id', vData.id);
+          }
+        }
+      }
+
+      // 3. Delete from database
+      const { error: delErr } = await supabase
+        .from('financial_vouchers')
+        .delete()
+        .eq('id', voucher.id);
+
+      if (delErr) throw delErr;
+
+      // 4. Log audit log
+      try {
+        await supabase.from('audit_logs').insert([{
+          action_type: 'DELETE',
+          table_name: 'financial_vouchers',
+          performed_by: tenantId || 'admin',
+          details: {
+            voucher_no: vNo,
+            voucher_type: voucher.voucher_type,
+            amount: effectiveAmt,
+            account_code: voucher.account_code,
+            account_title: voucher.account_title,
+            timestamp: new Date().toISOString()
+          }
+        }]);
+      } catch (_) {}
+
+      toast.success(`Voucher ${vNo} deleted successfully.`);
+      await fetchVoucherLedgerHistory();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete voucher');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredVouchers = vouchers.filter((v) =>
     v.voucher_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.voucher_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -392,7 +508,10 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
               ) : (
                 paginatedVouchers.map((v, idx) => {
                   const serialNumber = startIndex + idx + 1;
-                  const isOB = String(v.voucher_no || '').startsWith('OB-');
+                  const isOB = String(v.voucher_no || '').toUpperCase().startsWith('OB-') ||
+                    String(v.voucher_type || '').toLowerCase().includes('opening balance') ||
+                    String(v.narration || '').toLowerCase().includes('opening balance') ||
+                    String(v.notes || '').toLowerCase().includes('opening balance');
                   return (
                     <tr key={v.id} className="border-b border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-meta-4/10 duration-150">
                       <td className="py-3.5 px-4 font-medium text-black dark:text-white text-center">{serialNumber}</td>
@@ -449,8 +568,10 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
                             const targetEditRoute = activeConfig ? activeConfig.addRoute : '/Registration/Vouchers/Add';
                             navigate(`${targetEditRoute}?id=${v.id}`, { state: { voucher: v } });
                           }}
-                          canDelete={false}
+                          onDelete={isOB ? undefined : () => handleDeleteVoucher(v)}
+                          canDelete={!isOB}
                           editTitle="View or Edit Voucher"
+                          deleteTitle={isOB ? 'Opening balance vouchers cannot be deleted' : 'Delete Voucher'}
                         />
                       </td>
                     </tr>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import SidebarLinkGroup from './SidebarLinkGroup';
 import { AiOutlineUp, AiOutlineDown, AiOutlineRight, AiOutlineArrowLeft } from 'react-icons/ai';
@@ -37,23 +38,66 @@ interface SidebarProps {
 }
 
 // Collapsed hover nested flyout component
-const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebarColor, isLightSidebar }: any) => {
+const FlyoutSubMenu = ({
+  item,
+  pathname,
+  handleLinkClick,
+  getTenantPath,
+  sidebarColor,
+  isLightSidebar,
+  sidebarBg,
+  sidebarBorderColor,
+}: any) => {
   const { isRTL } = useLanguage();
   const navigate = useNavigate();
   const [showSubFlyout, setShowSubFlyout] = useState(false);
+  const subCloseTimerRef = useRef<any>(null);
+
+  const cancelSubClose = () => {
+    if (subCloseTimerRef.current) {
+      clearTimeout(subCloseTimerRef.current);
+      subCloseTimerRef.current = null;
+    }
+  };
+
+  const scheduleSubClose = () => {
+    cancelSubClose();
+    subCloseTimerRef.current = setTimeout(() => {
+      setShowSubFlyout(false);
+    }, 250);
+  };
+
+  useEffect(() => {
+    return () => cancelSubClose();
+  }, []);
+
   const destination = (item.path && getTenantPath ? getTenantPath(item.path) : item.path) || '#';
   const isActive = item.path && (pathname === destination || pathname === item.path);
+
+  const itemBaseClass = `flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs font-semibold duration-150 transition-colors cursor-pointer ${
+    isLightSidebar
+      ? 'text-slate-800 hover:bg-slate-100 hover:text-primary dark:text-slate-200 dark:hover:bg-slate-800'
+      : 'text-slate-200 hover:bg-slate-800 hover:text-white'
+  } ${
+    isActive
+      ? isLightSidebar
+        ? 'bg-primary/10 text-primary font-bold shadow-xs'
+        : 'bg-slate-800 text-white font-bold shadow-xs'
+      : ''
+  }`;
 
   if (item.children) {
     return (
       <li
-        className="relative"
-        onMouseEnter={() => setShowSubFlyout(true)}
-        onMouseLeave={() => setShowSubFlyout(false)}
+        className="relative group"
+        onMouseEnter={() => {
+          cancelSubClose();
+          setShowSubFlyout(true);
+        }}
+        onMouseLeave={scheduleSubClose}
       >
         <div
-          className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-800/80 dark:hover:bg-slate-100 cursor-pointer"
-          style={{ color: sidebarColor }}
+          className={itemBaseClass}
           onClick={(e) => {
             if (item.path) {
               e.preventDefault();
@@ -63,17 +107,22 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
           }}
         >
           <span>{getSidebarLabel(item.label, isRTL)}</span>
-          <AiOutlineRight size={10} style={{ color: sidebarColor, opacity: 0.7 }} />
+          <AiOutlineRight size={10} className="opacity-60 group-hover:opacity-100 transition-opacity" />
         </div>
 
         {showSubFlyout && (
           <div
-            className={`absolute left-full top-0 ml-1 min-w-[200px] rounded-xl border p-1.5 shadow-2xl backdrop-blur-md z-99999 ${
-              isLightSidebar ? 'border-slate-200 bg-white/95 text-slate-800' : 'border-slate-700/90 bg-slate-900/95 text-slate-100'
-            }`}
-            style={{ animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards' }}
+            className="absolute left-full top-0 ml-1.5 min-w-[210px] rounded-2xl border p-2 shadow-2xl z-[99999]"
+            style={{
+              backgroundColor: sidebarBg || (isLightSidebar ? '#FFFFFF' : '#0F172A'),
+              borderColor: sidebarBorderColor || (isLightSidebar ? '#E2E8F0' : '#1E293B'),
+              color: isLightSidebar ? '#0F172A' : '#F8FAFC',
+              animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards',
+            }}
+            onMouseEnter={cancelSubClose}
+            onMouseLeave={scheduleSubClose}
           >
-            <div className="absolute top-0 -left-3 w-3 h-full bg-transparent" />
+            <div className="absolute top-0 -left-6 w-8 h-full bg-transparent pointer-events-auto" />
             <ul className="flex flex-col gap-1">
               {item.children.filter((child: any) => child && !child.hideFromSidebar).map((child: any, idx: number) => (
                 <FlyoutSubMenu
@@ -84,6 +133,8 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
                   getTenantPath={getTenantPath}
                   sidebarColor={sidebarColor}
                   isLightSidebar={isLightSidebar}
+                  sidebarBg={sidebarBg}
+                  sidebarBorderColor={sidebarBorderColor}
                 />
               ))}
             </ul>
@@ -98,13 +149,7 @@ const FlyoutSubMenu = ({ item, pathname, handleLinkClick, getTenantPath, sidebar
       <NavLink
         to={destination}
         onClick={handleLinkClick}
-        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold duration-150 hover:bg-slate-800/80 dark:hover:bg-slate-100 ${
-          isActive ? 'shadow-xs font-bold' : ''
-        }`}
-        style={{
-          color: sidebarColor,
-          backgroundColor: isActive ? `${sidebarColor}20` : undefined,
-        }}
+        className={itemBaseClass}
       >
         <span>{getSidebarLabel(item.label, isRTL)}</span>
       </NavLink>
@@ -130,15 +175,36 @@ const SidebarItem = ({
   behaviorMode,
   isLightSidebar,
   accentColor,
+  sidebarBg,
+  sidebarBorderColor,
 }: any) => {
   const navigate = useNavigate();
   const { isRTL } = useLanguage();
-  const itemRef = useRef<HTMLDivElement>(null);
+  const itemRef = useRef<any>(null);
+  const closeTimerRef = useRef<any>(null);
   const menuUniqueKey = `${parentKey}-${item.label}`;
   const [open, setOpen] = useState(false);
   const [showFlyout, setShowFlyout] = useState(false);
   const [flyoutTop, setFlyoutTop] = useState<number>(0);
   const [flyoutLeft, setFlyoutLeft] = useState<number>(56);
+
+  const cancelClose = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimerRef.current = setTimeout(() => {
+      setShowFlyout(false);
+    }, 250); // 250ms graceful close delay on hover out
+  };
+
+  useEffect(() => {
+    return () => cancelClose();
+  }, []);
 
   // Helper check: Recursively verifies if any nested children match the active route URL
   const checkChildActive = (node: any): boolean => {
@@ -184,18 +250,20 @@ const SidebarItem = ({
       setSidebarOpen(false);
     }
     hideModal();
+    cancelClose();
     setShowFlyout(false);
   };
 
   const handleMouseEnter = () => {
     if (!sidebarOpen && !isMobile && itemRef.current) {
+      cancelClose();
       const rect = itemRef.current.getBoundingClientRect();
       const asideEl = itemRef.current.closest('aside');
       const edgeRight = asideEl ? asideEl.getBoundingClientRect().right : rect.right;
       const estimatedHeight = Math.min((item.children?.length || 4) * 36 + 50, 420);
       const maxTop = Math.max(12, window.innerHeight - estimatedHeight - 16);
-      setFlyoutTop(Math.min(rect.top, maxTop));
-      setFlyoutLeft(edgeRight + 2);
+      setFlyoutTop(Math.max(12, Math.min(rect.top, maxTop)));
+      setFlyoutLeft(Math.round(edgeRight) - 2);
       setShowFlyout(true);
     }
   };
@@ -206,13 +274,14 @@ const SidebarItem = ({
         ref={itemRef}
         className="w-full"
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => !sidebarOpen && !isMobile && setShowFlyout(false)}
+        onMouseLeave={scheduleClose}
       >
         <SidebarLinkGroup activeCondition={isChildActive}>
           {(handleClick, isGroupOpen) => (
             <>
               <NavLink
                 to={item.path ? ((getTenantPath ? getTenantPath(item.path) : item.path) || '#') : '#'}
+                onMouseEnter={handleMouseEnter}
                 className={`group relative flex items-center rounded-xl py-2.5 font-medium duration-200 ease-in-out ${
                   isLightSidebar ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-white'
                 } ${
@@ -312,6 +381,8 @@ const SidebarItem = ({
                         behaviorMode={behaviorMode}
                         isLightSidebar={isLightSidebar}
                         accentColor={accentColor}
+                        sidebarBg={sidebarBg}
+                        sidebarBorderColor={sidebarBorderColor}
                       />
                     ))}
                   </ul>
@@ -322,25 +393,33 @@ const SidebarItem = ({
         </SidebarLinkGroup>
 
         {/* Collapsed Flyout Popover */}
-        {!sidebarOpen && showFlyout && !isMobile && (
+        {!sidebarOpen && showFlyout && !isMobile && createPortal(
           <div
-            className={`fixed z-99999 min-w-[210px] rounded-2xl border p-2 shadow-2xl backdrop-blur-md ${isLightSidebar ? "border-slate-200 bg-white/95 text-slate-900" : "border-slate-700/90 bg-slate-900/95 text-slate-100"}`}
+            className="fixed z-[99999] min-w-[210px] rounded-2xl border p-2 shadow-2xl"
             style={{
               top: `${flyoutTop}px`,
               left: `${flyoutLeft}px`,
-              animation: 'sidebarFlyoutFadeIn 0.18s ease-out forwards',
+              backgroundColor: sidebarBg || (isLightSidebar ? '#FFFFFF' : '#0F172A'),
+              borderColor: sidebarBorderColor || (isLightSidebar ? '#E2E8F0' : '#1E293B'),
+              color: isLightSidebar ? '#0F172A' : '#F8FAFC',
+              animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards',
             }}
+            onMouseEnter={cancelClose}
+            onMouseLeave={scheduleClose}
           >
             <style>{`
               @keyframes sidebarFlyoutFadeIn {
-                from { opacity: 0; transform: translateX(-6px); }
+                from { opacity: 0; transform: translateX(-4px); }
                 to { opacity: 1; transform: translateX(0); }
               }
             `}</style>
-            <div className="absolute top-0 -left-3 w-3 h-full bg-transparent" />
+            <div className="absolute top-0 -left-10 w-12 h-full bg-transparent pointer-events-auto" />
             <div
-              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-b border-slate-800 dark:border-slate-200/60 mb-1"
-              style={{ color: sidebarColor, opacity: 0.7 }}
+              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-b mb-1 opacity-70"
+              style={{
+                borderColor: sidebarBorderColor || (isLightSidebar ? '#E2E8F0' : '#1E293B'),
+                color: isLightSidebar ? '#475569' : '#94A3B8',
+              }}
             >
               {getSidebarLabel(item.label, isRTL)}
             </div>
@@ -353,10 +432,14 @@ const SidebarItem = ({
                   handleLinkClick={handleLinkClick}
                   getTenantPath={getTenantPath}
                   sidebarColor={sidebarColor}
+                  isLightSidebar={isLightSidebar}
+                  sidebarBg={sidebarBg}
+                  sidebarBorderColor={sidebarBorderColor}
                 />
               ))}
             </ul>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );
@@ -367,11 +450,12 @@ const SidebarItem = ({
 
   const handleSingleMouseEnter = () => {
     if (!sidebarOpen && !isMobile && itemRef.current) {
+      cancelClose();
       const rect = itemRef.current.getBoundingClientRect();
       const asideEl = itemRef.current.closest('aside');
       const edgeRight = asideEl ? asideEl.getBoundingClientRect().right : rect.right;
-      setFlyoutTop(rect.top + (rect.height / 2) - 15);
-      setFlyoutLeft(edgeRight + 2);
+      setFlyoutTop(Math.round(rect.top + (rect.height / 2) - 15));
+      setFlyoutLeft(Math.round(edgeRight) + 4);
       setShowFlyout(true);
     }
   };
@@ -383,7 +467,7 @@ const SidebarItem = ({
       className="w-full relative"
       title={!shouldShowLabels ? getSidebarLabel(item.label, isRTL) : undefined}
       onMouseEnter={handleSingleMouseEnter}
-      onMouseLeave={() => !sidebarOpen && !isMobile && setShowFlyout(false)}
+      onMouseLeave={scheduleClose}
     >
       <NavLink
         to={singleDestination}
@@ -415,20 +499,21 @@ const SidebarItem = ({
         )}
       </NavLink>
 
-      {!sidebarOpen && showFlyout && !isMobile && (
+      {!sidebarOpen && showFlyout && !isMobile && createPortal(
         <div
-          className={`fixed z-99999 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xl backdrop-blur-md pointer-events-none whitespace-nowrap ${
-            isLightSidebar ? 'border-slate-200 bg-white/95 text-slate-800' : 'border-slate-700/90 bg-slate-900/95 text-slate-100'
-          }`}
+          className="fixed z-[99999] px-3 py-1.5 rounded-xl border text-xs font-bold shadow-2xl pointer-events-none whitespace-nowrap"
           style={{
             top: `${flyoutTop}px`,
             left: `${flyoutLeft}px`,
-            color: sidebarColor,
-            animation: 'sidebarFlyoutFadeIn 0.18s ease-out forwards',
+            backgroundColor: sidebarBg || (isLightSidebar ? '#FFFFFF' : '#0F172A'),
+            borderColor: sidebarBorderColor || (isLightSidebar ? '#E2E8F0' : '#1E293B'),
+            color: isLightSidebar ? '#0F172A' : '#F8FAFC',
+            animation: 'sidebarFlyoutFadeIn 0.15s ease-out forwards',
           }}
         >
           {getSidebarLabel(item.label, isRTL)}
-        </div>
+        </div>,
+        document.body
       )}
     </li>
   );
@@ -700,6 +785,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               behaviorMode={behaviorMode}
               isLightSidebar={isLightSidebar}
               accentColor={accentColor}
+              sidebarBg={sidebarBg}
+              sidebarBorderColor={sidebarBorderColor}
             />
           ))}
 

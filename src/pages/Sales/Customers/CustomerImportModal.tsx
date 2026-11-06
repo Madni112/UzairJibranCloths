@@ -297,19 +297,22 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       ) {
         if (provinceIdx === -1) provinceIdx = idx;
       }
-      // Balance / Opening
+      // Opening Balance Date (check FIRST before general balance)
       else if (
-        col.includes('balance') ||
-        col.includes('opening') ||
-        col.includes('op bal') ||
-        col.includes('بقایا') ||
-        col.includes('ابتدائی') ||
-        col === 'bal'
+        col.includes('opening balance date') ||
+        col.includes('balance date') ||
+        col.includes('opening date') ||
+        col.includes('voucher date') ||
+        col.includes('ob date') ||
+        col.includes('entry date') ||
+        col.includes('تاریخ') ||
+        col === 'date'
       ) {
-        if (balIdx === -1) balIdx = idx;
+        if (dateIdx === -1) dateIdx = idx;
       }
-      // Balance Nature (Dr / Cr)
+      // Balance Nature (Dr / Cr - check BEFORE general balance)
       else if (
+        col.includes('balance nature') ||
         col.includes('nature') ||
         col.includes('dr/cr') ||
         col.includes('dr cr') ||
@@ -321,17 +324,17 @@ export const CustomerImportModal: React.FC<CustomerImportModalProps> = ({
       ) {
         if (natureIdx === -1) natureIdx = idx;
       }
-      // Opening Balance Date
+      // Balance / Opening Amount
       else if (
-        col.includes('opening date') ||
-        col.includes('balance date') ||
-        col.includes('voucher date') ||
-        col.includes('ob date') ||
-        col.includes('entry date') ||
-        col.includes('تاریخ') ||
-        col === 'date'
+        col.includes('opening balance') ||
+        col.includes('balance') ||
+        col.includes('opening') ||
+        col.includes('op bal') ||
+        col.includes('بقایا') ||
+        col.includes('ابتدائی') ||
+        col === 'bal'
       ) {
-        if (dateIdx === -1) dateIdx = idx;
+        if (balIdx === -1) balIdx = idx;
       }
     });
 

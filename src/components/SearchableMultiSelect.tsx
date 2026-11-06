@@ -118,7 +118,7 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
         tabIndex={disabled ? -1 : 0}
-        className={`w-full rounded-lg border border-stroke dark:border-strokedark bg-transparent p-1.5 min-h-[34px] flex flex-wrap gap-1 items-center transition outline-none ${disabled ? 'bg-slate-50 dark:bg-slate-800' : 'cursor-pointer hover:border-primary focus:border-primary'}`}
+        className={`w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark p-1.5 min-h-[38px] flex flex-wrap gap-1 items-center transition outline-none ${disabled ? 'bg-slate-50 dark:bg-slate-800' : 'cursor-pointer hover:border-primary focus:border-primary'}`}
       >
         {safeValue.length === 0 ? (
           <span className="text-xs font-semibold px-2 text-black dark:text-white select-none opacity-80">{defaultAllText}</span>

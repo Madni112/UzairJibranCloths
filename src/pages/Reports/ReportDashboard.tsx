@@ -1,1131 +1,3860 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { supabase } from '../../Context/supabaseClient';
+import { toast } from 'react-hot-toast';
+import Spinner from '../../ui/Spinner';
 import { useAuth } from '../../Context/Auth';
-import { getBrandConfig } from '../../utils/brand';
+import { SearchableMultiSelect } from '../../components/SearchableMultiSelect';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import {
-  MdSearch,
-  MdClear,
-  MdTrendingUp,
-  MdReceipt,
-  MdBarChart,
-  MdLocalMall,
-  MdInventory,
-  MdPauseCircleFilled,
-  MdAccountBalanceWallet,
-  MdAccountBalance,
-  MdBalance,
-  MdAssessment,
-  MdLayers,
+  DEFAULT_SUB_AREAS,
+  DEFAULT_AREAS,
+  DEFAULT_SUBAREA_AREAS_MAP
+} from '../../components/SubAreaAreaInput';
+import {
   MdPeople,
-  MdStorefront,
+  MdBusiness,
+  MdCompareArrows,
+  MdTrendingUp,
+  MdReceiptLong,
+  MdMenuBook,
   MdFileDownload,
   MdPrint,
-  MdAccessTime,
-  MdCheckCircle,
-  MdArrowForward,
-  MdCategory,
-  MdCorporateFare,
-  MdCardGiftcard,
-  MdReceiptLong,
-  MdDragIndicator,
-  MdRestartAlt,
-  MdKeyboardArrowDown,
-  MdKeyboardArrowUp,
-  MdTimeline,
-  MdHistory,
-  MdCompareArrows,
-  MdPriceCheck,
-  MdFormatListBulleted
+  MdPictureAsPdf,
+  MdSearch,
+  MdLocationOn,
+  MdCalendarToday,
+  MdArrowUpward,
+  MdArrowDownward,
+  MdSwapVert,
+  MdClear
 } from 'react-icons/md';
-import { exportMultiSheetExcel, ExcelColumn } from '../../utils/excelExport';
-import { toast } from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
-interface ReportItem {
-  id: string;
-  title: string;
-  category: 'sales' | 'purchases' | 'inventory' | 'accounts' | 'business';
+type TabKey = 'customer-ledger' | 'vendor-ledger' | 'combined-ledger' | 'profit-loss' | 'expense-report' | 'daily-book';
+
+interface TabConfig {
+  key: TabKey;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   description: string;
-  badge?: string;
-  badgeType?: 'new' | 'audited' | 'accrual';
-  createdAt?: string; // ISO / YYYY-MM-DD date string
-  path: string;
-  state?: any;
-  icon: any;
 }
 
-export const shouldShowBadge = (report: { badge?: string; badgeType?: string; createdAt?: string }): boolean => {
-  if (!report.badge) return false;
-  if (report.badgeType === 'new') {
-    if (!report.createdAt) return true;
-    const createdTime = new Date(report.createdAt).getTime();
-    const now = Date.now();
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-    return Math.abs(now - createdTime) <= THIRTY_DAYS_MS;
-  }
-  return true;
-};
-
-const ALL_REPORTS: ReportItem[] = [
-  // ── CUSTOMER SALES & KHATA LEDGERS ──
-  {
-    id: 'customer-balance-detail',
-    title: 'Customer Balance Detail & Ledger Report',
-    category: 'sales',
-    description: 'Comprehensive breakdown of customer opening balances (OB), sale amount vouchers (SAV), sales returns (SRV), payment receipts (CRV), and net closing balances in PKR.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 13 },
-    icon: MdAccountBalanceWallet
-  },
-  {
-    id: 'customer-ledger',
-    title: 'Customer Khata Account Ledger (General Ledger)',
-    category: 'sales',
-    description: 'Detailed chronological debit/credit ledger per customer account with voucher slips, bill notes, running balances, and print statement.',
-    badge: 'ACCRUAL',
-    badgeType: 'accrual',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 1 },
-    icon: MdReceiptLong
-  },
-  {
-    id: 'customer-summary',
-    title: 'Customer Balances Summary Sheet',
-    category: 'sales',
-    description: 'Master directory list of all customer accounts, phone numbers, cities, and current receivable balances.',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 2 },
-    icon: MdPeople
-  },
-  {
-    id: 'customer-aging-report',
-    title: 'Customer Receivables Aging Analysis',
-    category: 'sales',
-    description: 'Categorized customer debt aging brackets across 0-30, 31-60, 61-90, and 90+ days overdue balances.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 12 },
-    icon: MdAccessTime
-  },
-  {
-    id: 'customer-recovery',
-    title: 'Customer Payment Recovery & Receipts',
-    category: 'sales',
-    description: 'Chronological statement of customer payment recoveries, cash receipts, and bank deposit collections.',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 7 },
-    icon: MdCheckCircle
-  },
-
-  // ── VENDOR PURCHASES & PAYABLES ──
-  {
-    id: 'vendor-balance-detail',
-    title: 'Vendor Balance Detail & Account Ledger',
-    category: 'purchases',
-    description: 'Comprehensive breakdown of vendor opening balances (OB-V), purchase amount vouchers (PAV), purchase returns (PRV), payment vouchers (VPV), and net payables.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 3 },
-    icon: MdCorporateFare
-  },
-  {
-    id: 'vendor-ledger',
-    title: 'Vendor Khata Account Ledger',
-    category: 'purchases',
-    description: 'Detailed chronological debit/credit ledger per vendor account with running balance in PKR.',
-    badge: 'ACCRUAL',
-    badgeType: 'accrual',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 1 },
-    icon: MdReceiptLong
-  },
-  {
-    id: 'vendor-outstanding-report',
-    title: 'Vendor Outstanding Payables Schedule',
-    category: 'purchases',
-    description: 'Unsettled mill commitments, purchase liabilities, and payment dues sorted by supplier account.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 6 },
-    icon: MdCorporateFare
-  },
-  {
-    id: 'vendor-summary',
-    title: 'Vendors Directory & Balances Summary',
-    category: 'purchases',
-    description: 'Complete directory of fabric mills, suppliers, phone numbers, and payable balances.',
-    path: '/Purchase/Vendor/List',
-    state: {},
-    icon: MdStorefront
-  },
-
-  // ── ACCOUNTS & FINANCIAL VOUCHERS ──
-  {
-    id: 'voucher-audit-register',
-    title: 'Financial Voucher Audit Register (All Vouchers)',
-    category: 'accounts',
-    description: 'Master chronological audit log of SAV, SRV, CRV, PAV, PRV, VPV, EXP, and Journal Vouchers (JV) with debit/credit balance trace.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 8 },
-    icon: MdReceipt
-  },
-  {
-    id: 'daybook-activity-report',
-    title: 'Daily Cash & Bank Daybook',
-    category: 'accounts',
-    description: 'Daily cash inflows, customer receipts, vendor payments, expense payouts, and closing drawer balances.',
-    badge: 'NEW',
-    badgeType: 'new',
-    createdAt: '2026-10-01',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 9 },
-    icon: MdReceiptLong
-  },
-  {
-    id: 'expense-ledger',
-    title: 'Operational Expense Statement',
-    category: 'accounts',
-    description: 'Shop expenditures aggregated across rent, electricity, carriage & cartage, tea & entertainment, wages, and maintenance.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 4 },
-    icon: MdAccountBalance
-  },
-  {
-    id: 'trial-balance-statement',
-    title: 'Trial Balance Audit Statement',
-    category: 'accounts',
-    description: 'Authoritative Chart of Accounts trial balance verifying that total ledger debits equal total ledger credits.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 11 },
-    icon: MdBalance
-  },
-  {
-    id: 'chart-of-accounts-catalog',
-    title: 'Chart of Accounts Structural Catalog',
-    category: 'accounts',
-    description: 'Full tree hierarchy breakdown of Assets, Liabilities, Equity, Revenue, and Expense head accounts.',
-    path: '/Reports/Account-Report',
-    state: { activeTab: 5 },
-    icon: MdCategory
-  },
-
-  // ── BUSINESS OVERVIEW & STATEMENTS ──
-  {
-    id: 'balance-sheet-stat',
-    title: 'Balance Sheet Financial Statement',
-    category: 'business',
-    description: 'Authoritative audit sheet of total assets, liabilities, and owners equity balances.',
-    badge: 'AUDITED',
-    badgeType: 'audited',
-    path: '/Reports/Balance-Sheet',
-    icon: MdBalance
-  },
-  {
-    id: 'executive-summary-report',
-    title: 'Commercial Executive Summary & P&L',
-    category: 'business',
-    description: 'High-level financial KPIs, sales (SAV) vs purchases (PAV) vs expenses (EXP), and liquid cash flows.',
-    path: '/Reports/Balance-Sheet',
-    icon: MdTrendingUp
-  }
+const TABS: TabConfig[] = [
+  { key: 'customer-ledger', label: 'Customer Ledger', icon: MdPeople, description: 'Debits, credits, returns & running balances per customer' },
+  { key: 'vendor-ledger', label: 'Vendor Ledger', icon: MdBusiness, description: 'Purchases, returns, payments & running balances per vendor' },
+  { key: 'combined-ledger', label: 'All Parties', icon: MdCompareArrows, description: 'Combined market balances & net receivables / payables' },
+  { key: 'profit-loss', label: 'Profit & Loss', icon: MdTrendingUp, description: 'Gross revenue, COGS, operational expenses & net profit' },
+  { key: 'expense-report', label: 'Expense Report', icon: MdReceiptLong, description: 'Itemized operational expenses categorized by Chart of Accounts' },
+  { key: 'daily-book', label: 'DailyBook', icon: MdMenuBook, description: 'Roznamcha: chronological cash drawer & bank daily inflow/outflow' }
 ];
 
-const CATEGORY_META = [
-  {
-    key: 'sales',
-    title: 'Customer Sales & Ledgers',
-    subtitle: 'Customer khata, balance details, recovery & receivable aging',
-    icon: MdPeople,
-    color: 'emerald'
-  },
-  {
-    key: 'purchases',
-    title: 'Vendor Purchases & Payables',
-    subtitle: 'Vendor khata, mill commitments, disbursements & AP schedules',
-    icon: MdCorporateFare,
-    color: 'blue'
-  },
-  {
-    key: 'accounts',
-    title: 'Accounts & Financial Vouchers',
-    subtitle: 'Voucher registers, cash daybook, expenses & trial balance',
-    icon: MdAccountBalanceWallet,
-    color: 'purple'
-  },
-  {
-    key: 'business',
-    title: 'Business Overview & Statements',
-    subtitle: 'Balance Sheet statement, P&L summary & financial KPIs',
-    icon: MdBalance,
-    color: 'teal'
-  }
+const FINANCIAL_YEARS = [
+  { id: '2026-2027', label: 'Financial Year 2026-27 (01-Jul-2026 – 30-Jun-2027)', from: '2026-07-01', to: '2027-06-30' },
+  { id: '2025-2026', label: 'Financial Year 2025-26 (01-Jul-2025 – 30-Jun-2026)', from: '2025-07-01', to: '2026-06-30' },
+  { id: '2024-2025', label: 'Financial Year 2024-25 (01-Jul-2024 – 30-Jun-2025)', from: '2024-07-01', to: '2025-06-30' }
 ];
 
-const STORAGE_KEY = 'erp_reports_custom_order';
-const STORAGE_CAT_KEY = 'erp_reports_category_order';
-
-const getInitialReports = (): ReportItem[] => {
-  try {
-    const savedOrderJson = localStorage.getItem(STORAGE_KEY);
-    if (!savedOrderJson) return ALL_REPORTS;
-    const savedIds: string[] = JSON.parse(savedOrderJson);
-    if (!Array.isArray(savedIds)) return ALL_REPORTS;
-
-    // Check if contains legacy/removed reports like stock or inventory
-    const validIds = new Set(ALL_REPORTS.map((r) => r.id));
-    const hasLegacy = savedIds.some((id) => !validIds.has(id));
-    if (hasLegacy || savedIds.length !== ALL_REPORTS.length) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(STORAGE_CAT_KEY);
-      return ALL_REPORTS;
-    }
-
-    const reportMap = new Map(ALL_REPORTS.map((r) => [r.id, r]));
-    const ordered: ReportItem[] = [];
-    savedIds.forEach((id) => {
-      const item = reportMap.get(id);
-      if (item) {
-        ordered.push(item);
-        reportMap.delete(id);
-      }
-    });
-    reportMap.forEach((item) => ordered.push(item));
-    return ordered;
-  } catch (e) {
-    return ALL_REPORTS;
-  }
+const REPORT_TITLES: Record<TabKey, string> = {
+  'customer-ledger': 'Customer Ledger Report',
+  'vendor-ledger': 'Vendor Ledger Report',
+  'combined-ledger': 'All Parties Statement',
+  'profit-loss': 'Profit & Loss Statement',
+  'expense-report': 'Operational Expense Report',
+  'daily-book': 'Daily Cash & Bank Daybook (Roznamcha)'
 };
 
-const getInitialCategories = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_CAT_KEY);
-    if (!saved) return CATEGORY_META;
-    const savedKeys: string[] = JSON.parse(saved);
-    if (!Array.isArray(savedKeys)) return CATEGORY_META;
-
-    const validKeys = new Set(CATEGORY_META.map((c) => c.key));
-    const hasLegacy = savedKeys.some((k) => !validKeys.has(k));
-    if (hasLegacy || savedKeys.length !== CATEGORY_META.length) {
-      localStorage.removeItem(STORAGE_CAT_KEY);
-      return CATEGORY_META;
-    }
-
-    const catMap = new Map(CATEGORY_META.map((c) => [c.key, c]));
-    const ordered: typeof CATEGORY_META = [];
-    savedKeys.forEach((key) => {
-      const item = catMap.get(key);
-      if (item) {
-        ordered.push(item);
-        catMap.delete(key);
-      }
-    });
-    catMap.forEach((item) => ordered.push(item));
-    return ordered;
-  } catch (e) {
-    return CATEGORY_META;
+const formatPrintDate = (dStr: string) => {
+  if (!dStr) return '';
+  const parts = dStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
+  return dStr;
 };
 
-const ReportDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const { tenantId, businessName } = useAuth();
+export const ReportDashboard: React.FC = () => {
+  const { tenantId } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabKey>('customer-ledger');
 
-  const [reportsList, setReportsList] = useState<ReportItem[]>(getInitialReports);
-  const [categoriesList, setCategoriesList] = useState(getInitialCategories);
-  const [searchQuery, setSearchQuery] = useState('');
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  // Master lookup data
+  const [loadingLookups, setLoadingLookups] = useState(true);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [coaAccounts, setCoaAccounts] = useState<any[]>([]);
 
-  const getInitialCategory = () => {
-    const fromState = (location.state as any)?.category;
-    const fromParam = searchParams.get('category');
-    return fromState || fromParam || 'all';
-  };
+  // Filter Bar State
+  const [selectedFY, setSelectedFY] = useState<string>('2026-2027');
+  const [selectedCustomerAccounts, setSelectedCustomerAccounts] = useState<string[]>([]);
+  const [selectedVendorAccounts, setSelectedVendorAccounts] = useState<string[]>([]);
+  const [selectedCombinedParties, setSelectedCombinedParties] = useState<string[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
+  const [fromDate, setFromDate] = useState<string>('2026-06-22');
+  const [toDate, setToDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [partyTypeFilter, setPartyTypeFilter] = useState<'ALL' | 'CUSTOMER' | 'VENDOR'>('ALL');
+  const [expenseCoaFilter, setExpenseCoaFilter] = useState<string>('ALL');
 
-  const [selectedCategory, setSelectedCategory] = useState<string>(getInitialCategory);
+  // Generation & Results state
+  const [hasGenerated, setHasGenerated] = useState<boolean>(false);
+  const [generating, setGenerating] = useState<boolean>(false);
+  const [tableSearch, setTableSearch] = useState<string>('');
 
-  // Synchronize category if query params or location state change dynamically
-  useEffect(() => {
-    const target = (location.state as any)?.category || searchParams.get('category');
-    if (target && target !== selectedCategory) {
-      setSelectedCategory(target);
-      setCollapsedCats((prev) => ({
-        ...prev,
-        [target]: false,
-      }));
+  // Sorting & Quick Toolbar Filter State
+  const [sortKey, setSortKey] = useState<string>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('asc');
+  const [quickTypeFilter, setQuickTypeFilter] = useState<string>('ALL');
+  const [quickBalanceFilter, setQuickBalanceFilter] = useState<string>('ALL');
+  const [quickPartyTypeFilter, setQuickPartyTypeFilter] = useState<'ALL' | 'CUSTOMER' | 'VENDOR'>('ALL');
+  const [expensePaidViaFilter, setExpensePaidViaFilter] = useState<string>('ALL');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const reportPdfRef = useRef<HTMLDivElement>(null);
+
+  // Generated datasets
+  const [customerLedgerRows, setCustomerLedgerRows] = useState<any[]>([]);
+  const [vendorLedgerRows, setVendorLedgerRows] = useState<any[]>([]);
+  const [combinedRows, setCombinedRows] = useState<any[]>([]);
+  const [pnlData, setPnlData] = useState<any>(null);
+  const [pnlBasis, setPnlBasis] = useState<'accrual' | 'cash'>('accrual');
+  const [pnlIncludeOB, setPnlIncludeOB] = useState<boolean>(false);
+  const [expenseRows, setExpenseRows] = useState<any[]>([]);
+  const [dailyBookRows, setDailyBookRows] = useState<any[]>([]);
+
+  // Summary KPIs for active report
+  const [summary, setSummary] = useState<{
+    opening: number;
+    debit: number;
+    credit: number;
+    returnAmt: number;
+    closing: number;
+    count: number;
+  }>({ opening: 0, debit: 0, credit: 0, returnAmt: 0, closing: 0, count: 0 });
+
+  // Location extractor helper
+  const getPartyLocation = (party: any) => {
+    let city = (party.city || '').trim();
+    let area = (party.area || '').trim();
+    if (party.notes && party.notes.includes('Location:')) {
+      const match = party.notes.match(/Location:\s*([^|\n]+)(?:\s*\|\s*([^\n]+))?/);
+      if (match) {
+        if (!city) city = match[1]?.trim() || '';
+        if (!area) area = match[2]?.trim() || '';
+      }
     }
-  }, [location.state, searchParams]);
-  const [exporting, setExporting] = useState(false);
-  const [draggedReportId, setDraggedReportId] = useState<string | null>(null);
-  const [draggedCatKey, setDraggedCatKey] = useState<string | null>(null);
-  const [justDroppedReportId, setJustDroppedReportId] = useState<string | null>(null);
-  const [justDroppedCatKey, setJustDroppedCatKey] = useState<string | null>(null);
-  const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
-
-  // Auto-scroll window when dragging near top or bottom screen edges
-  useEffect(() => {
-    if (!draggedReportId && !draggedCatKey) return;
-
-    let animationFrameId: number;
-    let scrollVelocity = 0;
-
-    const handleGlobalDragOver = (e: DragEvent) => {
-      const edgeThreshold = 110;
-      const viewportHeight = window.innerHeight;
-      const clientY = e.clientY;
-
-      if (clientY < edgeThreshold) {
-        // Near top edge: scroll up
-        const intensity = (edgeThreshold - clientY) / edgeThreshold;
-        scrollVelocity = -Math.max(6, Math.round(intensity * 22));
-      } else if (clientY > viewportHeight - edgeThreshold) {
-        // Near bottom edge: scroll down
-        const intensity = (clientY - (viewportHeight - edgeThreshold)) / edgeThreshold;
-        scrollVelocity = Math.max(6, Math.round(intensity * 22));
-      } else {
-        scrollVelocity = 0;
-      }
-    };
-
-    const scrollLoop = () => {
-      if (scrollVelocity !== 0) {
-        window.scrollBy(0, scrollVelocity);
-      }
-      animationFrameId = requestAnimationFrame(scrollLoop);
-    };
-
-    window.addEventListener('dragover', handleGlobalDragOver);
-    animationFrameId = requestAnimationFrame(scrollLoop);
-
-    return () => {
-      window.removeEventListener('dragover', handleGlobalDragOver);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [draggedReportId, draggedCatKey]);
-
-  const toggleCatCollapse = (key: string) => {
-    setCollapsedCats((prev) => ({ ...prev, [key]: !prev[key] }));
+    return { city, area };
   };
 
-  const handleTabClick = (categoryKey: string) => {
-    if (categoryKey === selectedCategory || categoryKey === 'all') {
-      setSelectedCategory('all');
-      setCollapsedCats({});
-      setSearchParams({}, { replace: true });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  // 1. Fetch initial master lookups with wildcard select to avoid column mismatch errors
+  useEffect(() => {
+    const fetchLookups = async () => {
+      try {
+        setLoadingLookups(true);
+        const [custRes, vendRes, coaRes] = await Promise.all([
+          supabase.from('customers').select('*').order('id', { ascending: true }),
+          supabase.from('vendors').select('*').order('id', { ascending: true }),
+          supabase.from('chart_of_accounts').select('*').order('account_code', { ascending: true })
+        ]);
+
+        if (custRes.error) console.error('Customer master load error:', custRes.error);
+        if (custRes.data) setCustomers(custRes.data);
+
+        if (vendRes.error) console.error('Vendor master load error:', vendRes.error);
+        if (vendRes.data) setVendors(vendRes.data);
+
+        if (coaRes.error) console.error('COA master load error:', coaRes.error);
+        if (coaRes.data) setCoaAccounts(coaRes.data);
+      } catch (err: any) {
+        toast.error('Failed to load master registries: ' + err.message);
+      } finally {
+        setLoadingLookups(false);
+      }
+    };
+
+    fetchLookups();
+  }, []);
+
+  // Compute available Cities list dynamically from database records + defaults
+  const availableCities = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach(c => {
+      const loc = getPartyLocation(c);
+      if (loc.city && loc.city !== '2' && loc.city !== '-') set.add(loc.city);
+    });
+    vendors.forEach(v => {
+      const loc = getPartyLocation(v);
+      if (loc.city && loc.city !== '2' && loc.city !== '-') set.add(loc.city);
+    });
+    DEFAULT_SUB_AREAS.forEach(s => set.add(s));
+    return Array.from(set).filter(Boolean).sort();
+  }, [customers, vendors]);
+
+  // Compute available Areas list dynamically taking selectedCities into account
+  const availableAreas = useMemo(() => {
+    const set = new Set<string>();
+    if (selectedCities.length > 0) {
+      selectedCities.forEach(city => {
+        const mapped = DEFAULT_SUBAREA_AREAS_MAP[city] || [];
+        mapped.forEach(a => set.add(a));
+        if (city.toLowerCase() === 'matli' && DEFAULT_SUBAREA_AREAS_MAP['ماتلی']) {
+          DEFAULT_SUBAREA_AREAS_MAP['ماتلی'].forEach(a => set.add(a));
+        } else if (city === 'ماتلی' && DEFAULT_SUBAREA_AREAS_MAP['Matli']) {
+          DEFAULT_SUBAREA_AREAS_MAP['Matli'].forEach(a => set.add(a));
+        }
+      });
+      customers.forEach(c => {
+        const loc = getPartyLocation(c);
+        const matches = selectedCities.some(f => f.toLowerCase() === (loc.city || '').toLowerCase());
+        if (matches && loc.area && loc.area !== '-') set.add(loc.area);
+      });
+    } else {
+      DEFAULT_AREAS.forEach(a => set.add(a));
+      customers.forEach(c => {
+        const loc = getPartyLocation(c);
+        if (loc.area && loc.area !== '-') set.add(loc.area);
+      });
+    }
+    return Array.from(set).filter(Boolean).sort();
+  }, [customers, selectedCities]);
+
+  // Customer Account options formatted with code & name
+  const customerAccountOptions = useMemo(() => {
+    let pool = customers;
+    if (selectedCities.length > 0) {
+      const lower = selectedCities.map(s => s.toLowerCase());
+      pool = pool.filter(c => {
+        const loc = getPartyLocation(c);
+        return loc.city && lower.includes(loc.city.toLowerCase());
+      });
+    }
+    if (selectedAreas.length > 0) {
+      const lower = selectedAreas.map(s => s.toLowerCase());
+      pool = pool.filter(c => {
+        const loc = getPartyLocation(c);
+        return loc.area && lower.includes(loc.area.toLowerCase());
+      });
+    }
+    return pool.map(c => {
+      const code = c.customer_code || c.account_code;
+      return code ? `[${code}] ${c.customerName}` : c.customerName;
+    }).filter(Boolean);
+  }, [customers, selectedCities, selectedAreas]);
+
+  // Vendor Account options formatted with code & name
+  const vendorAccountOptions = useMemo(() => {
+    let pool = vendors;
+    if (selectedCities.length > 0) {
+      const lower = selectedCities.map(s => s.toLowerCase());
+      pool = pool.filter(v => {
+        const loc = getPartyLocation(v);
+        return loc.city && lower.includes(loc.city.toLowerCase());
+      });
+    }
+    return pool.map(v => {
+      const code = v.vendor_code || v.account_code;
+      return code ? `[${code}] ${v.vendor_name}` : v.vendor_name;
+    }).filter(Boolean);
+  }, [vendors, selectedCities]);
+
+  // Combined Party Account options (Customers + Vendors)
+  const combinedPartyOptions = useMemo(() => {
+    let custPool = customers;
+    let vendPool = vendors;
+
+    if (selectedCities.length > 0) {
+      const lower = selectedCities.map(s => s.toLowerCase());
+      custPool = custPool.filter(c => {
+        const loc = getPartyLocation(c);
+        return loc.city && lower.includes(loc.city.toLowerCase());
+      });
+      vendPool = vendPool.filter(v => {
+        const loc = getPartyLocation(v);
+        return loc.city && lower.includes(loc.city.toLowerCase());
+      });
+    }
+
+    const custOpts = custPool.map(c => {
+      const code = c.customer_code || c.account_code || '2020-000';
+      return `[Customer] [${code}] ${c.customerName}`;
+    });
+
+    const vendOpts = vendPool.map(v => {
+      const code = v.vendor_code || v.account_code || '2010-000';
+      return `[Vendor] [${code}] ${v.vendor_name}`;
+    });
+
+    return [...custOpts, ...vendOpts].filter(Boolean);
+  }, [customers, vendors, selectedCities]);
+
+  // When FY changes, adjust date ranges gracefully
+  const handleFYChange = (fyId: string) => {
+    setSelectedFY(fyId);
+    const found = FINANCIAL_YEARS.find(f => f.id === fyId);
+    if (found) {
+      setFromDate(found.from);
+      const today = new Date().toISOString().split('T')[0];
+      setToDate(today > found.to ? found.to : today);
+    }
+  };
+
+  // Switch tab resets the generated view so user chooses filters and clicks Generate
+  const handleTabSwitch = (key: TabKey) => {
+    setActiveTab(key);
+    setSelectedCustomerAccounts([]);
+    setSelectedVendorAccounts([]);
+    setSelectedCombinedParties([]);
+    setPartyTypeFilter('ALL');
+    setSelectedCities([]);
+    setSelectedAreas([]);
+    setTableSearch('');
+    setSortKey('date');
+    setSortOrder('asc');
+    setQuickTypeFilter('ALL');
+    setQuickBalanceFilter('ALL');
+    setQuickPartyTypeFilter('ALL');
+    setHasGenerated(false);
+
+    if (key === 'daily-book') {
+      const today = new Date().toISOString().split('T')[0];
+      setFromDate(today);
+      setToDate(today);
+    } else {
+      const found = FINANCIAL_YEARS.find(f => f.id === selectedFY);
+      setFromDate(found ? found.from : '2026-06-22');
+      const today = new Date().toISOString().split('T')[0];
+      setToDate(found && today > found.to ? found.to : today);
+    }
+  };
+
+  // 2. Report Generation Engine
+  const handleGenerateReport = async () => {
+    try {
+      setGenerating(true);
+      setQuickPartyTypeFilter('ALL');
+
+      const startMs = fromDate ? new Date(fromDate + 'T00:00:00').getTime() : 0;
+      const endMs = toDate ? new Date(toDate + 'T23:59:59').getTime() : Infinity;
+
+      // ── TAB 1: CUSTOMER LEDGER ──
+      if (activeTab === 'customer-ledger') {
+        const [vchRes, invRes, retRes] = await Promise.all([
+          supabase.from('financial_vouchers').select('*').order('id', { ascending: true }),
+          supabase.from('sales_invoices').select('*').order('id', { ascending: true }),
+          supabase.from('sales_returns').select('*').order('id', { ascending: true })
+        ]);
+
+        const allVouchers = vchRes.data || [];
+        const allInvoices = invRes.data || [];
+        const allReturns = retRes.data || [];
+
+        // Apply filters: Customer Account + City + Area
+        let targetCustomers = customers;
+
+        if (selectedCustomerAccounts.length > 0) {
+          targetCustomers = targetCustomers.filter(c => {
+            const code = c.customer_code || c.account_code || '';
+            const tag = code ? `[${code}] ${c.customerName}` : c.customerName;
+            return selectedCustomerAccounts.includes(tag) ||
+                   selectedCustomerAccounts.includes(code) ||
+                   selectedCustomerAccounts.includes(c.customerName) ||
+                   selectedCustomerAccounts.includes(String(c.id));
+          });
+        }
+
+        if (selectedCities.length > 0) {
+          const lowerCities = selectedCities.map(s => s.toLowerCase());
+          targetCustomers = targetCustomers.filter(c => {
+            const loc = getPartyLocation(c);
+            return lowerCities.includes(loc.city.toLowerCase());
+          });
+        }
+
+        if (selectedAreas.length > 0) {
+          const lowerAreas = selectedAreas.map(s => s.toLowerCase());
+          targetCustomers = targetCustomers.filter(c => {
+            const loc = getPartyLocation(c);
+            return lowerAreas.includes(loc.area.toLowerCase());
+          });
+        }
+
+        const rows: any[] = [];
+        let totalOpening = 0;
+        let totalSales = 0;
+        let totalReturns = 0;
+        let totalReceipts = 0;
+
+        targetCustomers.forEach(cust => {
+          const cName = (cust.customerName || '').trim();
+          const cCode = cust.customer_code || cust.account_code || '2020-000';
+          const cOpenBal = Math.abs(Number(cust.opening_balance || cust.balance || 0));
+          const isCr = String(cust.balance_nature || '').toLowerCase().includes('cr');
+          const { city: cCity, area: cArea } = getPartyLocation(cust);
+
+          // Find OB voucher date if available
+          const obVch = allVouchers.find(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return vNo.startsWith('OB-') && (aCode === cCode || aTitle === cName.toLowerCase());
+          });
+
+          const obDate = obVch?.voucher_date || cust.opening_balance_date || '2026-06-22';
+          totalOpening += isCr ? -cOpenBal : cOpenBal;
+
+          // Push Opening Balance line
+          rows.push({
+            id: `ob-${cust.id}`,
+            date: obDate,
+            refNo: obVch?.voucher_no || `OB-${cCode.replace('2020-', '')}`,
+            partyName: cName,
+            accountCode: cCode,
+            city: cCity || '-',
+            area: cArea || '-',
+            entryType: 'Opening Balance',
+            sales: !isCr ? cOpenBal : 0,
+            returns: 0,
+            received: isCr ? cOpenBal : 0,
+            timestamp: new Date(obDate + 'T00:00:00').getTime(),
+            isOpening: true
+          });
+
+          // Match Sales Invoices
+          const custInvoices = allInvoices.filter(i => (i.customer_name || '').trim().toLowerCase() === cName.toLowerCase());
+          custInvoices.forEach(inv => {
+            const d = inv.sale_date || inv.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(inv.total_amount || 0);
+              totalSales += amt;
+              rows.push({
+                id: `inv-${inv.id}`,
+                date: String(d).split('T')[0],
+                refNo: inv.invoice_no || `INV-${inv.id}`,
+                partyName: cName,
+                accountCode: cCode,
+                city: cCity || '-',
+                area: cArea || '-',
+                entryType: 'Sales Invoice (SAV)',
+                sales: amt,
+                returns: 0,
+                received: 0,
+                timestamp: t
+              });
+
+              // Upfront cash paid on invoice
+              const paid = Number(inv.cash_amount_paid || inv.amount_paid || 0);
+              if (paid > 0) {
+                totalReceipts += paid;
+                rows.push({
+                  id: `inv-paid-${inv.id}`,
+                  date: String(d).split('T')[0],
+                  refNo: `CASH-${inv.invoice_no || inv.id}`,
+                  partyName: cName,
+                  accountCode: cCode,
+                  city: cCity || '-',
+                  area: cArea || '-',
+                  entryType: 'Cash Paid at Sale',
+                  sales: 0,
+                  returns: 0,
+                  received: paid,
+                  timestamp: t + 1
+                });
+              }
+            }
+          });
+
+          // Match Sales Returns
+          const custReturns = allReturns.filter(r => (r.customer_name || '').trim().toLowerCase() === cName.toLowerCase());
+          custReturns.forEach(ret => {
+            const d = ret.return_date || ret.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(ret.total_amount || 0);
+              totalReturns += amt;
+              rows.push({
+                id: `ret-${ret.id}`,
+                date: String(d).split('T')[0],
+                refNo: ret.return_no || `SRV-${ret.id}`,
+                partyName: cName,
+                accountCode: cCode,
+                city: cCity || '-',
+                area: cArea || '-',
+                entryType: 'Sales Return (SRV)',
+                sales: 0,
+                returns: amt,
+                received: 0,
+                timestamp: t
+              });
+            }
+          });
+
+          // Match Financial Vouchers (SAV, SRV, CRV, JV)
+          const custVouchers = allVouchers.filter(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            if (vNo.startsWith('OB-')) return false;
+            const vCode = String(v.account_code || '').trim();
+            const vTitle = String(v.account_title || '').trim().toLowerCase();
+            return vCode === cCode || vTitle === cName.toLowerCase();
+          });
+
+          custVouchers.forEach(vch => {
+            const d = vch.voucher_date || vch.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const vNo = String(vch.voucher_no || '').toUpperCase();
+              const vType = String(vch.voucher_type || '').toLowerCase();
+              const amt = Number(vch.total_amount || vch.debit || vch.credit || 0);
+
+              let entryLabel = 'Customer Voucher';
+              let sVal = 0;
+              let rVal = 0;
+              let recVal = 0;
+
+              if (vNo.startsWith('SAV-') || vType.includes('sale amount')) {
+                entryLabel = 'Sale Amount Voucher (SAV)';
+                sVal = amt;
+                totalSales += amt;
+              } else if (vNo.startsWith('SRV-') || vType.includes('sale return')) {
+                entryLabel = 'Sale Return Voucher (SRV)';
+                rVal = amt;
+                totalReturns += amt;
+              } else if (vNo.startsWith('CRV-') || vType.includes('receipt') || vType.includes('receive')) {
+                const isBank = String(vch.account_code || '').startsWith('1020');
+                entryLabel = isBank ? 'Customer Receipt (Bank)' : 'Customer Receipt (CRV)';
+                recVal = amt;
+                totalReceipts += amt;
+              } else {
+                entryLabel = vch.voucher_type || 'Journal Voucher';
+                if (Number(vch.debit) > 0) {
+                  sVal = Number(vch.debit);
+                  totalSales += sVal;
+                }
+                if (Number(vch.credit) > 0) {
+                  recVal = Number(vch.credit);
+                  totalReceipts += recVal;
+                }
+              }
+
+              rows.push({
+                id: `vch-${vch.id}`,
+                date: String(d).split('T')[0],
+                refNo: vch.voucher_no || `VCH-${vch.id}`,
+                partyName: cName,
+                accountCode: cCode,
+                city: cCity || '-',
+                area: cArea || '-',
+                entryType: entryLabel,
+                sales: sVal,
+                returns: rVal,
+                received: recVal,
+                timestamp: t
+              });
+            }
+          });
+        });
+
+        // Sort chronologically and compute running balance
+        rows.sort((a, b) => a.timestamp - b.timestamp);
+
+        let running = 0;
+        const computed = rows.map((r, idx) => {
+          running = running + r.sales - r.returns - r.received;
+          return {
+            ...r,
+            index: idx + 1,
+            runningBalance: running
+          };
+        });
+
+        const netClosingBalance = totalOpening + totalSales - totalReturns - totalReceipts;
+
+        setCustomerLedgerRows(computed);
+        setSummary({
+          opening: totalOpening,
+          debit: totalSales,
+          returnAmt: totalReturns,
+          credit: totalReceipts,
+          closing: netClosingBalance,
+          count: computed.length
+        });
+      }
+
+      // ── TAB 2: VENDOR LEDGER ──
+      else if (activeTab === 'vendor-ledger') {
+        const [vchRes, purRes, pretRes] = await Promise.all([
+          supabase.from('financial_vouchers').select('*').order('id', { ascending: true }),
+          supabase.from('supplier_purchases').select('*').order('id', { ascending: true }),
+          supabase.from('purchase_returns').select('*').order('id', { ascending: true })
+        ]);
+
+        const allVouchers = vchRes.data || [];
+        const allPurchases = purRes.data || [];
+        const allReturns = pretRes.data || [];
+
+        let targetVendors = vendors;
+        if (selectedVendorAccounts.length > 0) {
+          targetVendors = targetVendors.filter(v => {
+            const code = v.vendor_code || v.account_code || '';
+            const tag = code ? `[${code}] ${v.vendor_name}` : v.vendor_name;
+            return selectedVendorAccounts.includes(tag) ||
+                   selectedVendorAccounts.includes(code) ||
+                   selectedVendorAccounts.includes(v.vendor_name) ||
+                   selectedVendorAccounts.includes(String(v.id));
+          });
+        }
+
+        if (selectedCities.length > 0) {
+          const lowerCities = selectedCities.map(s => s.toLowerCase());
+          targetVendors = targetVendors.filter(v => {
+            const loc = getPartyLocation(v);
+            return lowerCities.includes(loc.city.toLowerCase());
+          });
+        }
+
+        const rows: any[] = [];
+        let totalOpening = 0;
+        let totalPurchases = 0;
+        let totalReturns = 0;
+        let totalPayments = 0;
+
+        targetVendors.forEach(vend => {
+          const vName = (vend.vendor_name || '').trim();
+          const vCode = vend.vendor_code || vend.account_code || '2010-000';
+          const vOpenBal = Math.abs(Number(vend.opening_balance || vend.balance || 0));
+          const { city: vCity, area: vArea } = getPartyLocation(vend);
+
+          const obVch = allVouchers.find(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return vNo.startsWith('OB-') && (aCode === vCode || aTitle === vName.toLowerCase());
+          });
+
+          const obDate = obVch?.voucher_date || '2026-06-22';
+          totalOpening += vOpenBal;
+
+          rows.push({
+            id: `ob-vend-${vend.id}`,
+            date: obDate,
+            refNo: obVch?.voucher_no || `OB-${vCode.replace('2010-', '')}`,
+            partyName: vName,
+            accountCode: vCode,
+            city: vCity || '-',
+            area: vArea || '-',
+            entryType: 'Opening Balance',
+            purchases: vOpenBal,
+            returns: 0,
+            payments: 0,
+            timestamp: new Date(obDate + 'T00:00:00').getTime(),
+            isOpening: true
+          });
+
+          // Purchases
+          const vendPurchases = allPurchases.filter(p => (p.supplier_name || p.vendor_name || '').trim().toLowerCase() === vName.toLowerCase());
+          vendPurchases.forEach(pur => {
+            const d = pur.purchase_date || pur.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(pur.total_amount || pur.net_amount || 0);
+              totalPurchases += amt;
+              rows.push({
+                id: `pur-${pur.id}`,
+                date: String(d).split('T')[0],
+                refNo: pur.purchase_no || pur.bill_no || `PUR-${pur.id}`,
+                partyName: vName,
+                accountCode: vCode,
+                city: vCity || '-',
+                area: vArea || '-',
+                entryType: 'Purchase Bill (PAV)',
+                purchases: amt,
+                returns: 0,
+                payments: 0,
+                timestamp: t
+              });
+            }
+          });
+
+          // Purchase Returns
+          const vendReturns = allReturns.filter(r => (r.supplier_name || r.vendor_name || '').trim().toLowerCase() === vName.toLowerCase());
+          vendReturns.forEach(ret => {
+            const d = ret.return_date || ret.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(ret.total_amount || 0);
+              totalReturns += amt;
+              rows.push({
+                id: `pret-${ret.id}`,
+                date: String(d).split('T')[0],
+                refNo: ret.return_no || `PRV-${ret.id}`,
+                partyName: vName,
+                accountCode: vCode,
+                city: vCity || '-',
+                area: vArea || '-',
+                entryType: 'Purchase Return (PRV)',
+                purchases: 0,
+                returns: amt,
+                payments: 0,
+                timestamp: t
+              });
+            }
+          });
+
+          // Financial Vouchers (PAV, PRV, VPV)
+          const vendVouchers = allVouchers.filter(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            if (vNo.startsWith('OB-')) return false;
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return aCode === vCode || aTitle === vName.toLowerCase();
+          });
+
+          vendVouchers.forEach(vch => {
+            const d = vch.voucher_date || vch.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const vNo = String(vch.voucher_no || '').toUpperCase();
+              const vType = String(vch.voucher_type || '').toLowerCase();
+              const amt = Number(vch.total_amount || vch.credit || vch.debit || 0);
+
+              let entryLabel = 'Vendor Voucher';
+              let pVal = 0;
+              let rVal = 0;
+              let payVal = 0;
+
+              if (vNo.startsWith('PAV-') || vType.includes('purchase amount')) {
+                entryLabel = 'Purchase Amount Voucher (PAV)';
+                pVal = amt;
+                totalPurchases += amt;
+              } else if (vNo.startsWith('PRV-') || vType.includes('purchase return')) {
+                entryLabel = 'Purchase Return Voucher (PRV)';
+                rVal = amt;
+                totalReturns += amt;
+              } else if (vNo.startsWith('VPV-') || vType.includes('payment') || vType.includes('pay')) {
+                entryLabel = 'Vendor Payment (VPV)';
+                payVal = amt;
+                totalPayments += amt;
+              } else {
+                entryLabel = vch.voucher_type || 'Journal Voucher';
+                if (Number(vch.credit) > 0) {
+                  pVal = Number(vch.credit);
+                  totalPurchases += pVal;
+                }
+                if (Number(vch.debit) > 0) {
+                  payVal = Number(vch.debit);
+                  totalPayments += payVal;
+                }
+              }
+
+              rows.push({
+                id: `vch-vend-${vch.id}`,
+                date: String(d).split('T')[0],
+                refNo: vch.voucher_no || `VPV-${vch.id}`,
+                partyName: vName,
+                accountCode: vCode,
+                city: vCity || '-',
+                area: vArea || '-',
+                entryType: entryLabel,
+                purchases: pVal,
+                returns: rVal,
+                payments: payVal,
+                timestamp: t
+              });
+            }
+          });
+        });
+
+        rows.sort((a, b) => a.timestamp - b.timestamp);
+
+        let running = 0;
+        const computed = rows.map((r, idx) => {
+          running = running + r.purchases - r.returns - r.payments;
+          return {
+            ...r,
+            index: idx + 1,
+            runningBalance: running
+          };
+        });
+
+        const netClosingPayable = totalOpening + totalPurchases - totalReturns - totalPayments;
+
+        setVendorLedgerRows(computed);
+        setSummary({
+          opening: totalOpening,
+          debit: totalPayments,
+          returnAmt: totalReturns,
+          credit: totalPurchases,
+          closing: netClosingPayable,
+          count: computed.length
+        });
+      }
+
+      // ── TAB 3: ALL PARTIES (FULL CONSOLIDATED TRANSACTION LEDGER) ──
+      else if (activeTab === 'combined-ledger') {
+        const [vchRes, invRes, retRes, purRes, pretRes] = await Promise.all([
+          supabase.from('financial_vouchers').select('*').order('id', { ascending: true }),
+          supabase.from('sales_invoices').select('*').order('id', { ascending: true }),
+          supabase.from('sales_returns').select('*').order('id', { ascending: true }),
+          supabase.from('supplier_purchases').select('*').order('id', { ascending: true }),
+          supabase.from('purchase_returns').select('*').order('id', { ascending: true })
+        ]);
+
+        const allVouchers = vchRes.data || [];
+        const allInvoices = invRes.data || [];
+        const allReturns = retRes.data || [];
+        const allPurchases = purRes.data || [];
+        const allPurchaseReturns = pretRes.data || [];
+
+        let targetCustomers = customers;
+        let targetVendors = vendors;
+
+        if (partyTypeFilter === 'CUSTOMER') {
+          targetVendors = [];
+        } else if (partyTypeFilter === 'VENDOR') {
+          targetCustomers = [];
+        }
+
+        if (selectedCombinedParties.length > 0) {
+          targetCustomers = targetCustomers.filter(c => {
+            const code = c.customer_code || c.account_code || '';
+            const name = c.customerName || '';
+            return selectedCombinedParties.some(sel => 
+              (code && sel.includes(code)) || (name && sel.includes(name))
+            );
+          });
+          targetVendors = targetVendors.filter(v => {
+            const code = v.vendor_code || v.account_code || '';
+            const name = v.vendor_name || '';
+            return selectedCombinedParties.some(sel => 
+              (code && sel.includes(code)) || (name && sel.includes(name))
+            );
+          });
+        }
+
+        if (selectedCities.length > 0) {
+          const lowerCities = selectedCities.map(s => s.toLowerCase());
+          targetCustomers = targetCustomers.filter(c => {
+            const loc = getPartyLocation(c);
+            return lowerCities.includes((loc.city || '').toLowerCase());
+          });
+          targetVendors = targetVendors.filter(v => {
+            const loc = getPartyLocation(v);
+            return lowerCities.includes((loc.city || '').toLowerCase());
+          });
+        }
+
+        if (selectedAreas.length > 0) {
+          const lowerAreas = selectedAreas.map(s => s.toLowerCase());
+          targetCustomers = targetCustomers.filter(c => {
+            const loc = getPartyLocation(c);
+            return lowerAreas.includes((loc.area || '').toLowerCase());
+          });
+          targetVendors = targetVendors.filter(v => {
+            const loc = getPartyLocation(v);
+            return lowerAreas.includes((loc.area || '').toLowerCase());
+          });
+        }
+
+        const rows: any[] = [];
+        let totalOpeningDr = 0;
+        let totalOpeningCr = 0;
+        let totalTransactionsDr = 0;
+        let totalTransactionsCr = 0;
+
+        // Process Customers
+        targetCustomers.forEach(cust => {
+          const cName = (cust.customerName || '').trim();
+          const cCode = cust.customer_code || cust.account_code || '2020-000';
+          const cOpenBal = Math.abs(Number(cust.opening_balance || cust.balance || 0));
+          const isCr = String(cust.balance_nature || '').toLowerCase().includes('cr');
+          const { city: cCity, area: cArea } = getPartyLocation(cust);
+
+          const obVch = allVouchers.find(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return vNo.startsWith('OB-') && (aCode === cCode || aTitle === cName.toLowerCase());
+          });
+
+          const obDate = obVch?.voucher_date || cust.opening_balance_date || '2026-06-22';
+          const drAmt = !isCr ? cOpenBal : 0;
+          const crAmt = isCr ? cOpenBal : 0;
+          totalOpeningDr += drAmt;
+          totalOpeningCr += crAmt;
+
+          rows.push({
+            id: `c-ob-${cust.id}`,
+            date: obDate,
+            refNo: obVch?.voucher_no || `OB-${cCode.replace('2020-', '')}`,
+            partyName: cName,
+            partyType: 'Customer',
+            accountCode: cCode,
+            city: cCity || '-',
+            area: cArea || '-',
+            entryType: 'Opening Balance',
+            debit: drAmt,
+            credit: crAmt,
+            timestamp: new Date(obDate + 'T00:00:00').getTime(),
+            isOpening: true
+          });
+
+          // Sales Invoices
+          const custInvoices = allInvoices.filter(i => (i.customer_name || '').trim().toLowerCase() === cName.toLowerCase());
+          custInvoices.forEach(inv => {
+            const d = inv.sale_date || inv.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(inv.total_amount || 0);
+              totalTransactionsDr += amt;
+              rows.push({
+                id: `c-inv-${inv.id}`,
+                date: String(d).split('T')[0],
+                refNo: inv.invoice_no || `INV-${inv.id}`,
+                partyName: cName,
+                partyType: 'Customer',
+                accountCode: cCode,
+                city: cCity || '-',
+                area: cArea || '-',
+                entryType: 'Sales Invoice (SAV)',
+                debit: amt,
+                credit: 0,
+                timestamp: t
+              });
+
+              const paid = Number(inv.cash_amount_paid || inv.amount_paid || 0);
+              if (paid > 0) {
+                totalTransactionsCr += paid;
+                rows.push({
+                  id: `c-inv-paid-${inv.id}`,
+                  date: String(d).split('T')[0],
+                  refNo: `CASH-${inv.invoice_no || inv.id}`,
+                  partyName: cName,
+                  partyType: 'Customer',
+                  accountCode: cCode,
+                  city: cCity || '-',
+                  area: cArea || '-',
+                  entryType: 'Cash Paid at Sale',
+                  debit: 0,
+                  credit: paid,
+                  timestamp: t + 1
+                });
+              }
+            }
+          });
+
+          // Sales Returns
+          const custReturns = allReturns.filter(r => (r.customer_name || '').trim().toLowerCase() === cName.toLowerCase());
+          custReturns.forEach(ret => {
+            const d = ret.return_date || ret.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(ret.total_amount || 0);
+              totalTransactionsCr += amt;
+              rows.push({
+                id: `c-ret-${ret.id}`,
+                date: String(d).split('T')[0],
+                refNo: ret.return_no || `SRV-${ret.id}`,
+                partyName: cName,
+                partyType: 'Customer',
+                accountCode: cCode,
+                city: cCity || '-',
+                area: cArea || '-',
+                entryType: 'Sale Return (SRV)',
+                debit: 0,
+                credit: amt,
+                timestamp: t
+              });
+            }
+          });
+
+          // Customer Vouchers (SAV, SRV, CRV)
+          const custVouchers = allVouchers.filter(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            if (vNo.startsWith('OB-')) return false;
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return aCode === cCode || aTitle === cName.toLowerCase();
+          });
+
+          custVouchers.forEach(vch => {
+            const d = vch.voucher_date || vch.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const vNo = String(vch.voucher_no || '').toUpperCase();
+              const vType = String(vch.voucher_type || '').toLowerCase();
+              const amt = Number(vch.total_amount || vch.debit || vch.credit || 0);
+
+              let entryLabel = 'Customer Voucher';
+              let dVal = 0;
+              let cVal = 0;
+
+              if (vNo.startsWith('SAV-') || vType.includes('sale amount')) {
+                entryLabel = 'Sale Amount Voucher (SAV)';
+                dVal = amt;
+              } else if (vNo.startsWith('SRV-') || vType.includes('sale return')) {
+                entryLabel = 'Sale Return Voucher (SRV)';
+                cVal = amt;
+              } else if (vNo.startsWith('CRV-') || vType.includes('receipt') || vType.includes('receive')) {
+                const isBank = String(vch.account_code || '').startsWith('1020');
+                entryLabel = isBank ? 'Customer Receipt (Bank)' : 'Customer Receipt (CRV)';
+                cVal = amt;
+              } else {
+                entryLabel = vch.voucher_type || 'Journal Voucher';
+                if (Number(vch.debit) > 0) dVal = Number(vch.debit);
+                if (Number(vch.credit) > 0) cVal = Number(vch.credit);
+              }
+
+              totalTransactionsDr += dVal;
+              totalTransactionsCr += cVal;
+
+              rows.push({
+                id: `c-vch-${vch.id}`,
+                date: String(d).split('T')[0],
+                refNo: vch.voucher_no || `VCH-${vch.id}`,
+                partyName: cName,
+                partyType: 'Customer',
+                accountCode: cCode,
+                city: cCity || '-',
+                area: cArea || '-',
+                entryType: entryLabel,
+                debit: dVal,
+                credit: cVal,
+                timestamp: t
+              });
+            }
+          });
+        });
+
+        // Process Vendors
+        targetVendors.forEach(vend => {
+          const vName = (vend.vendor_name || '').trim();
+          const vCode = vend.vendor_code || vend.account_code || '2010-000';
+          const vOpenBal = Math.abs(Number(vend.opening_balance || vend.balance || 0));
+          const isDr = String(vend.balance_nature || '').toLowerCase().includes('dr');
+          const { city: vCity, area: vArea } = getPartyLocation(vend);
+
+          const obVch = allVouchers.find(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return vNo.startsWith('OB-') && (aCode === vCode || aTitle === vName.toLowerCase());
+          });
+
+          const obDate = obVch?.voucher_date || vend.opening_balance_date || '2026-06-22';
+          const drAmt = isDr ? vOpenBal : 0;
+          const crAmt = !isDr ? vOpenBal : 0;
+          totalOpeningDr += drAmt;
+          totalOpeningCr += crAmt;
+
+          rows.push({
+            id: `v-ob-${vend.id}`,
+            date: obDate,
+            refNo: obVch?.voucher_no || `OB-${vCode.replace('2010-', '')}`,
+            partyName: vName,
+            partyType: 'Vendor',
+            accountCode: vCode,
+            city: vCity || '-',
+            area: vArea || '-',
+            entryType: 'Opening Balance',
+            debit: drAmt,
+            credit: crAmt,
+            timestamp: new Date(obDate + 'T00:00:00').getTime(),
+            isOpening: true
+          });
+
+          // Purchases
+          const vendPurchases = allPurchases.filter(p => (p.supplier_name || p.vendor_name || '').trim().toLowerCase() === vName.toLowerCase());
+          vendPurchases.forEach(pur => {
+            const d = pur.purchase_date || pur.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(pur.total_amount || pur.net_amount || 0);
+              totalTransactionsCr += amt;
+              rows.push({
+                id: `v-pur-${pur.id}`,
+                date: String(d).split('T')[0],
+                refNo: pur.purchase_no || pur.bill_no || `PUR-${pur.id}`,
+                partyName: vName,
+                partyType: 'Vendor',
+                accountCode: vCode,
+                city: vCity || '-',
+                area: vArea || '-',
+                entryType: 'Purchase Bill (PAV)',
+                debit: 0,
+                credit: amt,
+                timestamp: t
+              });
+            }
+          });
+
+          // Purchase Returns
+          const vendReturns = allPurchaseReturns.filter(r => (r.supplier_name || r.vendor_name || '').trim().toLowerCase() === vName.toLowerCase());
+          vendReturns.forEach(ret => {
+            const d = ret.return_date || ret.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const amt = Number(ret.total_amount || 0);
+              totalTransactionsDr += amt;
+              rows.push({
+                id: `v-pret-${ret.id}`,
+                date: String(d).split('T')[0],
+                refNo: ret.return_no || `PRV-${ret.id}`,
+                partyName: vName,
+                partyType: 'Vendor',
+                accountCode: vCode,
+                city: vCity || '-',
+                area: vArea || '-',
+                entryType: 'Purchase Return (PRV)',
+                debit: amt,
+                credit: 0,
+                timestamp: t
+              });
+            }
+          });
+
+          // Vendor Vouchers (PAV, PRV, VPV)
+          const vendVouchers = allVouchers.filter(v => {
+            const vNo = String(v.voucher_no || '').toUpperCase();
+            if (vNo.startsWith('OB-')) return false;
+            const aCode = String(v.account_code || '').trim();
+            const aTitle = String(v.account_title || '').trim().toLowerCase();
+            return aCode === vCode || aTitle === vName.toLowerCase();
+          });
+
+          vendVouchers.forEach(vch => {
+            const d = vch.voucher_date || vch.created_at || '';
+            const t = d ? new Date(String(d).includes('T') ? String(d) : String(d) + 'T12:00:00').getTime() : 0;
+            if (t >= startMs && t <= endMs) {
+              const vNo = String(vch.voucher_no || '').toUpperCase();
+              const vType = String(vch.voucher_type || '').toLowerCase();
+              const amt = Number(vch.total_amount || vch.credit || vch.debit || 0);
+
+              let entryLabel = 'Vendor Voucher';
+              let dVal = 0;
+              let cVal = 0;
+
+              if (vNo.startsWith('PAV-') || vType.includes('purchase amount')) {
+                entryLabel = 'Purchase Amount Voucher (PAV)';
+                cVal = amt;
+              } else if (vNo.startsWith('PRV-') || vType.includes('purchase return')) {
+                entryLabel = 'Purchase Return Voucher (PRV)';
+                dVal = amt;
+              } else if (vNo.startsWith('VPV-') || vType.includes('payment') || vType.includes('pay')) {
+                entryLabel = 'Vendor Payment (VPV)';
+                dVal = amt;
+              } else {
+                entryLabel = vch.voucher_type || 'Journal Voucher';
+                if (Number(vch.debit) > 0) dVal = Number(vch.debit);
+                if (Number(vch.credit) > 0) cVal = Number(vch.credit);
+              }
+
+              totalTransactionsDr += dVal;
+              totalTransactionsCr += cVal;
+
+              rows.push({
+                id: `v-vch-${vch.id}`,
+                date: String(d).split('T')[0],
+                refNo: vch.voucher_no || `VCH-${vch.id}`,
+                partyName: vName,
+                partyType: 'Vendor',
+                accountCode: vCode,
+                city: vCity || '-',
+                area: vArea || '-',
+                entryType: entryLabel,
+                debit: dVal,
+                credit: cVal,
+                timestamp: t
+              });
+            }
+          });
+        });
+
+        // Chronological sort
+        rows.sort((a, b) => a.timestamp - b.timestamp);
+
+        // Compute running balance
+        let running = 0;
+        const computed = rows.map((r, idx) => {
+          running = running + r.debit - r.credit;
+          return {
+            ...r,
+            index: idx + 1,
+            runningBalance: running
+          };
+        });
+
+        setCombinedRows(computed);
+        setSummary({
+          opening: totalOpeningDr - totalOpeningCr,
+          debit: totalOpeningDr + totalTransactionsDr,
+          credit: totalOpeningCr + totalTransactionsCr,
+          closing: running,
+          count: computed.length
+        });
+      }
+
+      // ── TAB 4: PROFIT & LOSS ──
+      else if (activeTab === 'profit-loss') {
+        const [invRes, retRes, purRes, expRes] = await Promise.all([
+          supabase.from('sales_invoices').select('total_amount, sale_date, created_at, cash_amount_paid, amount_paid'),
+          supabase.from('sales_returns').select('total_amount, return_date, created_at'),
+          supabase.from('supplier_purchases').select('total_amount, purchase_date, created_at, cash_amount_paid, amount_paid'),
+          supabase.from('financial_vouchers').select('total_amount, debit, credit, voucher_date, narration, account_code, account_title, voucher_type, voucher_no, metadata, created_at')
+        ]);
+
+        const allVouchers = expRes.data || [];
+
+        // 0. Calculate System Opening Balances for Customers & Vendors (Split into Prior vs In-Period)
+        let priorCustomerOB = 0;
+        let priorVendorOB = 0;
+        let inPeriodCustomerOB = 0;
+        let inPeriodVendorOB = 0;
+
+        allVouchers.forEach(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          if (vNo.startsWith('OB-')) {
+            const code = String(v.account_code || '');
+            const isCust = customers.some(c => c.customer_code === code || c.account_code === code || c.name === v.account_title) || code.startsWith('2020');
+            const isVend = vendors.some(vd => vd.vendor_code === code || vd.account_code === code || vd.name === v.account_title) || code.startsWith('3030');
+            const debit = Number(v.debit || 0);
+            const credit = Number(v.credit || 0);
+            const net = isCust || (!isVend && debit > 0) ? (debit - credit) : (credit - debit);
+
+            const d = v.voucher_date || v.created_at;
+            const t = d ? new Date(String(d).split('T')[0] + 'T12:00:00').getTime() : 0;
+
+            if (t < startMs) {
+              if (isCust || (!isVend && debit > 0)) {
+                priorCustomerOB += net;
+              } else if (isVend || credit > 0) {
+                priorVendorOB += net;
+              }
+            } else if (t <= endMs) {
+              if (isCust || (!isVend && debit > 0)) {
+                inPeriodCustomerOB += net;
+              } else if (isVend || credit > 0) {
+                inPeriodVendorOB += net;
+              }
+            }
+          }
+        });
+
+        const customerOB = priorCustomerOB + inPeriodCustomerOB;
+        const vendorOB = priorVendorOB + inPeriodVendorOB;
+
+        const filterDate = (list: any[], dateField: string) => {
+          return (list || []).filter(item => {
+            const d = item[dateField] || item.created_at;
+            const t = d ? new Date(String(d).split('T')[0] + 'T12:00:00').getTime() : 0;
+            return t >= startMs && t <= endMs;
+          });
+        };
+
+        const periodInvoices = filterDate(invRes.data || [], 'sale_date');
+        const periodReturns = filterDate(retRes.data || [], 'return_date');
+        const periodPurchases = filterDate(purRes.data || [], 'purchase_date');
+        const periodVouchers = filterDate(allVouchers, 'voucher_date');
+
+        // 1. Accrual - Period Gross Sales Revenue (Invoices + SAV vouchers)
+        const invoiceSales = periodInvoices.reduce((s, i) => s + Number(i.total_amount || 0), 0);
+        const voucherSalesList = periodVouchers.filter(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const type = String(v.voucher_type || '').toLowerCase();
+          const preset = String(v.metadata?.preset || '').toUpperCase();
+          return (vNo.startsWith('SAV-') || preset === 'SAV' || (type.includes('sale') && !type.includes('return'))) && !vNo.startsWith('OB-');
+        });
+        const voucherSales = voucherSalesList.reduce((s, v) => s + Number(v.total_amount || v.debit || 0), 0);
+        const periodSales = invoiceSales + voucherSales;
+
+        // 2. Accrual - Period Sales Returns (Returns + SRV vouchers)
+        const invoiceReturns = periodReturns.reduce((s, r) => s + Number(r.total_amount || 0), 0);
+        const voucherReturnsList = periodVouchers.filter(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const type = String(v.voucher_type || '').toLowerCase();
+          const preset = String(v.metadata?.preset || '').toUpperCase();
+          return (vNo.startsWith('SRV-') || preset === 'SRV' || type.includes('sale return')) && !vNo.startsWith('OB-');
+        });
+        const voucherReturns = voucherReturnsList.reduce((s, v) => s + Number(v.total_amount || v.credit || 0), 0);
+        const periodSalesReturns = invoiceReturns + voucherReturns;
+        const periodNetSales = Math.max(0, periodSales - periodSalesReturns);
+
+        // 3. Accrual - Cost of Goods Sold (supplier_purchases + PAV vouchers - PRV vouchers)
+        const invoicePurchases = periodPurchases.reduce((s, p) => s + Number(p.total_amount || 0), 0);
+        const voucherPurchases = periodVouchers.filter(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const type = String(v.voucher_type || '').toLowerCase();
+          const preset = String(v.metadata?.preset || '').toUpperCase();
+          return (vNo.startsWith('PAV-') || vNo.startsWith('PUR-') || preset === 'PAV' || (type.includes('purchase') && !type.includes('return'))) && !vNo.startsWith('OB-');
+        }).reduce((s, v) => s + Number(v.total_amount || v.credit || v.debit || 0), 0);
+
+        const voucherPurchaseReturns = periodVouchers.filter(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const type = String(v.voucher_type || '').toLowerCase();
+          const preset = String(v.metadata?.preset || '').toUpperCase();
+          return (vNo.startsWith('PRV-') || preset === 'PRV' || type.includes('purchase return')) && !vNo.startsWith('OB-');
+        }).reduce((s, v) => s + Number(v.total_amount || v.debit || 0), 0);
+
+        const periodCogs = Math.max(0, invoicePurchases + voucherPurchases - voucherPurchaseReturns);
+        const periodGrossProfit = periodNetSales - periodCogs;
+
+        // 4. Operating Expenses: EXP-, CPV-, BPV-, 5xxx accounts (excluding trade & OB vouchers)
+        const expenseVouchers = periodVouchers.filter(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const code = String(v.account_code || '');
+          const type = String(v.voucher_type || '').toLowerCase();
+          if (vNo.startsWith('OB-') || vNo.startsWith('SAV-') || vNo.startsWith('SRV-') || vNo.startsWith('PAV-') || vNo.startsWith('PRV-')) {
+            return false;
+          }
+          return vNo.startsWith('EXP-') || vNo.startsWith('CPV-') || vNo.startsWith('BPV-') || code.startsWith('5') || type.includes('expense');
+        });
+
+        const expenseMap: Record<string, number> = {};
+        let totalExpenses = 0;
+
+        expenseVouchers.forEach(v => {
+          const amt = Number(v.total_amount || v.debit || 0);
+          const head = v.account_title || v.narration || 'General Expense';
+          expenseMap[head] = (expenseMap[head] || 0) + amt;
+          totalExpenses += amt;
+        });
+
+        const periodNetProfit = periodGrossProfit - totalExpenses;
+
+        // 5. Cash Basis Accounting (Realized Cash Flow)
+        let cashFromCustomers = periodInvoices.reduce((s, i) => s + Number(i.cash_amount_paid || i.amount_paid || 0), 0);
+        let cashPaidToVendors = periodPurchases.reduce((s, p) => s + Number(p.cash_amount_paid || p.amount_paid || 0), 0);
+
+        periodVouchers.forEach(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          if (vNo.startsWith('OB-')) return;
+          const code = String(v.account_code || '');
+          const type = String(v.voucher_type || '').toLowerCase();
+          const isCust = customers.some(c => c.customer_code === code || c.account_code === code || c.name === v.account_title) || code.startsWith('2020');
+          const isVend = vendors.some(vd => vd.vendor_code === code || vd.account_code === code || vd.name === v.account_title) || code.startsWith('3030');
+
+          if (isCust && (vNo.startsWith('CRV-') || type.includes('receipt') || Number(v.credit) > 0)) {
+            cashFromCustomers += Number(v.credit || v.total_amount || 0);
+          }
+          if (isVend && (vNo.startsWith('VPV-') || type.includes('payment') || Number(v.debit) > 0)) {
+            cashPaidToVendors += Number(v.debit || v.total_amount || 0);
+          }
+        });
+
+        const netCashProfit = cashFromCustomers - cashPaidToVendors - totalExpenses;
+
+        // 6. Market Net Outstanding Standing (Receivables - Payables)
+        // In-period receivables includes transactions in this date range + any OB vouchers dated inside this period
+        const periodReceivables = inPeriodCustomerOB + periodSales - periodSalesReturns - cashFromCustomers;
+        const periodPayables = inPeriodVendorOB + periodCogs - cashPaidToVendors;
+        const totalReceivables = priorCustomerOB + periodReceivables;
+        const totalPayables = priorVendorOB + periodPayables;
+        const netMarketPosition = totalReceivables - totalPayables;
+        const periodNetMarketPosition = periodReceivables - periodPayables;
+
+        setPnlData({
+          customerOB,
+          vendorOB,
+          priorCustomerOB,
+          priorVendorOB,
+          inPeriodCustomerOB,
+          inPeriodVendorOB,
+          periodSales,
+          periodSalesReturns,
+          periodNetSales,
+          periodCogs,
+          periodGrossProfit,
+          periodNetProfit,
+          expenseMap,
+          totalExpenses,
+          cashFromCustomers,
+          cashPaidToVendors,
+          netCashProfit,
+          periodReceivables,
+          periodPayables,
+          periodNetMarketPosition,
+          totalReceivables,
+          totalPayables,
+          netMarketPosition
+        });
+
+        setSummary({
+          opening: customerOB,
+          debit: periodNetSales,
+          returnAmt: periodSalesReturns,
+          credit: totalExpenses,
+          closing: periodNetProfit,
+          count: periodInvoices.length + voucherSalesList.length
+        });
+      }
+
+      // ── TAB 5: EXPENSE REPORT ──
+      else if (activeTab === 'expense-report') {
+        const { data: vchList } = await supabase
+          .from('financial_vouchers')
+          .select('*')
+          .order('voucher_date', { ascending: false });
+
+        const filtered = (vchList || []).filter(v => {
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const code = String(v.account_code || '');
+          const type = String(v.voucher_type || '').toLowerCase();
+          const isExp = vNo.startsWith('EXP-') || code.startsWith('5') || type.includes('expense');
+          if (!isExp) return false;
+
+          const d = v.voucher_date || v.created_at;
+          const t = d ? new Date(String(d).split('T')[0] + 'T12:00:00').getTime() : 0;
+          if (t < startMs || t > endMs) return false;
+
+          if (expenseCoaFilter !== 'ALL' && code !== expenseCoaFilter && !String(v.account_title).includes(expenseCoaFilter)) {
+            return false;
+          }
+
+          return true;
+        });
+
+        let totalExpAmt = 0;
+        const rows = filtered.map((v, idx) => {
+          const amt = Number(v.total_amount || v.debit || 0);
+          totalExpAmt += amt;
+          let paidVia = 'Cash in Hand';
+          if (v.items && Array.isArray(v.items) && v.items.length > 1) {
+            const creditItem = v.items.find((it: any) => Number(it.credit) > 0) || v.items[1];
+            if (creditItem) {
+              const code = String(creditItem.accountCode || creditItem.account_code || '');
+              const title = String(creditItem.accountTitle || creditItem.account_title || creditItem.description || '');
+              if (code.startsWith('1010')) {
+                paidVia = 'Cash in Hand';
+              } else if (code.startsWith('1020') || title.toLowerCase().includes('bank')) {
+                paidVia = title ? `Bank (${title.split('-')[0].trim()})` : 'Bank Transfer';
+              } else if (title) {
+                paidVia = title;
+              }
+            }
+          } else {
+            paidVia = String(v.account_code || '').startsWith('1020') ? 'Bank Transfer' : 'Cash in Hand';
+          }
+
+          return {
+            index: idx + 1,
+            id: v.id,
+            date: v.voucher_date || String(v.created_at || '').split('T')[0],
+            voucherNo: v.voucher_no || `EXP-${v.id}`,
+            coaCodeTitle: `${v.account_code || '5000-001'} - ${v.account_title || 'General Expense'}`,
+            paidVia,
+            amount: amt
+          };
+        });
+
+        setExpenseRows(rows);
+        setSummary({
+          opening: 0,
+          debit: totalExpAmt,
+          returnAmt: 0,
+          credit: 0,
+          closing: totalExpAmt,
+          count: rows.length
+        });
+      }
+
+      // ── TAB 6: DAILYBOOK (ROZNAMCHA) ──
+      else if (activeTab === 'daily-book') {
+        const { data: vchList } = await supabase
+          .from('financial_vouchers')
+          .select('*')
+          .order('voucher_date', { ascending: true });
+
+        const rows: any[] = [];
+        let totalCashIn = 0;
+        let totalCashOut = 0;
+
+        (vchList || []).forEach(v => {
+          const d = v.voucher_date || v.created_at;
+          const t = d ? new Date(String(d).split('T')[0] + 'T12:00:00').getTime() : 0;
+          if (t < startMs || t > endMs) return false;
+
+          const vNo = String(v.voucher_no || '').toUpperCase();
+          const amt = Number(v.total_amount || v.debit || v.credit || 0);
+
+          let cashIn = 0;
+          let cashOut = 0;
+          let entryLabel = v.voucher_type || 'Cash Voucher';
+
+          if (vNo.startsWith('CRV-') || vNo.startsWith('BRV-')) {
+            cashIn = amt;
+            totalCashIn += amt;
+            entryLabel = 'Customer Cash Receipt';
+          } else if (vNo.startsWith('VPV-')) {
+            cashOut = amt;
+            totalCashOut += amt;
+            entryLabel = 'Vendor Payment';
+          } else if (vNo.startsWith('EXP-')) {
+            cashOut = amt;
+            totalCashOut += amt;
+            entryLabel = 'Expense Payment';
+          } else {
+            if (Number(v.debit) > 0) {
+              cashIn = Number(v.debit);
+              totalCashIn += cashIn;
+            }
+            if (Number(v.credit) > 0) {
+              cashOut = Number(v.credit);
+              totalCashOut += cashOut;
+            }
+          }
+
+          rows.push({
+            id: v.id,
+            date: String(d).split('T')[0],
+            time: '12:00 PM',
+            voucherNo: v.voucher_no || `VCH-${v.id}`,
+            accountTitle: `${v.account_title || 'General Account'} (${v.account_code || '-'})`,
+            entryType: entryLabel,
+            cashIn,
+            cashOut,
+            timestamp: t
+          });
+        });
+
+        let runningDrawer = 45000;
+        const computed = rows.map((r, idx) => {
+          runningDrawer = runningDrawer + r.cashIn - r.cashOut;
+          return {
+            ...r,
+            index: idx + 1,
+            netDrawerCash: runningDrawer
+          };
+        });
+
+        setDailyBookRows(computed);
+        setSummary({
+          opening: 45000,
+          debit: totalCashIn,
+          returnAmt: 0,
+          credit: totalCashOut,
+          closing: runningDrawer,
+          count: computed.length
+        });
+      }
+
+      setHasGenerated(true);
+      toast.success('Report generated successfully!');
+    } catch (err: any) {
+      toast.error('Failed to generate report: ' + err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Export to Excel helper
+  const handleExportExcel = () => {
+    if (!hasGenerated) {
+      toast.error('Please generate the report first before exporting.');
       return;
     }
 
-    setSelectedCategory(categoryKey);
-    setSearchParams({ category: categoryKey }, { replace: true });
-    setCollapsedCats((prev) => ({
-      ...prev,
-      [categoryKey]: false,
-    }));
-  };
+    let exportData: any[] = [];
+    const filename = `Report_${activeTab}_${fromDate}_${toDate}.xlsx`;
 
-  // Filtered reports using reportsList order (filtered by search query across all categories)
-  const filteredReports = useMemo(() => {
-    return reportsList.filter((item) => {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = item.title.toLowerCase().includes(q);
-        const matchesDesc = item.description.toLowerCase().includes(q);
-        const matchesCategory = item.category.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesDesc && !matchesCategory) return false;
-      }
-      return true;
-    });
-  }, [reportsList, searchQuery]);
-
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: reportsList.length };
-    reportsList.forEach((r) => {
-      counts[r.category] = (counts[r.category] || 0) + 1;
-    });
-    return counts;
-  }, [reportsList]);
-
-  // Reference to always read latest list order on drag end
-  const reportsListRef = React.useRef(reportsList);
-  reportsListRef.current = reportsList;
-
-  const categoriesListRef = React.useRef(categoriesList);
-  categoriesListRef.current = categoriesList;
-
-  // Real-time report card drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    e.stopPropagation();
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedReportId(id);
-  };
-
-  const handleDragEnter = (targetId: string) => {
-    if (!draggedReportId || draggedReportId === targetId) return;
-
-    setReportsList((prevList) => {
-      const sourceIndex = prevList.findIndex((r) => r.id === draggedReportId);
-      const targetIndex = prevList.findIndex((r) => r.id === targetId);
-      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return prevList;
-
-      const updated = [...prevList];
-      const [movedItem] = updated.splice(sourceIndex, 1);
-      updated.splice(targetIndex, 0, movedItem);
-      return updated;
-    });
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDragEnd = () => {
-    if (draggedReportId) {
-      const droppedId = draggedReportId;
-      setJustDroppedReportId(droppedId);
-      setTimeout(() => setJustDroppedReportId(null), 650);
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(reportsListRef.current.map((r) => r.id)));
-        toast.success('Card arrangement saved!', { id: 'report-order-save', duration: 1200 });
-      } catch (err) {
-        console.error('Failed to save report order to localStorage', err);
-      }
-    }
-    setDraggedReportId(null);
-  };
-
-  // Real-time category container drag and drop handlers
-  const handleCatDragStart = (e: React.DragEvent, key: string) => {
-    e.dataTransfer.setData('text/plain', key);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedCatKey(key);
-  };
-
-  const handleCatDragEnter = (targetKey: string) => {
-    if (!draggedCatKey || draggedCatKey === targetKey) return;
-
-    setCategoriesList((prevList) => {
-      const sourceIndex = prevList.findIndex((c) => c.key === draggedCatKey);
-      const targetIndex = prevList.findIndex((c) => c.key === targetKey);
-      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return prevList;
-
-      const updated = [...prevList];
-      const [movedItem] = updated.splice(sourceIndex, 1);
-      updated.splice(targetIndex, 0, movedItem);
-      return updated;
-    });
-  };
-
-  const handleCatDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleCatDragEnd = () => {
-    if (draggedCatKey) {
-      const droppedKey = draggedCatKey;
-      setJustDroppedCatKey(droppedKey);
-      setTimeout(() => setJustDroppedCatKey(null), 650);
-
-      try {
-        localStorage.setItem(STORAGE_CAT_KEY, JSON.stringify(categoriesListRef.current.map((c) => c.key)));
-        toast.success('Category container order saved!', { id: 'category-order-save', duration: 1200 });
-      } catch (err) {
-        console.error('Failed to save category order to localStorage', err);
-      }
-    }
-    setDraggedCatKey(null);
-  };
-
-  const handleResetOrder = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(STORAGE_CAT_KEY);
-      setReportsList(ALL_REPORTS);
-      setCategoriesList(CATEGORY_META);
-      setCollapsedCats({});
-      setSearchParams({}, { replace: true });
-      setSearchQuery('');
-      setSelectedCategory('all');
-      toast.success('Reports layout reset to default order.');
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleNavigate = (report: ReportItem) => {
-    if (report.path) {
-      navigate(report.path, { state: report.state || {} });
-    } else {
-      const dest = `${tenantId ? `/${tenantId}` : ''}/Reports/view/${report.id}`;
-      navigate(dest, { state: report.state || {} });
-    }
-  };
-
-  const handleBatchExport = async () => {
-    try {
-      setExporting(true);
-      const directoryCols: ExcelColumn[] = [
-        { header: 'Report ID', key: 'id', width: 22 },
-        { header: 'Report Name', key: 'title', width: 35 },
-        { header: 'Category', key: 'category', width: 20 },
-        { header: 'Description', key: 'description', width: 55 },
-        { header: 'Audit Status', key: 'badge', width: 16 }
-      ];
-
-      const exportData = reportsList.map((r) => ({
-        id: r.id.toUpperCase(),
-        title: r.title,
-        category: r.category.toUpperCase(),
-        description: r.description,
-        badge: r.badge || 'STANDARD'
+    if (activeTab === 'customer-ledger') {
+      exportData = customerLedgerRows.map(r => ({
+        'S#': r.index,
+        'Date': r.date,
+        'Ref / Doc #': r.refNo,
+        'Customer Name (Code)': `${r.partyName} (${r.accountCode})`,
+        'City': r.city || '',
+        'Area': r.area || '',
+        'Entry Type': r.entryType,
+        'Sales (Dr)': r.sales,
+        'Return (Cr)': r.returns,
+        'Received (Cr)': r.received,
+        'Running Balance': r.runningBalance
       }));
+    } else if (activeTab === 'vendor-ledger') {
+      exportData = vendorLedgerRows.map(r => ({
+        'S#': r.index,
+        'Date': r.date,
+        'Ref / Doc #': r.refNo,
+        'Vendor Name (Code)': `${r.partyName} (${r.accountCode})`,
+        'City': r.city || '',
+        'Area': r.area || '',
+        'Entry Type': r.entryType,
+        'Purchase (Cr)': r.purchases,
+        'Return (Dr)': r.returns,
+        'Payment (Dr)': r.payments,
+        'Running Balance': r.runningBalance
+      }));
+    } else if (activeTab === 'combined-ledger') {
+      exportData = filteredCombinedRows.map((r, i) => ({
+        'S#': i + 1,
+        'Date': r.date,
+        'Ref / Doc #': r.refNo,
+        'Party Name': r.partyName,
+        'Party Type': r.partyType,
+        'Code': r.accountCode,
+        'City': r.city,
+        'Area': r.area,
+        'Entry Type': r.entryType,
+        'Debit (Dr)': r.debit,
+        'Credit (Cr)': r.credit,
+        'Running Balance': r.runningBalance
+      }));
+    } else if (activeTab === 'profit-loss' && pnlData) {
+      if (pnlBasis === 'cash') {
+        exportData = [
+          { 'Calculation Basis': 'Cash Basis (Realized Pocket Profit)', 'Line Item': 'Cash Collected / Received from Customers', 'Amount (PKR)': pnlData.cashFromCustomers },
+          { 'Calculation Basis': 'Cash Basis (Realized Pocket Profit)', 'Line Item': 'Less: Cash Paid to Suppliers / Vendors', 'Amount (PKR)': -pnlData.cashPaidToVendors },
+          { 'Calculation Basis': 'Cash Basis (Realized Pocket Profit)', 'Line Item': 'Net Trading Cash Generated', 'Amount (PKR)': pnlData.cashFromCustomers - pnlData.cashPaidToVendors },
+          ...Object.entries(pnlData.expenseMap).map(([k, v]) => ({
+            'Calculation Basis': 'Cash Basis (Realized Pocket Profit)',
+            'Line Item': `Operating Expense: ${k}`,
+            'Amount (PKR)': -Number(v)
+          })),
+          { 'Calculation Basis': 'Cash Basis (Realized Pocket Profit)', 'Line Item': 'Total Operating Expenses Paid', 'Amount (PKR)': -pnlData.totalExpenses },
+          { 'Calculation Basis': 'Cash Basis (Realized Pocket Profit)', 'Line Item': 'Net Realized Cash Profit / (Loss)', 'Amount (PKR)': pnlData.netCashProfit },
+          { 'Calculation Basis': 'Market Standing', 'Line Item': pnlIncludeOB ? 'Total Customer Receivables (Including Prior OB)' : 'Period Customer Receivables (Excluding Prior OB)', 'Amount (PKR)': pnlIncludeOB ? pnlData.totalReceivables : (pnlData.periodReceivables ?? (pnlData.periodSales - pnlData.periodSalesReturns - pnlData.cashFromCustomers)) },
+          { 'Calculation Basis': 'Market Standing', 'Line Item': pnlIncludeOB ? 'Less: Total Vendor Payables (Including Prior OB)' : 'Less: Period Vendor Payables (Excluding Prior OB)', 'Amount (PKR)': -(pnlIncludeOB ? pnlData.totalPayables : (pnlData.periodPayables ?? (pnlData.periodCogs - pnlData.cashPaidToVendors))) },
+          { 'Calculation Basis': 'Market Standing', 'Line Item': 'Net Market Outstanding Position', 'Amount (PKR)': (pnlIncludeOB ? pnlData.totalReceivables : (pnlData.periodReceivables ?? (pnlData.periodSales - pnlData.periodSalesReturns - pnlData.cashFromCustomers))) - (pnlIncludeOB ? pnlData.totalPayables : (pnlData.periodPayables ?? (pnlData.periodCogs - pnlData.cashPaidToVendors))) }
+        ];
+      } else {
+        const effGrossSales = pnlData.periodSales + (pnlIncludeOB ? pnlData.customerOB : 0);
+        const effCOGS = pnlData.periodCogs + (pnlIncludeOB ? pnlData.vendorOB : 0);
+        const effNetSales = Math.max(0, effGrossSales - pnlData.periodSalesReturns);
+        const effGrossProfit = effNetSales - effCOGS;
+        const effNetProfit = effGrossProfit - pnlData.totalExpenses;
 
-      await exportMultiSheetExcel({
-        fileName: `Master_Reports_Directory_${new Date().toISOString().split('T')[0]}.xlsx`,
-        companyName: businessName || getBrandConfig().fullName,
-        sheets: [
-          {
-            sheetName: 'Reports Catalog',
-            reportTitle: 'Master Reports Directory & Audit Statements Catalog',
-            columns: directoryCols,
-            data: exportData,
-            summaryRow: false,
-            theme: 'emerald'
-          }
-        ]
-      });
+        exportData = [
+          ...(pnlIncludeOB ? [
+            { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Customer Opening Balance (Prior Sales)', 'Amount (PKR)': pnlData.customerOB },
+            { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Period Sales Revenue (SAV & Invoices)', 'Amount (PKR)': pnlData.periodSales }
+          ] : []),
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Gross Sales Revenue', 'Amount (PKR)': effGrossSales },
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Less: Sales Returns (SRV)', 'Amount (PKR)': -pnlData.periodSalesReturns },
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Net Sales Turnover', 'Amount (PKR)': effNetSales },
+          ...(pnlIncludeOB && pnlData.vendorOB > 0 ? [
+            { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Vendor Opening Balance (Prior Purchases)', 'Amount (PKR)': -pnlData.vendorOB },
+            { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Period Purchases / Material (PAV)', 'Amount (PKR)': -pnlData.periodCogs }
+          ] : []),
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Cost of Goods Sold (Purchases / Material)', 'Amount (PKR)': -effCOGS },
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Gross Trading Profit', 'Amount (PKR)': effGrossProfit },
+          ...Object.entries(pnlData.expenseMap).map(([k, v]) => ({
+            'Calculation Basis': 'Accrual Basis (Trading P&L)',
+            'Line Item': `Operating Expense: ${k}`,
+            'Amount (PKR)': -Number(v)
+          })),
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Total Operating Expenses', 'Amount (PKR)': -pnlData.totalExpenses },
+          { 'Calculation Basis': 'Accrual Basis (Trading P&L)', 'Line Item': 'Net Trading Profit / (Loss)', 'Amount (PKR)': effNetProfit },
+          { 'Calculation Basis': 'Market Standing', 'Line Item': pnlIncludeOB ? 'Total Customer Receivables (Including Prior OB)' : 'Period Customer Receivables (Excluding Prior OB)', 'Amount (PKR)': pnlIncludeOB ? pnlData.totalReceivables : (pnlData.periodReceivables ?? (pnlData.periodSales - pnlData.periodSalesReturns - pnlData.cashFromCustomers)) },
+          { 'Calculation Basis': 'Market Standing', 'Line Item': pnlIncludeOB ? 'Less: Total Vendor Payables (Including Prior OB)' : 'Less: Period Vendor Payables (Excluding Prior OB)', 'Amount (PKR)': -(pnlIncludeOB ? pnlData.totalPayables : (pnlData.periodPayables ?? (pnlData.periodCogs - pnlData.cashPaidToVendors))) },
+          { 'Calculation Basis': 'Market Standing', 'Line Item': 'Net Market Outstanding Position', 'Amount (PKR)': (pnlIncludeOB ? pnlData.totalReceivables : (pnlData.periodReceivables ?? (pnlData.periodSales - pnlData.periodSalesReturns - pnlData.cashFromCustomers))) - (pnlIncludeOB ? pnlData.totalPayables : (pnlData.periodPayables ?? (pnlData.periodCogs - pnlData.cashPaidToVendors))) }
+        ];
+      }
+    } else if (activeTab === 'expense-report') {
+      exportData = filteredExpenseRows.map(r => ({
+        'S#': r.index,
+        'Date': r.date,
+        'Voucher #': r.voucherNo,
+        'Chart of Accounts': r.coaCodeTitle,
+        'Paid Via': r.paidVia,
+        'Amount (PKR)': r.amount
+      }));
+    } else if (activeTab === 'daily-book') {
+      exportData = dailyBookRows.map(r => ({
+        'S#': r.index,
+        'Date': r.date,
+        'Voucher / Ref #': r.voucherNo,
+        'Account Title': r.accountTitle,
+        'Entry Type': r.entryType,
+        'Cash In (Dr)': r.cashIn,
+        'Cash Out (Cr)': r.cashOut,
+        'Net Drawer Cash': r.netDrawerCash
+      }));
+    }
 
-      toast.success('Master Reports Directory catalog exported successfully!');
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Report');
+    XLSX.writeFile(wb, filename);
+    toast.success('Downloaded ' + filename);
+  };
+
+  const handlePrint = () => {
+    if (!hasGenerated) {
+      toast.error('Please click Generate Report first.');
+      return;
+    }
+    window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!hasGenerated || !reportPdfRef.current) {
+      toast.error('Please click Generate Report first.');
+      return;
+    }
+
+    try {
+      setIsGeneratingPdf(true);
+      const toastId = toast.loading('Preparing A4 PDF...');
+
+      // Small delay to allow state update to render visible print/pdf header in DOM
+      await new Promise(resolve => setTimeout(resolve, 250));
+
+      // Dynamic import
+      // @ts-ignore
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+
+      const element = reportPdfRef.current;
+      const cleanTitle = (REPORT_TITLES[activeTab] || 'Report').replace(/\s+/g, '_');
+      const filename = `${cleanTitle}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const isLandscape = activeTab === 'customer-ledger' || activeTab === 'vendor-ledger' || activeTab === 'daily-book' || activeTab === 'combined-ledger';
+
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: isLandscape ? 'landscape' : 'portrait'
+        },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+
+      toast.dismiss(toastId);
+      toast.success(`Downloaded ${filename}`);
     } catch (err: any) {
-      toast.error('Export failed: ' + err.message);
+      console.error('Error downloading PDF:', err);
+      toast.error('Failed to generate PDF. You can also use Print -> Save as PDF.');
     } finally {
-      setExporting(false);
+      setIsGeneratingPdf(false);
     }
   };
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortOrder === 'asc') setSortOrder('desc');
+      else if (sortOrder === 'desc') {
+        setSortOrder('none');
+        setSortKey('date');
+      } else {
+        setSortOrder('asc');
+      }
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIcon = (key: string) => {
+    if (isGeneratingPdf) return null;
+    if (sortKey !== key || sortOrder === 'none') {
+      return <MdSwapVert className="opacity-30 group-hover:opacity-80 transition text-sm ml-0.5 inline-block print:hidden" />;
+    }
+    return sortOrder === 'asc' ? (
+      <MdArrowUpward className="text-primary text-sm ml-0.5 inline-block print:hidden" />
+    ) : (
+      <MdArrowDownward className="text-primary text-sm ml-0.5 inline-block print:hidden" />
+    );
+  };
+
+  // Local table search & quick filters with column sorting
+  const filteredCustomerRows = useMemo(() => {
+    let list = customerLedgerRows;
+
+    // 1. Text search
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      list = list.filter(r => 
+        String(r.partyName || '').toLowerCase().includes(q) ||
+        String(r.accountCode || '').toLowerCase().includes(q) ||
+        String(r.refNo || '').toLowerCase().includes(q) ||
+        String(r.city || '').toLowerCase().includes(q) ||
+        String(r.area || '').toLowerCase().includes(q) ||
+        String(r.entryType || '').toLowerCase().includes(q)
+      );
+    }
+
+    // 2. Quick Type filter
+    if (quickTypeFilter !== 'ALL') {
+      if (quickTypeFilter === 'OB') {
+        list = list.filter(r => r.isOpening || r.entryType.includes('Opening'));
+      } else if (quickTypeFilter === 'SALES') {
+        list = list.filter(r => !r.isOpening && !r.entryType.includes('Opening') && (r.entryType.includes('SAV') || r.entryType.includes('Sale') || r.entryType.includes('Invoice') || r.sales > 0));
+      } else if (quickTypeFilter === 'RETURNS') {
+        list = list.filter(r => !r.isOpening && !r.entryType.includes('Opening') && (r.entryType.includes('SRV') || r.entryType.includes('Return') || r.returns > 0));
+      } else if (quickTypeFilter === 'RECEIPTS') {
+        list = list.filter(r => !r.isOpening && !r.entryType.includes('Opening') && (r.entryType.includes('Receipt') || r.entryType.includes('CRV') || r.received > 0));
+      }
+    }
+
+    // 3. Quick Balance filter
+    if (quickBalanceFilter !== 'ALL') {
+      if (quickBalanceFilter === 'DEBIT') {
+        list = list.filter(r => r.runningBalance > 0);
+      } else if (quickBalanceFilter === 'CREDIT') {
+        list = list.filter(r => r.runningBalance < 0);
+      } else if (quickBalanceFilter === 'ZERO') {
+        list = list.filter(r => r.runningBalance === 0);
+      }
+    }
+
+    // 4. Sorting
+    if (sortOrder !== 'none') {
+      const mul = sortOrder === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        if (sortKey === 'date') {
+          return ((a.timestamp || 0) - (b.timestamp || 0)) * mul;
+        }
+        if (sortKey === 'sales') {
+          return (Number(a.sales || 0) - Number(b.sales || 0)) * mul;
+        }
+        if (sortKey === 'returns') {
+          return (Number(a.returns || 0) - Number(b.returns || 0)) * mul;
+        }
+        if (sortKey === 'received') {
+          return (Number(a.received || 0) - Number(b.received || 0)) * mul;
+        }
+        if (sortKey === 'runningBalance') {
+          return (Number(a.runningBalance || 0) - Number(b.runningBalance || 0)) * mul;
+        }
+        const valA = String(a[sortKey] || '').toLowerCase();
+        const valB = String(b[sortKey] || '').toLowerCase();
+        return valA.localeCompare(valB) * mul;
+      });
+    }
+
+    return list;
+  }, [customerLedgerRows, tableSearch, quickTypeFilter, quickBalanceFilter, sortKey, sortOrder]);
+
+  const filteredVendorRows = useMemo(() => {
+    let list = vendorLedgerRows;
+
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      list = list.filter(r => 
+        String(r.partyName || '').toLowerCase().includes(q) ||
+        String(r.accountCode || '').toLowerCase().includes(q) ||
+        String(r.refNo || '').toLowerCase().includes(q) ||
+        String(r.city || '').toLowerCase().includes(q) ||
+        String(r.area || '').toLowerCase().includes(q) ||
+        String(r.entryType || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (quickTypeFilter !== 'ALL') {
+      if (quickTypeFilter === 'OB') {
+        list = list.filter(r => r.isOpening || r.entryType.includes('Opening'));
+      } else if (quickTypeFilter === 'PURCHASES') {
+        list = list.filter(r => !r.isOpening && !r.entryType.includes('Opening') && (r.entryType.includes('PAV') || r.entryType.includes('Purchase') || r.purchases > 0));
+      } else if (quickTypeFilter === 'RETURNS') {
+        list = list.filter(r => !r.isOpening && !r.entryType.includes('Opening') && (r.entryType.includes('PRV') || r.entryType.includes('Return') || r.returns > 0));
+      } else if (quickTypeFilter === 'PAYMENTS') {
+        list = list.filter(r => !r.isOpening && !r.entryType.includes('Opening') && (r.entryType.includes('Payment') || r.entryType.includes('VPV') || r.payments > 0));
+      }
+    }
+
+    if (quickBalanceFilter !== 'ALL') {
+      if (quickBalanceFilter === 'DEBIT') {
+        list = list.filter(r => r.runningBalance < 0);
+      } else if (quickBalanceFilter === 'CREDIT') {
+        list = list.filter(r => r.runningBalance > 0);
+      } else if (quickBalanceFilter === 'ZERO') {
+        list = list.filter(r => r.runningBalance === 0);
+      }
+    }
+
+    if (sortOrder !== 'none') {
+      const mul = sortOrder === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        if (sortKey === 'date') {
+          return ((a.timestamp || 0) - (b.timestamp || 0)) * mul;
+        }
+        if (sortKey === 'purchases') {
+          return (Number(a.purchases || 0) - Number(b.purchases || 0)) * mul;
+        }
+        if (sortKey === 'returns') {
+          return (Number(a.returns || 0) - Number(b.returns || 0)) * mul;
+        }
+        if (sortKey === 'payments') {
+          return (Number(a.payments || 0) - Number(b.payments || 0)) * mul;
+        }
+        if (sortKey === 'runningBalance') {
+          return (Number(a.runningBalance || 0) - Number(b.runningBalance || 0)) * mul;
+        }
+        const valA = String(a[sortKey] || '').toLowerCase();
+        const valB = String(b[sortKey] || '').toLowerCase();
+        return valA.localeCompare(valB) * mul;
+      });
+    }
+
+    return list;
+  }, [vendorLedgerRows, tableSearch, quickTypeFilter, quickBalanceFilter, sortKey, sortOrder]);
+
+  const filteredCombinedRows = useMemo(() => {
+    let list = [...combinedRows];
+
+    // Filter by Toolbar Quick Party Type (Independent live filter)
+    if (quickPartyTypeFilter === 'CUSTOMER') {
+      list = list.filter(r => r.partyType === 'Customer');
+    } else if (quickPartyTypeFilter === 'VENDOR') {
+      list = list.filter(r => r.partyType === 'Vendor');
+    }
+
+    // Filter by Party Account
+    if (selectedCombinedParties.length > 0) {
+      list = list.filter(r => {
+        const code = r.accountCode || '';
+        const name = r.partyName || '';
+        return selectedCombinedParties.some(sel => 
+          (code && sel.includes(code)) || (name && sel.includes(name))
+        );
+      });
+    }
+
+    // Filter by City
+    if (selectedCities.length > 0) {
+      const lowerCities = selectedCities.map(s => s.toLowerCase());
+      list = list.filter(r => r.city && lowerCities.includes(r.city.toLowerCase()));
+    }
+
+    // Filter by Area
+    if (selectedAreas.length > 0) {
+      const lowerAreas = selectedAreas.map(s => s.toLowerCase());
+      list = list.filter(r => r.area && lowerAreas.includes(r.area.toLowerCase()));
+    }
+
+    // Quick Type Filter
+    if (quickTypeFilter === 'OB') {
+      list = list.filter(r => r.isOpening);
+    } else if (quickTypeFilter === 'SALES') {
+      list = list.filter(r => (r.entryType || '').includes('Sale') || (r.entryType || '').includes('SAV'));
+    } else if (quickTypeFilter === 'PURCHASES') {
+      list = list.filter(r => (r.entryType || '').includes('Purchase') || (r.entryType || '').includes('PAV'));
+    } else if (quickTypeFilter === 'RETURNS') {
+      list = list.filter(r => (r.entryType || '').includes('Return'));
+    } else if (quickTypeFilter === 'PAYMENTS') {
+      list = list.filter(r => (r.entryType || '').includes('Payment') || (r.entryType || '').includes('Receipt') || (r.entryType || '').includes('CRV') || (r.entryType || '').includes('VPV'));
+    }
+
+    // Quick Balance Filter
+    if (quickBalanceFilter === 'DEBIT') {
+      list = list.filter(r => Number(r.runningBalance) > 0);
+    } else if (quickBalanceFilter === 'CREDIT') {
+      list = list.filter(r => Number(r.runningBalance) < 0);
+    } else if (quickBalanceFilter === 'ZERO') {
+      list = list.filter(r => Number(r.runningBalance) === 0);
+    }
+
+    // Search Query
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      list = list.filter(r => 
+        String(r.partyName || '').toLowerCase().includes(q) ||
+        String(r.accountCode || '').toLowerCase().includes(q) ||
+        String(r.refNo || '').toLowerCase().includes(q) ||
+        String(r.city || '').toLowerCase().includes(q) ||
+        String(r.area || '').toLowerCase().includes(q) ||
+        String(r.entryType || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Sorting
+    if (sortOrder !== 'none') {
+      const mul = sortOrder === 'asc' ? 1 : -1;
+      list.sort((a, b) => {
+        if (sortKey === 'date') return (Number(a.timestamp || 0) - Number(b.timestamp || 0)) * mul;
+        if (sortKey === 'refNo') return String(a.refNo || '').localeCompare(String(b.refNo || '')) * mul;
+        if (sortKey === 'partyName') return String(a.partyName || '').localeCompare(String(b.partyName || '')) * mul;
+        if (sortKey === 'accountCode' || sortKey === 'code') return String(a.accountCode || '').localeCompare(String(b.accountCode || '')) * mul;
+        if (sortKey === 'partyType' || sortKey === 'type') return String(a.partyType || '').localeCompare(String(b.partyType || '')) * mul;
+        if (sortKey === 'city') return String(a.city || '').localeCompare(String(b.city || '')) * mul;
+        if (sortKey === 'area') return String(a.area || '').localeCompare(String(b.area || '')) * mul;
+        if (sortKey === 'entryType') return String(a.entryType || '').localeCompare(String(b.entryType || '')) * mul;
+        if (sortKey === 'debit') return (Number(a.debit || 0) - Number(b.debit || 0)) * mul;
+        if (sortKey === 'credit') return (Number(a.credit || 0) - Number(b.credit || 0)) * mul;
+        if (sortKey === 'runningBalance') return (Number(a.runningBalance || 0) - Number(b.runningBalance || 0)) * mul;
+        return 0;
+      });
+    }
+
+    return list;
+  }, [combinedRows, quickPartyTypeFilter, selectedCombinedParties, selectedCities, selectedAreas, quickTypeFilter, quickBalanceFilter, tableSearch, sortKey, sortOrder]);
+
+  const combinedSummary = useMemo(() => {
+    let totalOpening = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    filteredCombinedRows.forEach(r => {
+      if (r.isOpening) {
+        totalOpening += (Number(r.debit || 0) - Number(r.credit || 0));
+      } else {
+        totalDebit += Number(r.debit || 0);
+        totalCredit += Number(r.credit || 0);
+      }
+    });
+
+    const netClosing = totalOpening + totalDebit - totalCredit;
+
+    return {
+      count: filteredCombinedRows.length,
+      opening: totalOpening,
+      debit: totalDebit,
+      credit: totalCredit,
+      closing: netClosing
+    };
+  }, [filteredCombinedRows]);
+
+  const availablePaidViaOptions = useMemo(() => {
+    const set = new Set<string>();
+    expenseRows.forEach(r => {
+      if (r.paidVia) set.add(r.paidVia);
+    });
+    return Array.from(set).sort();
+  }, [expenseRows]);
+
+  const filteredExpenseRows = useMemo(() => {
+    let list = expenseRows;
+    if (expensePaidViaFilter !== 'ALL') {
+      const f = expensePaidViaFilter.toLowerCase().trim();
+      list = list.filter(r => {
+        const pv = String(r.paidVia || '').toLowerCase().trim();
+        return pv === f || pv.includes(f);
+      });
+    }
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      list = list.filter(r => 
+        String(r.coaCodeTitle || '').toLowerCase().includes(q) ||
+        String(r.voucherNo || '').toLowerCase().includes(q) ||
+        String(r.paidVia || '').toLowerCase().includes(q)
+      );
+    }
+    if (sortOrder !== 'none') {
+      const mul = sortOrder === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        if (sortKey === 'date') {
+          const tA = new Date(String(a.date).split('T')[0] + 'T12:00:00').getTime();
+          const tB = new Date(String(b.date).split('T')[0] + 'T12:00:00').getTime();
+          return (tA - tB) * mul;
+        }
+        if (sortKey === 'voucherNo') {
+          return String(a.voucherNo || '').localeCompare(String(b.voucherNo || '')) * mul;
+        }
+        if (sortKey === 'coaCodeTitle' || sortKey === 'account') {
+          return String(a.coaCodeTitle || '').localeCompare(String(b.coaCodeTitle || '')) * mul;
+        }
+        if (sortKey === 'paidVia') {
+          return String(a.paidVia || '').localeCompare(String(b.paidVia || '')) * mul;
+        }
+        if (sortKey === 'amount') {
+          return (Number(a.amount || 0) - Number(b.amount || 0)) * mul;
+        }
+        return 0;
+      });
+    }
+    return list;
+  }, [expenseRows, tableSearch, expensePaidViaFilter, sortKey, sortOrder]);
+
+  const expenseSummary = useMemo(() => {
+    const count = filteredExpenseRows.length;
+    const total = filteredExpenseRows.reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
+    return { count, total };
+  }, [filteredExpenseRows]);
+
+  const filteredDailyRows = useMemo(() => {
+    let list = dailyBookRows;
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      list = list.filter(r => 
+        String(r.accountTitle || '').toLowerCase().includes(q) ||
+        String(r.voucherNo || '').toLowerCase().includes(q) ||
+        String(r.entryType || '').toLowerCase().includes(q)
+      );
+    }
+    if (sortOrder !== 'none') {
+      const mul = sortOrder === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        if (sortKey === 'date') {
+          const tA = new Date(String(a.date).split('T')[0] + 'T12:00:00').getTime();
+          const tB = new Date(String(b.date).split('T')[0] + 'T12:00:00').getTime();
+          return (tA - tB) * mul;
+        }
+        if (sortKey === 'voucherNo') {
+          return String(a.voucherNo || '').localeCompare(String(b.voucherNo || '')) * mul;
+        }
+        if (sortKey === 'accountTitle' || sortKey === 'account') {
+          return String(a.accountTitle || '').localeCompare(String(b.accountTitle || '')) * mul;
+        }
+        if (sortKey === 'entryType') {
+          return String(a.entryType || '').localeCompare(String(b.entryType || '')) * mul;
+        }
+        if (sortKey === 'cashIn' || sortKey === 'debit') {
+          return (Number(a.cashIn || 0) - Number(b.cashIn || 0)) * mul;
+        }
+        if (sortKey === 'cashOut' || sortKey === 'credit') {
+          return (Number(a.cashOut || 0) - Number(b.cashOut || 0)) * mul;
+        }
+        if (sortKey === 'netDrawerCash') {
+          return (Number(a.netDrawerCash || 0) - Number(b.netDrawerCash || 0)) * mul;
+        }
+        return 0;
+      });
+    }
+    return list;
+  }, [dailyBookRows, tableSearch, sortKey, sortOrder]);
 
   return (
-    <div className="mx-auto max-w-7xl flex flex-col gap-6 text-slate-800 dark:text-slate-100 text-xs antialiased font-sans pb-16 pt-2">
-      {/* ── BREADCRUMB & METADATA BAR ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] font-mono text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex items-center gap-2 uppercase tracking-wider">
-          <span>Financial Accounting</span>
-          <span>&gt;</span>
-          <span>Operational Ledger</span>
-          <span>&gt;</span>
-          <span className="text-emerald-700 dark:text-emerald-400 font-bold">Standard Reports Hub</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60 font-semibold text-[10px]">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Ledger Synced Active</span>
+    <div className="mx-auto max-w-7xl text-xs space-y-5 pb-16 print:max-w-none print:p-0 print:m-0 print:space-y-0 print:pb-0">
+      {/* ── TOP HEADER & BREADCRUMBS ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-boxdark p-5 rounded-2xl border border-stroke dark:border-strokedark shadow-2xs print:hidden">
+        <div>
+          <div className="flex items-center gap-2 text-slate-400 text-[11px] font-semibold tracking-wide uppercase">
+            <span>Financial Accounting</span>
+            <span>/</span>
+            <span>Audit Statements</span>
+            <span>/</span>
+            <span className="text-primary font-bold">{TABS.find(t => t.key === activeTab)?.label}</span>
           </div>
-          <div className="flex items-center gap-1 text-slate-400">
-            <MdAccessTime size={14} />
-            <span>Real-time DB</span>
-          </div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1 tracking-tight flex items-center gap-2">
+            <span>Accounting & Ledger Reports</span>
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono px-2 py-0.5 rounded-full font-bold">
+              Audited Accrual
+            </span>
+          </h2>
         </div>
       </div>
 
-      {/* ── HEADER BANNER ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-xl border border-emerald-100 dark:border-emerald-900/50 shadow-inner">
-            <MdAssessment size={28} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white font-sans">
-                Reports Directory
-              </h1>
-              <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-md text-[11px] border border-emerald-200 dark:border-emerald-800/40">
-                {reportsList.length} Available
-              </span>
-            </div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-              Drag report cards or whole category boxes to rearrange. Saved automatically in your browser.
-            </p>
-          </div>
-        </div>
-
-        {/* Global Search & Reset Order Controls */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
-          <button
-            type="button"
-            onClick={handleResetOrder}
-            title="Reset layout and category positions to default"
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition cursor-pointer shrink-0 border border-slate-200 dark:border-slate-700"
-          >
-            <MdRestartAlt size={16} />
-            <span className="hidden sm:inline">Reset Layout</span>
-          </button>
-
-          <div className="w-full md:w-80 relative">
-            <MdSearch size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search reports by name or keyword..."
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
-              >
-                <MdClear size={14} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── CATEGORY FILTER TABS ── */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <button
-          type="button"
-          onClick={() => handleTabClick('all')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs whitespace-nowrap cursor-pointer transition ${
-            selectedCategory === 'all'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-          }`}
-        >
-          <MdCategory size={15} />
-          <span>All Reports</span>
-          <span
-            className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
-              selectedCategory === 'all' ? 'bg-emerald-800/80 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-            }`}
-          >
-            {categoryCounts.all}
-          </span>
-        </button>
-
-        {categoriesList.map((cat) => {
-          const CatIcon = cat.icon || MdAssessment;
-          return (
-            <button
-              key={cat.key}
-              type="button"
-              onClick={() => handleTabClick(cat.key)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs whitespace-nowrap cursor-pointer transition ${
-                selectedCategory === cat.key
-                  ? 'bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-500/50'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              <CatIcon size={15} />
-              <span>{cat.title}</span>
-              <span
-                className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
-                  selectedCategory === cat.key ? 'bg-emerald-800/80 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                }`}
-              >
-                {categoryCounts[cat.key] || 0}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── EXPAND & DRAG ANIMATION STYLES ── */}
-      <style>{`
-        @keyframes expandDirectoryContainer {
-          0% {
-            opacity: 0;
-            transform: scale(0.92) translateY(20px);
-            filter: blur(4px);
-          }
-          50% {
-            filter: blur(0px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            filter: blur(0px);
-          }
-        }
-        @keyframes reportCardFadeUp {
-          0% {
-            opacity: 0;
-            transform: translateY(16px) scale(0.96);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        @keyframes dropSettle {
-          0% {
-            transform: scale(0.96) translateY(-2px);
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.45);
-          }
-          50% {
-            transform: scale(1.02) translateY(0);
-            box-shadow: 0 12px 28px -4px rgba(16, 185, 129, 0.25);
-          }
-          100% {
-            transform: scale(1) translateY(0);
-            box-shadow: none;
-          }
-        }
-        .animate-expand-container {
-          animation: expandDirectoryContainer 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          will-change: transform, opacity, filter;
-        }
-        .animate-card-item {
-          animation: reportCardFadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-          will-change: transform, opacity;
-        }
-        .animate-drop-settle {
-          animation: dropSettle 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-          z-index: 20;
-        }
-        .drag-item-transition {
-          transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1),
-                      opacity 0.45s cubic-bezier(0.2, 0.9, 0.3, 1),
-                      box-shadow 0.45s cubic-bezier(0.2, 0.9, 0.3, 1),
-                      background-color 0.35s ease,
-                      border-color 0.35s ease;
-        }
-      `}</style>
-
-      {/* ── CATEGORIZED REPORTS DISPLAY (EXPANDABLE DIRECTORY) ── */}
-      {selectedCategory !== 'all' ? (
-        /* Single Selected Category: Expanded Container */
-        (() => {
-          const category = categoriesList.find((c) => c.key === selectedCategory);
-          if (!category) return null;
-          const categoryReports = filteredReports.filter((r) => r.category === category.key);
-          const CatBannerIcon = category.icon || MdAssessment;
-
-          return (
-            <div
-              key={category.key}
-              className="w-full flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-emerald-500/80 dark:border-emerald-500/60 shadow-xl shadow-emerald-500/10 dark:shadow-emerald-950/40 overflow-hidden animate-expand-container"
-            >
-              {/* Category Full-Width Banner Header */}
-              <div className="p-5 border-b border-emerald-100 dark:border-emerald-950 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-emerald-600 text-white shadow-sm">
-                    <CatBannerIcon size={24} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2.5">
-                      <h2 className="font-black text-lg text-slate-900 dark:text-white">
-                        {category.title}
-                      </h2>
-                      <span className="font-mono text-xs font-black text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                        {categoryReports.length} {categoryReports.length === 1 ? 'Report' : 'Reports'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {category.subtitle}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory('all');
-                    setSearchParams({}, { replace: true });
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer self-start sm:self-auto shadow-sm"
-                >
-                  <span>← Back to All Reports</span>
-                </button>
-              </div>
-
-              {/* 2 or 3 in a row Draggable Reports Grid */}
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5 bg-slate-50/30 dark:bg-slate-950/20">
-                {categoryReports.map((report, idx) => {
-                  const Icon = report.icon || MdAssessment;
-                  const isDragging = draggedReportId === report.id;
-                  const isJustDropped = justDroppedReportId === report.id;
-
-                  return (
-                    <div
-                      key={report.id}
-                      draggable={true}
-                      onDragStart={(e) => handleDragStart(e, report.id)}
-                      onDragEnter={() => handleDragEnter(report.id)}
-                      onDragOver={handleDragOver}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleNavigate(report)}
-                      style={{ animationDelay: `${idx * 40}ms` }}
-                      className={`group relative p-4.5 rounded-xl border bg-white dark:bg-slate-900/90 cursor-pointer flex flex-col justify-between gap-4 select-none animate-card-item drag-item-transition ${
-                        isDragging
-                          ? 'opacity-30 scale-95 border-dashed border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30 shadow-inner'
-                          : isJustDropped
-                          ? 'animate-drop-settle border-emerald-500 ring-2 ring-emerald-500/30'
-                          : 'border-slate-200/90 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500/80 hover:shadow-md hover:-translate-y-0.5'
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/50 text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
-                              <Icon size={18} />
-                            </div>
-                            <div
-                              title="Drag to rearrange"
-                              className="text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MdDragIndicator size={18} />
-                            </div>
-                          </div>
-
-                          {shouldShowBadge(report) && (
-                            <span
-                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-wide border ${
-                                report.badgeType === 'new'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                                  : report.badgeType === 'audited'
-                                  ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-                                  : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
-                              }`}
-                            >
-                              {report.badge}
-                            </span>
-                          )}
-                        </div>
-
-                        <div>
-                          <h3 className="font-extrabold text-[13px] text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors leading-snug">
-                            {report.title}
-                          </h3>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed line-clamp-3">
-                            {report.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-slate-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-                        <span>Open Parameter Filter</span>
-                        <div className="group-hover:translate-x-1 transition-transform">
-                          <MdArrowForward size={15} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()
-      ) : (
-        /* All Categories Overview Grid with Responsive CSS Columns (Zero vertical gaps) */
-        <div className="columns-1 md:columns-2 lg:columns-3 gap-6 animate-expand-container">
-          {categoriesList.map((category, catIdx) => {
-            const categoryReports = filteredReports.filter((r) => r.category === category.key);
-            if (categoryReports.length === 0 && searchQuery) return null;
-            const isCatDragging = draggedCatKey === category.key;
-            const isCatJustDropped = justDroppedCatKey === category.key;
-            const isCollapsed = Boolean(collapsedCats[category.key]);
-
+      {/* ── 1. HORIZONTAL TABS BAR ── */}
+      <div className="bg-white dark:bg-boxdark p-1.5 rounded-2xl border border-stroke dark:border-strokedark shadow-2xs overflow-x-auto print:hidden">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {TABS.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
             return (
-              <div
-                id={`category-container-${category.key}`}
-                key={category.key}
-                draggable={true}
-                onDragStart={(e) => handleCatDragStart(e, category.key)}
-                onDragEnter={() => handleCatDragEnter(category.key)}
-                onDragOver={handleCatDragOver}
-                onDragEnd={handleCatDragEnd}
-                style={{ animationDelay: `${catIdx * 35}ms` }}
-                className={`break-inside-avoid inline-block w-full mb-6 bg-white dark:bg-slate-900 rounded-2xl border shadow-sm overflow-hidden select-none animate-card-item drag-item-transition ${
-                  isCatDragging
-                    ? 'opacity-30 scale-[0.97] border-dashed border-emerald-500 shadow-inner'
-                    : isCatJustDropped
-                    ? 'animate-drop-settle border-emerald-500 ring-2 ring-emerald-500/20'
-                    : 'border-slate-200 dark:border-slate-800 hover:shadow-md'
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => handleTabSwitch(tab.key)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                {/* Card Header with Category Drag Grip & Collapse Control */}
-                <div
-                  className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between cursor-pointer"
-                  onClick={() => toggleCatCollapse(category.key)}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      title="Drag entire category column to rearrange"
-                      className="text-slate-300 hover:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MdDragIndicator size={18} />
-                    </div>
-                    <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shrink-0">
-                      {category.icon ? <category.icon size={18} /> : <MdAssessment size={18} />}
-                    </div>
-                    <div>
-                      <h2 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                        {category.title}
-                      </h2>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-400 truncate max-w-[160px]">
-                        {category.subtitle}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <span className="font-mono text-[11px] font-black text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                      {categoryReports.length}
-                    </span>
-                    <button
-                      type="button"
-                      title={isCollapsed ? "Expand category" : "Collapse category"}
-                      onClick={() => toggleCatCollapse(category.key)}
-                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition cursor-pointer"
-                    >
-                      {isCollapsed ? <MdKeyboardArrowDown size={18} /> : <MdKeyboardArrowUp size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Draggable Reports List with Smooth Collapsible Height */}
-                <div
-                  className={`divide-y divide-slate-100 dark:divide-slate-800/60 transition-all duration-300 ease-in-out overflow-hidden ${
-                    isCollapsed || draggedCatKey ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-[1400px] opacity-100'
-                  }`}
-                >
-                  {categoryReports.map((report) => {
-                    const Icon = report.icon || MdAssessment;
-                    const isDragging = draggedReportId === report.id;
-                    const isJustDropped = justDroppedReportId === report.id;
-
-                    return (
-                      <div
-                        key={report.id}
-                        draggable={true}
-                        onDragStart={(e) => handleDragStart(e, report.id)}
-                        onDragEnter={(e) => {
-                          e.stopPropagation();
-                          handleDragEnter(report.id);
-                        }}
-                        onDragOver={handleDragOver}
-                        onDragEnd={handleDragEnd}
-                        onClick={() => handleNavigate(report)}
-                        className={`group p-3.5 cursor-pointer drag-item-transition flex items-start justify-between gap-3 select-none ${
-                          isDragging
-                            ? 'opacity-30 scale-[0.98] bg-emerald-100/60 dark:bg-emerald-950/40 border-y border-dashed border-emerald-500'
-                            : isJustDropped
-                            ? 'animate-drop-settle bg-emerald-50/70 dark:bg-emerald-950/30'
-                            : 'hover:bg-emerald-50/50 dark:hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2.5 flex-1">
-                          <div
-                            title="Drag to rearrange"
-                            className="text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing p-0.5 mt-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MdDragIndicator size={16} />
-                          </div>
-                          <div className="mt-0.5 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors shrink-0">
-                            <Icon size={16} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors text-xs leading-tight">
-                                {report.title}
-                              </h3>
-                              {shouldShowBadge(report) && (
-                                <span
-                                  className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded tracking-wide border ${
-                                    report.badgeType === 'new'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                                      : report.badgeType === 'audited'
-                                      ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-                                      : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
-                                  }`}
-                                >
-                                  {report.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-normal line-clamp-2">
-                              {report.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-1 text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition shrink-0">
-                          <MdArrowForward size={16} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                <span>{tab.label}</span>
+              </button>
             );
           })}
         </div>
-      )}
+      </div>
 
-      {/* Empty State */}
-      {filteredReports.length === 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
-          <MdSearch size={36} className="mx-auto text-slate-300 mb-2" />
-          <h3 className="font-bold text-sm text-slate-700 dark:text-slate-200">No reports found</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            No report matching "{searchQuery}" found in the directory.
-          </p>
+      {/* ── 2. DEDICATED FILTER BAR (Amal ERP Style) ── */}
+      <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-stroke dark:border-strokedark shadow-2xs space-y-4 print:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 items-end">
+          {/* Customer Account on Customer Ledger */}
+          {activeTab === 'customer-ledger' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Customer Account ({customers.length})
+              </label>
+              <SearchableMultiSelect
+                options={customerAccountOptions}
+                value={selectedCustomerAccounts}
+                onChange={setSelectedCustomerAccounts}
+                placeholder="All Customers"
+                allLabel="All Customers"
+              />
+            </div>
+          )}
+
+          {/* Party Type on Combined Ledger */}
+          {activeTab === 'combined-ledger' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Party Type
+              </label>
+              <select
+                value={partyTypeFilter}
+                onChange={(e) => {
+                  setPartyTypeFilter(e.target.value as any);
+                  setSelectedCombinedParties([]);
+                }}
+                className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-800 dark:text-white px-3 py-2 text-xs font-bold outline-none focus:border-primary cursor-pointer"
+              >
+                <option value="ALL">All Parties (Cust & Vend)</option>
+                <option value="CUSTOMER">Customers Only ({customers.length})</option>
+                <option value="VENDOR">Vendors Only ({vendors.length})</option>
+              </select>
+            </div>
+          )}
+
+          {/* Party Account on Combined Ledger */}
+          {activeTab === 'combined-ledger' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                {partyTypeFilter === 'ALL'
+                  ? `Party Account (${combinedPartyOptions.length})`
+                  : partyTypeFilter === 'CUSTOMER'
+                  ? `Customer Account (${customers.length})`
+                  : `Vendor Account (${vendors.length})`}
+              </label>
+              <SearchableMultiSelect
+                options={
+                  partyTypeFilter === 'ALL'
+                    ? combinedPartyOptions
+                    : partyTypeFilter === 'CUSTOMER'
+                    ? customerAccountOptions
+                    : vendorAccountOptions
+                }
+                value={selectedCombinedParties}
+                onChange={setSelectedCombinedParties}
+                placeholder={
+                  partyTypeFilter === 'ALL'
+                    ? 'All Parties'
+                    : partyTypeFilter === 'CUSTOMER'
+                    ? 'All Customers'
+                    : 'All Vendors'
+                }
+                allLabel={
+                  partyTypeFilter === 'ALL'
+                    ? 'All Parties'
+                    : partyTypeFilter === 'CUSTOMER'
+                    ? 'All Customers'
+                    : 'All Vendors'
+                }
+              />
+            </div>
+          )}
+
+          {activeTab === 'vendor-ledger' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Vendor Account ({vendors.length})
+              </label>
+              <SearchableMultiSelect
+                options={vendorAccountOptions}
+                value={selectedVendorAccounts}
+                onChange={setSelectedVendorAccounts}
+                placeholder="All Vendors"
+                allLabel="All Vendors"
+              />
+            </div>
+          )}
+
+          {activeTab === 'expense-report' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Expense Head (COA)
+              </label>
+              <SearchableSelect
+                options={[
+                  { id: 'ALL', label: 'All Expense Accounts' },
+                  ...coaAccounts.filter(a => String(a.account_code).startsWith('5')).map(a => ({
+                    id: a.account_code,
+                    label: `${a.account_code} - ${a.account_title}`
+                  }))
+                ]}
+                value={expenseCoaFilter}
+                onChange={setExpenseCoaFilter}
+                placeholder="All Expense Accounts"
+                searchPlaceholder="Search expense account..."
+              />
+            </div>
+          )}
+
+          {/* 2. Searchable Multi-Select City (Available on Ledgers) */}
+          {(activeTab === 'customer-ledger' || activeTab === 'vendor-ledger' || activeTab === 'combined-ledger') && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                City (Multi-Select)
+              </label>
+              <SearchableMultiSelect
+                options={availableCities}
+                value={selectedCities}
+                onChange={setSelectedCities}
+                placeholder="All Cities"
+                allLabel="All Cities"
+              />
+            </div>
+          )}
+
+          {/* 3. Searchable Multi-Select Area (Available on Customer & All Parties Ledgers) */}
+          {(activeTab === 'customer-ledger' || activeTab === 'combined-ledger') && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Area (Multi-Select)
+              </label>
+              <SearchableMultiSelect
+                options={availableAreas}
+                value={selectedAreas}
+                onChange={setSelectedAreas}
+                placeholder="All Areas"
+                allLabel="All Areas"
+              />
+            </div>
+          )}
+
+          {/* 4. Financial Year (Searchable, Hidden for DailyBook) */}
+          {activeTab !== 'daily-book' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Financial Year *
+              </label>
+              <SearchableSelect
+                options={FINANCIAL_YEARS.map(fy => ({ id: fy.id, label: fy.label }))}
+                value={selectedFY}
+                onChange={handleFYChange}
+                placeholder="Select Financial Year..."
+                searchPlaceholder="Search financial year (e.g. 2026)..."
+              />
+            </div>
+          )}
+
+          {/* 5. Date Selection: Single Date for DailyBook, Range for others */}
+          {activeTab === 'daily-book' ? (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                Date (Roznamcha Day) *
+              </label>
+              <input
+                type="date"
+                value={toDate || fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setToDate(e.target.value);
+                }}
+                className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          ) : (
+            <>
+              {/* 5. From Date */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* 6. To Date */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </>
+          )}
+
+        </div>
+
+        {/* ── Row 2: Action Buttons at Right End (Amal ERP Style) ── */}
+        <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-stroke/60 dark:border-strokedark/60">
           <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategory('all');
-            }}
-            className="mt-4 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs cursor-pointer transition"
+            type="button"
+            disabled={!hasGenerated || generating || isGeneratingPdf}
+            onClick={handleExportExcel}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition ${
+              !hasGenerated || generating || isGeneratingPdf
+                ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-stroke dark:border-strokedark'
+                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-2xs cursor-pointer'
+            }`}
           >
-            Clear Search
+            <MdFileDownload size={16} />
+            <span>Export CSV</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={!hasGenerated || generating || isGeneratingPdf}
+            onClick={handleDownloadPdf}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition ${
+              !hasGenerated || generating || isGeneratingPdf
+                ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-stroke dark:border-strokedark'
+                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 shadow-2xs cursor-pointer'
+            }`}
+          >
+            {isGeneratingPdf ? <Spinner /> : <MdPictureAsPdf size={16} />}
+            <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF (A4)'}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={!hasGenerated || generating || isGeneratingPdf}
+            onClick={handlePrint}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition ${
+              !hasGenerated || generating || isGeneratingPdf
+                ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800/40 text-slate-400 border-stroke dark:border-strokedark'
+                : 'bg-white dark:bg-boxdark border-stroke dark:border-strokedark hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-2xs cursor-pointer'
+            }`}
+          >
+            <MdPrint size={16} />
+            <span>Print</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={generating || isGeneratingPdf}
+            onClick={handleGenerateReport}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/95 transition shadow-sm cursor-pointer disabled:opacity-50 min-h-[36px]"
+          >
+            {generating ? <Spinner /> : <MdSearch size={18} />}
+            <span>{generating ? 'Calculating...' : 'Generate Report'}</span>
           </button>
         </div>
-      )}
+      </div>
 
-      {/* ── RECENT BATCH EXPORTS FOOTER ── */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl">
-            <MdFileDownload size={22} />
+      {/* ── 3. CONTENT AREA: EMPTY PLACEHOLDER OR GENERATED AUDIT STATEMENT ── */}
+      {!hasGenerated ? (
+        <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark p-16 shadow-2xs flex flex-col items-center justify-center text-center space-y-4 print:hidden">
+          <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
+            <MdMenuBook size={34} />
           </div>
           <div>
-            <h4 className="font-black text-xs text-slate-900 dark:text-white">
-              Master Operational Batch Export
-            </h4>
-            <p className="text-[11px] text-slate-500">
-              Download the comprehensive catalog and operational audit directory for Excel & external verification.
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white">
+              {activeTab === 'daily-book'
+                ? 'Select a date and click Generate Report'
+                : 'Select a financial year and date range, then click Generate Report'}
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mt-1">
+              {activeTab === 'daily-book'
+                ? 'Choose the date for Roznamcha and click Generate Report to inspect daily cash drawer movement.'
+                : 'Choose your criteria in the filter bar above and click the Generate Report button to fetch the live ledger and calculations.'}
             </p>
           </div>
         </div>
+      ) : (
+        <div className="space-y-5 animate-in fade-in duration-200 print:space-y-0 print:animate-none">
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print:hidden">
+            {activeTab === 'customer-ledger' && (
+              <>
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Opening Balance</span>
+                  <div className="text-base font-black text-slate-800 dark:text-white font-mono mt-1">
+                    Rs. {Number(summary.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
 
-        <button
-          type="button"
-          disabled={exporting}
-          onClick={handleBatchExport}
-          className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl font-bold cursor-pointer transition shadow-sm disabled:opacity-50 whitespace-nowrap text-xs"
-        >
-          <MdFileDownload size={16} />
-          <span>{exporting ? 'Exporting...' : 'Export Directory (.xlsx)'}</span>
-        </button>
-      </div>
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-emerald-600 uppercase">Sales (Debit)</span>
+                  <div className="text-base font-black text-emerald-600 font-mono mt-1">
+                    Rs. {Number(summary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-amber-600 uppercase">Returns (Credit)</span>
+                  <div className="text-base font-black text-amber-600 font-mono mt-1">
+                    Rs. {Number(summary.returnAmt).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-teal-600 uppercase">Received (Credit)</span>
+                  <div className="text-base font-black text-teal-600 font-mono mt-1">
+                    Rs. {Number(summary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs">
+                  <span className="text-[11px] font-bold text-primary uppercase">Net Closing Balance</span>
+                  <div className="text-base font-black text-primary font-mono mt-1">
+                    Rs. {Number(Math.abs(summary.closing)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {summary.closing >= 0 ? 'Dr' : 'Cr'}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'vendor-ledger' && (
+              <>
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Opening Payable</span>
+                  <div className="text-base font-black text-slate-800 dark:text-white font-mono mt-1">
+                    Rs. {Number(summary.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-blue-600 uppercase">Purchases (Credit)</span>
+                  <div className="text-base font-black text-blue-600 font-mono mt-1">
+                    Rs. {Number(summary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-amber-600 uppercase">Purchase Returns (Dr)</span>
+                  <div className="text-base font-black text-amber-600 font-mono mt-1">
+                    Rs. {Number(summary.returnAmt).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-emerald-600 uppercase">Payments Made (Dr)</span>
+                  <div className="text-base font-black text-emerald-600 font-mono mt-1">
+                    Rs. {Number(summary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs">
+                  <span className="text-[11px] font-bold text-primary uppercase">Net Payable Balance</span>
+                  <div className="text-base font-black text-primary font-mono mt-1">
+                    Rs. {Number(Math.abs(summary.closing)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {summary.closing >= 0 ? 'Cr' : 'Dr'}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'combined-ledger' && (
+              <>
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Opening Balance</span>
+                  <div className="text-base font-black text-slate-800 dark:text-white font-mono mt-1">
+                    Rs. {Number(Math.abs(combinedSummary.opening)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {combinedSummary.opening >= 0 ? 'Dr' : 'Cr'}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-emerald-600 uppercase">Total Debits (Dr)</span>
+                  <div className="text-base font-black text-emerald-600 font-mono mt-1">
+                    Rs. {Number(combinedSummary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-amber-600 uppercase">Total Credits (Cr)</span>
+                  <div className="text-base font-black text-amber-600 font-mono mt-1">
+                    Rs. {Number(combinedSummary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs sm:col-span-2">
+                  <span className="text-[11px] font-bold text-primary uppercase">Net Market Position</span>
+                  <div className="text-base font-black text-primary font-mono mt-1">
+                    Rs. {Number(Math.abs(combinedSummary.closing)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {combinedSummary.closing >= 0 ? 'Dr (Net Asset / Receivable)' : 'Cr (Net Liability / Payable)'}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'expense-report' && (
+              <>
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs sm:col-span-2">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Expense Records</span>
+                  <div className="text-base font-black text-slate-800 dark:text-white font-mono mt-1">
+                    {expenseSummary.count} Entries
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-rose-300 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 shadow-2xs sm:col-span-3">
+                  <span className="text-[11px] font-bold text-rose-600 uppercase">Grand Total Operating Expenses</span>
+                  <div className="text-base font-black text-rose-600 font-mono mt-1">
+                    Rs. {Number(expenseSummary.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'daily-book' && (
+              <>
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">Opening Drawer Cash</span>
+                  <div className="text-base font-black text-slate-800 dark:text-white font-mono mt-1">
+                    Rs. {Number(summary.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-emerald-600 uppercase">Total Cash In (Dr)</span>
+                  <div className="text-base font-black text-emerald-600 font-mono mt-1">
+                    Rs. {Number(summary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                  <span className="text-[11px] font-bold text-amber-600 uppercase">Total Cash Out (Cr)</span>
+                  <div className="text-base font-black text-amber-600 font-mono mt-1">
+                    Rs. {Number(summary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs sm:col-span-2">
+                  <span className="text-[11px] font-bold text-primary uppercase">Closing Drawer Balance</span>
+                  <div className="text-base font-black text-primary font-mono mt-1">
+                    Rs. {Number(summary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </>
+            )}
+            {activeTab === 'profit-loss' && pnlData && (
+              <>
+                {pnlBasis === 'cash' ? (
+                  <>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-emerald-600 uppercase">Cash Recovered</span>
+                      <div className="text-base font-black text-emerald-600 font-mono mt-1">
+                        Rs. {Number(pnlData.cashFromCustomers).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-amber-600 uppercase">Paid to Vendors</span>
+                      <div className="text-base font-black text-amber-600 font-mono mt-1">
+                        Rs. {Number(pnlData.cashPaidToVendors).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-rose-600 uppercase">Cash Expenses</span>
+                      <div className="text-base font-black text-rose-600 font-mono mt-1">
+                        Rs. {Number(pnlData.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className={`p-4 bg-white dark:bg-boxdark rounded-2xl border shadow-2xs ${pnlData.netCashProfit >= 0 ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20'}`}>
+                      <span className={`text-[11px] font-bold uppercase ${pnlData.netCashProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                        Net Cash Profit
+                      </span>
+                      <div className={`text-base font-black font-mono mt-1 ${pnlData.netCashProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        Rs. {Number(pnlData.netCashProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs">
+                      <span className="text-[11px] font-bold text-primary uppercase">
+                        {pnlIncludeOB ? 'Net Market Asset (+OB)' : 'Net Period Market Asset'}
+                      </span>
+                      <div className="text-base font-black text-primary font-mono mt-1">
+                        Rs. {Number(pnlIncludeOB ? pnlData.netMarketPosition : (pnlData.periodNetMarketPosition ?? (pnlData.periodReceivables - pnlData.periodPayables))).toLocaleString(undefined, { minimumFractionDigits: 2 })} Dr
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-emerald-600 uppercase">
+                        {pnlIncludeOB ? 'Gross Sales (+OB)' : 'Gross Sales Revenue'}
+                      </span>
+                      <div className="text-base font-black text-emerald-600 font-mono mt-1">
+                        Rs. {Number(pnlData.periodSales + (pnlIncludeOB ? pnlData.customerOB : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-amber-600 uppercase">Sales Returns</span>
+                      <div className="text-base font-black text-amber-600 font-mono mt-1">
+                        Rs. {Number(pnlData.periodSalesReturns).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-blue-600 uppercase">
+                        {pnlIncludeOB && pnlData.vendorOB > 0 ? 'COGS (+OB)' : 'Cost of Goods (COGS)'}
+                      </span>
+                      <div className="text-base font-black text-blue-600 font-mono mt-1">
+                        Rs. {Number(pnlData.periodCogs + (pnlIncludeOB ? pnlData.vendorOB : 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
+                      <span className="text-[11px] font-bold text-rose-600 uppercase">Total Expenses</span>
+                      <div className="text-base font-black text-rose-600 font-mono mt-1">
+                        Rs. {Number(pnlData.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    {(() => {
+                      const effProfit = (pnlData.periodNetSales + (pnlIncludeOB ? pnlData.customerOB : 0)) - (pnlData.periodCogs + (pnlIncludeOB ? pnlData.vendorOB : 0)) - pnlData.totalExpenses;
+                      return (
+                        <div className={`p-4 bg-white dark:bg-boxdark rounded-2xl border shadow-2xs ${effProfit >= 0 ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20'}`}>
+                          <span className={`text-[11px] font-bold uppercase ${effProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                            Net Trading Profit
+                          </span>
+                          <div className={`text-base font-black font-mono mt-1 ${effProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            Rs. {Number(effProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Search Table Toolbar with Quick Filters */}
+          {activeTab !== 'profit-loss' && (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-boxdark p-3 rounded-2xl border border-stroke dark:border-strokedark shadow-2xs print:hidden">
+            <div className="flex flex-wrap items-center gap-2.5 flex-1">
+              {/* Search input */}
+              <div className="relative w-full sm:w-64">
+                <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base" />
+                <input
+                  type="text"
+                  placeholder="Search in generated list..."
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-xs outline-none focus:border-primary font-semibold"
+                />
+              </div>
+
+              {/* Paid Via Filter (Available on Expense Report) */}
+              {activeTab === 'expense-report' && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Paid Via:</span>
+                  <select
+                    value={expensePaidViaFilter}
+                    onChange={(e) => setExpensePaidViaFilter(e.target.value)}
+                    className="rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-800 dark:text-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-primary cursor-pointer shadow-2xs"
+                  >
+                    <option value="ALL">All Payment Modes</option>
+                    <option value="Cash in Hand">Cash in Hand</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    {availablePaidViaOptions
+                      .filter(opt => !opt.toLowerCase().includes('cash') && !opt.toLowerCase().includes('bank transfer'))
+                      .map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Quick Type Filter (Available on Customer, Vendor, and All Parties Ledgers) */}
+              {(activeTab === 'customer-ledger' || activeTab === 'vendor-ledger' || activeTab === 'combined-ledger') && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Type:</span>
+                  <select
+                    value={quickTypeFilter}
+                    onChange={(e) => setQuickTypeFilter(e.target.value)}
+                    className="rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-800 dark:text-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="ALL">All Types</option>
+                    <option value="OB">Opening Balance Only</option>
+                    {activeTab === 'customer-ledger' ? (
+                      <>
+                        <option value="SALES">Sales Only (SAV)</option>
+                        <option value="RETURNS">Returns Only (SRV)</option>
+                        <option value="RECEIPTS">Receipts Only (CRV)</option>
+                      </>
+                    ) : activeTab === 'vendor-ledger' ? (
+                      <>
+                        <option value="PURCHASES">Purchases Only (PAV)</option>
+                        <option value="RETURNS">Returns Only (PRV)</option>
+                        <option value="PAYMENTS">Payments Only (VPV)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="SALES">Sales Only (SAV)</option>
+                        <option value="PURCHASES">Purchases Only (PAV)</option>
+                        <option value="RETURNS">Returns Only</option>
+                        <option value="PAYMENTS">Payments & Receipts</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {/* Quick Balance Status Filter (Available on Customer, Vendor, and All Parties Ledgers) */}
+              {(activeTab === 'customer-ledger' || activeTab === 'vendor-ledger' || activeTab === 'combined-ledger') && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Balance:</span>
+                  <select
+                    value={quickBalanceFilter}
+                    onChange={(e) => setQuickBalanceFilter(e.target.value)}
+                    className="rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-800 dark:text-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="ALL">All Balances</option>
+                    <option value="DEBIT">
+                      {activeTab === 'combined-ledger'
+                        ? 'Receivable / Asset (Dr > 0)'
+                        : activeTab === 'customer-ledger'
+                        ? 'Receivable (Debit > 0)'
+                        : 'Advance (Debit)'}
+                    </option>
+                    <option value="CREDIT">
+                      {activeTab === 'combined-ledger'
+                        ? 'Payable / Liability (Cr > 0)'
+                        : activeTab === 'customer-ledger'
+                        ? 'Advance / Cr'
+                        : 'Payable (Credit > 0)'}
+                    </option>
+                    <option value="ZERO">Zero / Settled (0)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Independent Quick Party Type Filter on All Parties */}
+              {activeTab === 'combined-ledger' && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Party:</span>
+                  <select
+                    value={quickPartyTypeFilter}
+                    onChange={(e) => {
+                      setQuickPartyTypeFilter(e.target.value as any);
+                    }}
+                    className="rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-800 dark:text-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="ALL">All Parties ({combinedPartyOptions.length})</option>
+                    <option value="CUSTOMER">Customers Only ({customers.length})</option>
+                    <option value="VENDOR">Vendors Only ({vendors.length})</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Reset Toolbar Filters Button */}
+              {Boolean(
+                tableSearch.trim() || 
+                quickTypeFilter !== 'ALL' || 
+                quickBalanceFilter !== 'ALL' || 
+                (activeTab === 'combined-ledger' && quickPartyTypeFilter !== 'ALL') ||
+                (activeTab === 'expense-report' && expensePaidViaFilter !== 'ALL')
+              ) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTableSearch('');
+                    setQuickTypeFilter('ALL');
+                    setQuickBalanceFilter('ALL');
+                    setQuickPartyTypeFilter('ALL');
+                    setExpensePaidViaFilter('ALL');
+                    setSortKey('date');
+                    setSortOrder('asc');
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition cursor-pointer"
+                >
+                  <MdClear size={13} />
+                  <span>Reset Filters</span>
+                </button>
+              )}
+            </div>
+
+            {/* Total count badge */}
+            <div className="text-[11px] font-bold text-slate-400 font-mono flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>
+                Showing{' '}
+                <strong className="text-slate-800 dark:text-white">
+                  {activeTab === 'customer-ledger'
+                    ? filteredCustomerRows.length
+                    : activeTab === 'vendor-ledger'
+                    ? filteredVendorRows.length
+                    : activeTab === 'combined-ledger'
+                    ? filteredCombinedRows.length
+                    : activeTab === 'expense-report'
+                    ? filteredExpenseRows.length
+                    : activeTab === 'daily-book'
+                    ? filteredDailyRows.length
+                    : summary.count}
+                </strong>{' '}
+                records
+                {sortOrder !== 'none' && (
+                  <span className="text-primary ml-1">
+                    (sorted {sortOrder === 'asc' ? '▲' : '▼'})
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+          )}
+
+          {/* ── PRINT & PDF CAPTURE CONTAINER ── */}
+          <div 
+            ref={reportPdfRef} 
+            className={isGeneratingPdf ? 'bg-white text-slate-900 p-4 space-y-3 w-full' : 'space-y-4 print:space-y-0'}
+          >
+            {/* ── PRINT & PDF REPORT HEADER ── */}
+            <div className={`${isGeneratingPdf ? 'block' : 'hidden print:block'} mb-4 pb-3 border-b-2 border-slate-900`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-black text-slate-950 uppercase tracking-tight">
+                    Uzair Jibran Cloth
+                  </h1>
+                  <div className="text-[10px] text-slate-600 font-medium">
+                    Cloth Retail & Wholesale Accounts Management
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h2 className="text-base font-black text-slate-900 uppercase tracking-wide">
+                    {REPORT_TITLES[activeTab]}
+                  </h2>
+                  <div className="text-[10px] text-slate-600 font-mono mt-0.5">
+                    {activeTab === 'daily-book'
+                      ? `Date: ${formatPrintDate(toDate || fromDate)}`
+                      : activeTab === 'combined-ledger'
+                      ? `As of Date: ${new Date().toLocaleDateString('en-GB')}`
+                      : `Period: ${formatPrintDate(fromDate) || 'Start'} — ${formatPrintDate(toDate) || 'Current'}`}
+                  </div>
+                  <div className="text-[9px] text-slate-500 font-mono">
+                    Printed: {new Date().toLocaleDateString('en-GB')} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          {/* ── TABLE: CUSTOMER LEDGER ── */}
+          {activeTab === 'customer-ledger' && (
+            <div className={`bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs ${isGeneratingPdf ? 'overflow-visible border-none shadow-none rounded-none' : 'overflow-hidden'} print:border-none print:shadow-none print:rounded-none print:overflow-visible`}>
+              <div className={`${isGeneratingPdf ? 'overflow-visible' : 'overflow-x-auto'} print:overflow-visible`}>
+                <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                  <thead className="print:table-header-group">
+                    <tr className="border-b border-stroke dark:border-strokedark bg-slate-50/75 dark:bg-slate-800/60 font-bold text-slate-700 dark:text-slate-200 select-none print:bg-slate-100 print:text-black print:border-b-2 print:border-slate-800">
+                      <th className="py-2.5 px-2 text-center w-8 whitespace-nowrap">S#</th>
+                      <th 
+                        onClick={() => handleSort('date')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Date</span>
+                          {renderSortIcon('date')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('refNo')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Ref / Doc #</span>
+                          {renderSortIcon('refNo')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('partyName')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Customer Name (Code)</span>
+                          {renderSortIcon('partyName')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('city')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>City</span>
+                          {renderSortIcon('city')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('area')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Area</span>
+                          {renderSortIcon('area')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('entryType')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Entry Type</span>
+                          {renderSortIcon('entryType')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('sales')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Sales (Dr)</span>
+                          {renderSortIcon('sales')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('returns')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Return (Cr)</span>
+                          {renderSortIcon('returns')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('received')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Received (Cr)</span>
+                          {renderSortIcon('received')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('runningBalance')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Running Balance</span>
+                          {renderSortIcon('runningBalance')}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
+                    {filteredCustomerRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="py-8 text-center text-slate-400 italic">
+                          No transactions found matching your selected customer, city, area and date range.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCustomerRows.map(row => (
+                        <tr key={row.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition print:break-inside-avoid print:border-b print:border-slate-300">
+                          <td className="py-2 px-2 text-center text-slate-400 font-mono text-[11px] whitespace-nowrap">{row.index}</td>
+                          <td className="py-2 px-2 font-mono text-[11px] whitespace-nowrap">{row.date}</td>
+                          <td className="py-2 px-2 font-mono font-bold text-primary whitespace-nowrap">{row.refNo}</td>
+                          <td className="py-2 px-2 font-bold text-slate-800 dark:text-white">
+                            <span>{row.partyName}</span>{' '}
+                            <bdi className="font-mono text-slate-400 text-[10px] inline-block font-normal">({row.accountCode})</bdi>
+                          </td>
+                          <td className="py-2 px-2 text-slate-700 dark:text-slate-200 font-medium whitespace-nowrap">
+                            {row.city || '-'}
+                          </td>
+                          <td className="py-2 px-2 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
+                            {row.area || '-'}
+                          </td>
+                          <td className="py-2 px-2 whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              row.isOpening ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300' :
+                              row.entryType.includes('Return') ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' :
+                              row.entryType.includes('Receipt') ? 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300' :
+                              'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                            }`}>
+                              {row.entryType}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            {row.sales > 0 ? `Rs. ${Number(row.sales).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-amber-600 whitespace-nowrap">
+                            {row.returns > 0 ? `Rs. ${Number(row.returns).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-teal-600 whitespace-nowrap">
+                            {row.received > 0 ? `Rs. ${Number(row.received).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            Rs. {Number(Math.abs(row.runningBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {row.runningBalance >= 0 ? 'Dr' : 'Cr'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── TABLE: VENDOR LEDGER ── */}
+          {activeTab === 'vendor-ledger' && (
+            <div className={`bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs ${isGeneratingPdf ? 'overflow-visible border-none shadow-none rounded-none' : 'overflow-hidden'} print:border-none print:shadow-none print:rounded-none print:overflow-visible`}>
+              <div className={`${isGeneratingPdf ? 'overflow-visible' : 'overflow-x-auto'} print:overflow-visible`}>
+                <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                  <thead className="print:table-header-group">
+                    <tr className="border-b border-stroke dark:border-strokedark bg-slate-50/75 dark:bg-slate-800/60 font-bold text-slate-700 dark:text-slate-200 select-none print:bg-slate-100 print:text-black print:border-b-2 print:border-slate-800">
+                      <th className="py-2.5 px-2 text-center w-8 whitespace-nowrap">S#</th>
+                      <th 
+                        onClick={() => handleSort('date')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Date</span>
+                          {renderSortIcon('date')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('refNo')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Ref / Doc #</span>
+                          {renderSortIcon('refNo')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('partyName')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Vendor Name (Code)</span>
+                          {renderSortIcon('partyName')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('city')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>City</span>
+                          {renderSortIcon('city')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('area')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Area</span>
+                          {renderSortIcon('area')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('entryType')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Entry Type</span>
+                          {renderSortIcon('entryType')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('purchases')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Purchase (Cr)</span>
+                          {renderSortIcon('purchases')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('returns')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Return (Dr)</span>
+                          {renderSortIcon('returns')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('payments')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Payment (Dr)</span>
+                          {renderSortIcon('payments')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('runningBalance')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Running Balance</span>
+                          {renderSortIcon('runningBalance')}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
+                    {filteredVendorRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="py-8 text-center text-slate-400 italic">
+                          No vendor entries found in this date range.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredVendorRows.map(row => (
+                        <tr key={row.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition print:break-inside-avoid print:border-b print:border-slate-300">
+                          <td className="py-2 px-2 text-center text-slate-400 font-mono text-[11px] whitespace-nowrap">{row.index}</td>
+                          <td className="py-2 px-2 font-mono text-[11px] whitespace-nowrap">{row.date}</td>
+                          <td className="py-2 px-2 font-mono font-bold text-primary whitespace-nowrap">{row.refNo}</td>
+                          <td className="py-2 px-2 font-bold text-slate-800 dark:text-white">
+                            <span>{row.partyName}</span>{' '}
+                            <bdi className="font-mono text-slate-400 text-[10px] inline-block font-normal">({row.accountCode})</bdi>
+                          </td>
+                          <td className="py-2 px-2 text-slate-700 dark:text-slate-200 font-medium whitespace-nowrap">
+                            {row.city || '-'}
+                          </td>
+                          <td className="py-2 px-2 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
+                            {row.area || '-'}
+                          </td>
+                          <td className="py-2 px-2 whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              row.isOpening ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300' :
+                              row.entryType.includes('Return') ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' :
+                              row.entryType.includes('Payment') ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' :
+                              'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                            }`}>
+                              {row.entryType}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-blue-600 whitespace-nowrap">
+                            {row.purchases > 0 ? `Rs. ${Number(row.purchases).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-amber-600 whitespace-nowrap">
+                            {row.returns > 0 ? `Rs. ${Number(row.returns).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-emerald-600 whitespace-nowrap">
+                            {row.payments > 0 ? `Rs. ${Number(row.payments).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            Rs. {Number(Math.abs(row.runningBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {row.runningBalance >= 0 ? 'Cr' : 'Dr'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── TABLE: ALL PARTIES (COMBINED FULL TRANSACTION LEDGER) ── */}
+          {activeTab === 'combined-ledger' && (
+            <div className={`bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs ${isGeneratingPdf ? 'overflow-visible border-none shadow-none rounded-none' : 'overflow-hidden'} print:border-none print:shadow-none print:rounded-none print:overflow-visible`}>
+              <div className={`${isGeneratingPdf ? 'overflow-visible' : 'overflow-x-auto'} print:overflow-visible`}>
+                <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                  <thead className="print:table-header-group">
+                    <tr className="border-b border-stroke dark:border-strokedark bg-slate-50/75 dark:bg-slate-800/60 font-bold text-slate-700 dark:text-slate-200 select-none print:bg-slate-100 print:text-black print:border-b-2 print:border-slate-800">
+                      <th className="py-2.5 px-2 text-center w-8 whitespace-nowrap">S#</th>
+                      <th 
+                        onClick={() => handleSort('date')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Date</span>
+                          {renderSortIcon('date')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('refNo')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Ref / Doc #</span>
+                          {renderSortIcon('refNo')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('partyName')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Party Name (Code)</span>
+                          {renderSortIcon('partyName')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('partyType')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Type</span>
+                          {renderSortIcon('partyType')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('city')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>City</span>
+                          {renderSortIcon('city')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('area')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Area</span>
+                          {renderSortIcon('area')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('entryType')}
+                        className="py-2.5 px-2 cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Entry Type</span>
+                          {renderSortIcon('entryType')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('debit')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Debit (Dr)</span>
+                          {renderSortIcon('debit')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('credit')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Credit (Cr)</span>
+                          {renderSortIcon('credit')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('runningBalance')}
+                        className="py-2.5 px-2 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Running Balance</span>
+                          {renderSortIcon('runningBalance')}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
+                    {filteredCombinedRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="py-8 text-center text-slate-400 italic">
+                          No party transaction records found.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCombinedRows.map((row, idx) => (
+                        <tr key={row.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition print:break-inside-avoid print:border-b print:border-slate-300">
+                          <td className="py-2 px-2 text-center text-slate-400 font-mono text-[11px] whitespace-nowrap">{idx + 1}</td>
+                          <td className="py-2 px-2 font-mono text-[11px] whitespace-nowrap">{row.date}</td>
+                          <td className="py-2 px-2 font-mono font-bold text-primary whitespace-nowrap">{row.refNo}</td>
+                          <td className="py-2 px-2 font-bold text-slate-800 dark:text-white">
+                            <span>{row.partyName}</span>{' '}
+                            <bdi className="font-mono text-slate-400 text-[10px] inline-block font-normal">({row.accountCode})</bdi>
+                          </td>
+                          <td className="py-2 px-2 whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              row.partyType === 'Customer' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                            }`}>
+                              {row.partyType}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-slate-700 dark:text-slate-200 font-medium whitespace-nowrap">{row.city || '-'}</td>
+                          <td className="py-2 px-2 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">{row.area || '-'}</td>
+                          <td className="py-2 px-2 whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              row.isOpening ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300' :
+                              row.entryType.includes('Return') ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' :
+                              row.entryType.includes('Payment') || row.entryType.includes('Receipt') ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' :
+                              row.partyType === 'Customer' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300' :
+                              'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                            }`}>
+                              {row.entryType}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-blue-600 whitespace-nowrap">
+                            {row.debit > 0 ? `Rs. ${Number(row.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-amber-600 whitespace-nowrap">
+                            {row.credit > 0 ? `Rs. ${Number(row.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            Rs. {Number(Math.abs(row.runningBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {row.runningBalance >= 0 ? 'Dr' : 'Cr'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── PROFIT & LOSS STATEMENT ── */}
+          {activeTab === 'profit-loss' && pnlData && (
+            <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs p-6 space-y-6 print:border-none print:shadow-none print:rounded-none print:p-0 print:space-y-4">
+              {/* Header with Title and View Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stroke dark:border-strokedark pb-4 print:border-b-2 print:border-slate-800">
+                <div>
+                  <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                    Income Statement (Profit & Loss)
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Duration Window: {fromDate} to {toDate}
+                  </p>
+                </div>
+
+                {/* Calculation Mode Switcher & Opening Balance Toggle (Hidden in Print) */}
+                <div className="flex flex-wrap items-center gap-2.5 print:hidden">
+                  <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800/80 border border-stroke dark:border-strokedark">
+                    <button
+                      type="button"
+                      onClick={() => setPnlBasis('accrual')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        pnlBasis === 'accrual'
+                          ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                    >
+                      Trading Profit (Accrual)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPnlBasis('cash')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        pnlBasis === 'cash'
+                          ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                    >
+                      Realized Profit (Cash Basis)
+                    </button>
+                  </div>
+
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stroke dark:border-strokedark bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <input
+                      type="checkbox"
+                      checked={pnlIncludeOB}
+                      onChange={(e) => setPnlIncludeOB(e.target.checked)}
+                      className="rounded border-slate-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    <span>Include Opening Balances</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* ── ACCRUAL BASIS STATEMENT ── */}
+              {pnlBasis === 'accrual' && (() => {
+                const effGrossSales = pnlData.periodSales + (pnlIncludeOB ? pnlData.customerOB : 0);
+                const effCOGS = pnlData.periodCogs + (pnlIncludeOB ? pnlData.vendorOB : 0);
+                const effNetSales = Math.max(0, effGrossSales - pnlData.periodSalesReturns);
+                const effGrossProfit = effNetSales - effCOGS;
+                const effNetProfit = effGrossProfit - pnlData.totalExpenses;
+
+                return (
+                  <div className="space-y-4 max-w-3xl font-mono text-xs">
+                    {/* Sales Section */}
+                    <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
+                      {pnlIncludeOB && (
+                        <div className="flex justify-between items-center text-purple-600 pl-2 text-[11px]">
+                          <span>Customer Opening Balance (Prior Sales)</span>
+                          <span>Rs. {Number(pnlData.customerOB).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-slate-800 dark:text-white font-bold">
+                        <span>{pnlIncludeOB ? 'Total Gross Sales Revenue (SAV + Invoices + OB)' : 'Gross Sales Revenue (SAV & Invoices)'}</span>
+                        <span>Rs. {Number(effGrossSales).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-amber-600 pl-4 text-[11px]">
+                        <span>Less: Sales Returns (SRV)</span>
+                        <span>(Rs. {Number(pnlData.periodSalesReturns).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                      </div>
+                      <div className="flex justify-between items-center font-black text-primary border-t border-dashed border-stroke dark:border-strokedark pt-2">
+                        <span>Net Sales Turnover</span>
+                        <span>Rs. {Number(effNetSales).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+
+                    {/* COGS Section */}
+                    <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
+                      {pnlIncludeOB && pnlData.vendorOB > 0 && (
+                        <div className="flex justify-between items-center text-purple-600 pl-2 text-[11px]">
+                          <span>Vendor Opening Balance (Prior Purchases)</span>
+                          <span>Rs. {Number(pnlData.vendorOB).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center text-slate-800 dark:text-white font-bold">
+                        <span>Cost of Goods Sold (Purchases / Material)</span>
+                        <span className="text-rose-600">(Rs. {Number(effCOGS).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                      </div>
+                      <div className="flex justify-between items-center font-black text-emerald-600 border-t border-dashed border-stroke dark:border-strokedark pt-2">
+                        <span>Gross Profit (Trading Profit)</span>
+                        <span>Rs. {Number(effGrossProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+
+                    {/* Operating Expenses Section */}
+                    <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
+                      <span className="block font-bold text-slate-800 dark:text-white mb-2">Operating Expenses:</span>
+                      {Object.entries(pnlData.expenseMap).length === 0 ? (
+                        <div className="text-slate-400 italic pl-4">No operational expenses recorded in this period.</div>
+                      ) : (
+                        Object.entries(pnlData.expenseMap).map(([head, amt]) => (
+                          <div key={head} className="flex justify-between items-center text-slate-600 dark:text-slate-300 pl-4 text-[11px]">
+                            <span>{head}</span>
+                            <span>Rs. {Number(amt).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        ))
+                      )}
+                      <div className="flex justify-between items-center font-bold text-rose-600 border-t border-dashed border-stroke dark:border-strokedark pt-2">
+                        <span>Total Operating Expenses</span>
+                        <span>(Rs. {Number(pnlData.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                      </div>
+                    </div>
+
+                    {/* Net Trading Profit */}
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-stroke dark:border-strokedark flex justify-between items-center text-sm font-black">
+                      <span className="text-slate-900 dark:text-white">Net Trading Profit / (Loss) for the Period</span>
+                      <span className={effNetProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                        Rs. {Number(effNetProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── CASH BASIS (REALIZED CASH PROFIT) STATEMENT ── */}
+              {pnlBasis === 'cash' && (
+                <div className="space-y-4 max-w-3xl font-mono text-xs">
+                  <div className="p-3 rounded-xl bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 text-teal-800 dark:text-teal-300 text-[11px] font-medium">
+                    💡 <strong>Realized Pocket Profit:</strong> Measures actual cash collected from customers minus payments made to vendors and cash expenses paid. Credit receivables (udhaar) are not counted until collected.
+                  </div>
+
+                  <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
+                    <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-400 font-bold">
+                      <span>1. Cash Collected from Customers (Receipts & Invoices Paid)</span>
+                      <span>Rs. {Number(pnlData.cashFromCustomers).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-amber-600 pl-4 text-[11px]">
+                      <span>Less: Cash Paid to Suppliers / Vendors (VPV & Purchases Paid)</span>
+                      <span>(Rs. {Number(pnlData.cashPaidToVendors).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                    </div>
+                    <div className="flex justify-between items-center font-black text-primary border-t border-dashed border-stroke dark:border-strokedark pt-2">
+                      <span>Net Cash Generated from Trading</span>
+                      <span>Rs. {Number(pnlData.cashFromCustomers - pnlData.cashPaidToVendors).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
+                    <span className="block font-bold text-slate-800 dark:text-white mb-2">Cash Operating Expenses:</span>
+                    {Object.entries(pnlData.expenseMap).length === 0 ? (
+                      <div className="text-slate-400 italic pl-4">No operational expenses paid in this period.</div>
+                    ) : (
+                      Object.entries(pnlData.expenseMap).map(([head, amt]) => (
+                        <div key={head} className="flex justify-between items-center text-slate-600 dark:text-slate-300 pl-4 text-[11px]">
+                          <span>{head}</span>
+                          <span>Rs. {Number(amt).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ))
+                    )}
+                    <div className="flex justify-between items-center font-bold text-rose-600 border-t border-dashed border-stroke dark:border-strokedark pt-2">
+                      <span>Total Cash Expenses Paid</span>
+                      <span>(Rs. {Number(pnlData.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-stroke dark:border-strokedark flex justify-between items-center text-sm font-black">
+                    <span className="text-slate-900 dark:text-white">Net Realized Cash Profit / (Loss)</span>
+                    <span className={pnlData.netCashProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                      Rs. {Number(pnlData.netCashProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── MARKET NET OUTSTANDING POSITION (RECEIVABLES - PAYABLES) ── */}
+              {(() => {
+                const displayReceivables = pnlIncludeOB ? pnlData.totalReceivables : (pnlData.periodReceivables ?? (pnlData.periodSales - pnlData.periodSalesReturns - pnlData.cashFromCustomers));
+                const displayPayables = pnlIncludeOB ? pnlData.totalPayables : (pnlData.periodPayables ?? (pnlData.periodCogs - pnlData.cashPaidToVendors));
+                const displayNetMarket = displayReceivables - displayPayables;
+
+                const hasPriorOB = (pnlData.priorCustomerOB || 0) > 0 || (pnlData.priorVendorOB || 0) > 0;
+                const hasInPeriodOB = (pnlData.inPeriodCustomerOB || 0) > 0 || (pnlData.inPeriodVendorOB || 0) > 0;
+
+                const periodSubtitle = pnlIncludeOB
+                  ? 'Includes Prior Opening Balances (Cumulative as of ' + (toDate || 'End Date') + ')'
+                  : hasInPeriodOB
+                    ? 'Strict Date Period (Includes In-Period Opening Balances)'
+                    : hasPriorOB
+                      ? 'Strict Date Period (Excludes Prior Opening Balances)'
+                      : 'Strict Date Period';
+
+                return (
+                  <div className="max-w-3xl mt-6 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-stroke dark:border-strokedark space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-stroke dark:border-strokedark">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>📊</span>
+                        <span>{pnlIncludeOB ? `Cumulative Market Standing (As of ${toDate || 'End Date'})` : `Period Market Standing (${fromDate || 'Start'} to ${toDate || 'End'})`}</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 font-mono">
+                        {periodSubtitle}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+                      <div className="bg-white dark:bg-boxdark p-3 rounded-xl border border-stroke dark:border-strokedark">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">1. Customer Receivables</span>
+                        <div className="text-sm font-black text-emerald-600 mt-1">
+                          Rs. {Number(displayReceivables).toLocaleString(undefined, { minimumFractionDigits: 2 })} Dr
+                        </div>
+                        <span className="text-[9px] text-slate-400">
+                          {pnlIncludeOB ? 'All-time market se lena (Asset)' : hasInPeriodOB ? 'Includes in-period opening balances + sales' : 'Period net receivables (Asset)'}
+                        </span>
+                      </div>
+
+                      <div className="bg-white dark:bg-boxdark p-3 rounded-xl border border-stroke dark:border-strokedark">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">2. Vendor Payables</span>
+                        <div className="text-sm font-black text-amber-600 mt-1">
+                          Rs. {Number(displayPayables).toLocaleString(undefined, { minimumFractionDigits: 2 })} Cr
+                        </div>
+                        <span className="text-[9px] text-slate-400">
+                          {pnlIncludeOB ? 'All-time suppliers ko dena (Liability)' : 'Period net payables (Liability)'}
+                        </span>
+                      </div>
+
+                      <div className="bg-white dark:bg-boxdark p-3 rounded-xl border border-primary/30 shadow-2xs">
+                        <span className="text-[10px] font-bold text-primary uppercase block">3. Net Market Position</span>
+                        <div className="text-sm font-black text-primary mt-1">
+                          Rs. {Number(Math.abs(displayNetMarket)).toLocaleString(undefined, { minimumFractionDigits: 2 })} {displayNetMarket >= 0 ? 'Dr (Net Asset)' : 'Cr (Net Liability)'}
+                        </div>
+                        <span className="text-[9px] text-slate-500">
+                          {displayNetMarket >= 0 ? 'Market Surplus Position' : 'Market Liability Position'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            </div>
+          )}
+
+          {/* ── TABLE: EXPENSE REPORT ── */}
+          {activeTab === 'expense-report' && (
+            <div className={`bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs ${isGeneratingPdf ? 'overflow-visible border-none shadow-none rounded-none w-full' : 'overflow-hidden'} print:border-none print:shadow-none print:rounded-none print:overflow-visible`}>
+              <div className={`${isGeneratingPdf ? 'overflow-visible w-full' : 'overflow-x-auto'} print:overflow-visible`}>
+                <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                  <thead className="print:table-header-group">
+                    <tr className="border-b-2 border-slate-900 dark:border-strokedark bg-slate-50/75 dark:bg-slate-800/60 font-bold text-slate-800 dark:text-slate-200 print:bg-slate-100 print:text-black">
+                      <th className="py-2.5 px-3 text-center w-12 whitespace-nowrap">S#</th>
+                      <th 
+                        onClick={() => handleSort('date')}
+                        className="py-2.5 px-3 cursor-pointer group hover:text-primary transition whitespace-nowrap w-28"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Date</span>
+                          {renderSortIcon('date')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('voucherNo')}
+                        className="py-2.5 px-3 cursor-pointer group hover:text-primary transition whitespace-nowrap w-28"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Voucher #</span>
+                          {renderSortIcon('voucherNo')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('coaCodeTitle')}
+                        className="py-2.5 px-3 cursor-pointer group hover:text-primary transition min-w-[200px]"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Chart of Accounts (Code & Title)</span>
+                          {renderSortIcon('coaCodeTitle')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('paidVia')}
+                        className="py-2.5 px-3 cursor-pointer group hover:text-primary transition whitespace-nowrap w-32"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Paid Via</span>
+                          {renderSortIcon('paidVia')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('amount')}
+                        className="py-2.5 px-3 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap w-36"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Amount (PKR)</span>
+                          {renderSortIcon('amount')}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
+                    {filteredExpenseRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400 italic">
+                          No expense entries recorded in this window.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredExpenseRows.map((row, idx) => (
+                        <tr key={row.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition print:break-inside-avoid print:border-b print:border-slate-300">
+                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] whitespace-nowrap align-middle">{idx + 1}</td>
+                          <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap align-middle">{row.date}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-rose-600 whitespace-nowrap align-middle">{row.voucherNo}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-white whitespace-nowrap align-middle">{row.coaCodeTitle}</td>
+                          <td className="py-2.5 px-3 whitespace-nowrap align-middle">
+                            {isGeneratingPdf ? (
+                              <span className="font-semibold text-slate-800 text-[11px]">
+                                {row.paidVia}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 print:bg-transparent print:p-0 print:text-black">
+                                {row.paidVia}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-black text-rose-600 whitespace-nowrap align-middle">
+                            Rs. {Number(row.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {filteredExpenseRows.length > 0 && (
+                    <tfoot className="print:table-footer-group border-t-2 border-slate-900 dark:border-slate-300 bg-slate-50/90 dark:bg-slate-800/80 font-bold">
+                      <tr>
+                        <td colSpan={5} className="py-3 px-3 text-right uppercase tracking-wider font-bold text-slate-700 dark:text-slate-200">
+                          Total Operating Expenses ({expenseSummary.count} Entries):
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-black text-rose-600 whitespace-nowrap text-sm print:text-xs">
+                          Rs. {Number(expenseSummary.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── TABLE: DAILYBOOK (ROZNAMCHA) ── */}
+          {activeTab === 'daily-book' && (
+            <div className={`bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs ${isGeneratingPdf ? 'overflow-visible border-none shadow-none rounded-none w-full' : 'overflow-hidden'} print:border-none print:shadow-none print:rounded-none print:overflow-visible`}>
+              <div className={`${isGeneratingPdf ? 'overflow-visible w-full' : 'overflow-x-auto'} print:overflow-visible`}>
+                <table className="w-full text-left border-collapse text-xs print:text-[10px]">
+                  <thead className="print:table-header-group">
+                    <tr className="border-b-2 border-slate-900 dark:border-strokedark bg-slate-50/75 dark:bg-slate-800/60 font-bold text-slate-800 dark:text-slate-200 print:bg-slate-100 print:text-black">
+                      <th className="py-3 px-3 text-center w-12 whitespace-nowrap">S#</th>
+                      <th 
+                        onClick={() => handleSort('date')}
+                        className="py-3 px-3 cursor-pointer group hover:text-primary transition whitespace-nowrap w-28"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Date</span>
+                          {renderSortIcon('date')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('voucherNo')}
+                        className="py-3 px-3 cursor-pointer group hover:text-primary transition whitespace-nowrap w-32"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Voucher / Ref #</span>
+                          {renderSortIcon('voucherNo')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('accountTitle')}
+                        className="py-3 px-3 cursor-pointer group hover:text-primary transition min-w-[200px]"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Account Title (Code)</span>
+                          {renderSortIcon('accountTitle')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('entryType')}
+                        className="py-3 px-3 cursor-pointer group hover:text-primary transition whitespace-nowrap w-28"
+                      >
+                        <div className="flex items-center gap-0.5">
+                          <span>Entry Type</span>
+                          {renderSortIcon('entryType')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('cashIn')}
+                        className="py-3 px-3 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap w-32"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Cash In (Dr)</span>
+                          {renderSortIcon('cashIn')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('cashOut')}
+                        className="py-3 px-3 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap w-32"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Cash Out (Cr)</span>
+                          {renderSortIcon('cashOut')}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('netDrawerCash')}
+                        className="py-3 px-3 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap w-36"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Net Drawer Cash</span>
+                          {renderSortIcon('netDrawerCash')}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
+                    {filteredDailyRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-400 italic">
+                          No daily transactions found in this period.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDailyRows.map((row, idx) => (
+                        <tr key={row.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition print:break-inside-avoid print:border-b print:border-slate-300">
+                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] whitespace-nowrap align-middle">{idx + 1}</td>
+                          <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap align-middle">{row.date}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-primary whitespace-nowrap align-middle">{row.voucherNo}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-white whitespace-nowrap align-middle">{row.accountTitle}</td>
+                          <td className="py-2.5 px-3 whitespace-nowrap align-middle">
+                            {isGeneratingPdf ? (
+                              <span className="font-semibold text-slate-800 text-[11px]">
+                                {row.entryType}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 print:bg-transparent print:p-0 print:text-black">
+                                {row.entryType}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 whitespace-nowrap align-middle">
+                            {row.cashIn > 0 ? `Rs. ${Number(row.cashIn).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-600 whitespace-nowrap align-middle">
+                            {row.cashOut > 0 ? `Rs. ${Number(row.cashOut).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap align-middle">
+                            Rs. {Number(row.netDrawerCash).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {filteredDailyRows.length > 0 && (
+                    <tfoot className="print:table-footer-group border-t-2 border-slate-900 dark:border-slate-300 bg-slate-50/90 dark:bg-slate-800/80 font-bold">
+                      <tr>
+                        <td colSpan={5} className="py-3 px-3 text-right uppercase tracking-wider font-bold text-slate-700 dark:text-slate-200">
+                          Total Daily Inflow & Outflow:
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-black text-emerald-600 whitespace-nowrap">
+                          Rs. {Number(summary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-black text-rose-600 whitespace-nowrap">
+                          Rs. {Number(summary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
+                          Rs. {Number(summary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

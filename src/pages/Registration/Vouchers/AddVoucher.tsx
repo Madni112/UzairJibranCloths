@@ -206,15 +206,43 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
           }
         }
 
-        const [coaRes, bankRes, vendRes, custRes] = await Promise.all([
+        const [coaRes, bankRes, vendRes, custRes, vchRes] = await Promise.all([
           supabase.from('chart_of_accounts').select('*').order('account_code', { ascending: true }),
           supabase.from('banks').select('*'),
           supabase.from('vendors').select('*'),
-          supabase.from('customers').select('*')
+          supabase.from('customers').select('*'),
+          supabase.from('financial_vouchers').select('id, voucher_no, account_code, total_amount, debit, credit, items')
         ]);
 
         const accountDetails: Record<string, any> = {};
         const pMap: Record<string, PartyMetadata> = {};
+
+        // Pre-aggregate voucher debits and credits per account code
+        const coaDebits: Record<string, number> = {};
+        const coaCredits: Record<string, number> = {};
+
+        if (vchRes.data && Array.isArray(vchRes.data)) {
+          vchRes.data.forEach((v: any) => {
+            // Exclude current voucher when in edit mode so Previous Balance reflects prior state
+            if (queryId && String(v.id) === String(queryId)) return;
+
+            if (v.items && Array.isArray(v.items) && v.items.length > 0) {
+              v.items.forEach((it: any) => {
+                const code = String(it.accountCode || it.account_code || '').trim();
+                if (code) {
+                  coaDebits[code] = (coaDebits[code] || 0) + (Number(it.debit) || 0);
+                  coaCredits[code] = (coaCredits[code] || 0) + (Number(it.credit) || 0);
+                }
+              });
+            } else if (v.account_code) {
+              const code = String(v.account_code).trim();
+              const d = Number(v.debit) || (v.credit ? 0 : Number(v.total_amount)) || 0;
+              const c = Number(v.credit) || 0;
+              coaDebits[code] = (coaDebits[code] || 0) + d;
+              coaCredits[code] = (coaCredits[code] || 0) + c;
+            }
+          });
+        }
 
         // 1. Chart of Accounts
         if (coaRes.data && Array.isArray(coaRes.data)) {
@@ -229,11 +257,19 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 else if (code.startsWith('5')) inferredType = 'Expense';
                 else inferredType = 'General Ledger';
               }
+              const nature = a.balance_nature || (code.startsWith('5') || code.startsWith('1') ? 'Debit' : 'Credit');
+              const opBal = Number(a.opening_balance || 0);
+              const d = coaDebits[code] || 0;
+              const c = coaCredits[code] || 0;
+              const computedBal = nature.toLowerCase() === 'credit'
+                ? opBal + (c - d)
+                : opBal + (d - c);
+
               accountDetails[code] = {
                 account_code: code,
                 account_title: a.account_title || `Account ${code}`,
                 account_type: inferredType,
-                balance_nature: a.balance_nature || (code.startsWith('5') ? 'Debit' : '')
+                balance_nature: nature
               };
               pMap[code] = {
                 code,
@@ -242,8 +278,8 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 phone: '',
                 city: '',
                 address: '',
-                currentBalance: 0,
-                balanceNature: a.balance_nature || ''
+                currentBalance: computedBal,
+                balanceNature: nature
               };
             }
           });
@@ -466,11 +502,19 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
   const buildInitialItems = () => {
     if (editData) {
       if (editData.items && Array.isArray(editData.items) && editData.items.length > 0) {
-        return editData.items.filter((it: any) => it.accountCode !== '3010-001');
+        return editData.items.filter((it: any) => it.accountCode !== '3010-001').map((it: any) => ({
+          accountCode: it.accountCode || it.account_code || '',
+          description: it.description !== undefined ? it.description : (editData.metadata?.particulars || (String(editData.narration || '').split(' | ')[0]) || ''),
+          debit: Number(it.debit || 0),
+          credit: Number(it.credit || 0)
+        }));
       }
       const d = Number(editData.debit) || (editData.credit ? 0 : Number(editData.total_amount)) || 0;
       const c = Number(editData.credit) || 0;
-      const desc = editData.narration || editData.notes || `Voucher ${editData.voucher_no || ''}`;
+      const parts = String(editData.narration || '').split(' | ');
+      const desc = editData.metadata?.particulars !== undefined
+        ? editData.metadata.particulars
+        : (parts.length > 1 ? parts[0] : (editData.narration || ''));
       return [
         { accountCode: editData.account_code || '', description: desc, debit: d, credit: c }
       ];
@@ -577,7 +621,13 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
           voucherNo: editData?.voucher_no || nextVoucherNo,
           voucherType: editData?.voucher_type ? normalizeVoucherType(editData.voucher_type) : (presetMeta ? presetMeta.typeName : 'Journal Voucher'),
           voucherDate: editData?.voucher_date || new Date().toISOString().split('T')[0],
-          notes: editData?.notes || editData?.narration || '',
+          notes: (() => {
+            if (!editData) return '';
+            if (editData.metadata?.notes !== undefined) return String(editData.metadata.notes);
+            const parts = String(editData.narration || '').split(' | ');
+            if (parts.length > 1) return parts.slice(1).join(' | ');
+            return '';
+          })(),
           items: buildInitialItems()
         }}
         enableReinitialize={true}
@@ -639,24 +689,43 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
             const isCust = activePreset === 'SAV' || activePreset === 'SRV' || activePreset === 'CRV' || (firstItem.accountCode && String(firstItem.accountCode).startsWith('2020'));
             const isVend = activePreset === 'PAV' || activePreset === 'PRV' || activePreset === 'VPV' || (firstItem.accountCode && String(firstItem.accountCode).startsWith('2010'));
 
+            // Extract particulars (bill # / thaan ref) and notes
+            const primaryItemIdx = activePreset === 'CRV' ? 1 : 0;
+            const primaryItem = values.items[primaryItemIdx] || values.items[0] || {};
+            const particularsText = String(primaryItem.description || '').trim();
+            const notesText = String(values.notes || '').trim();
+
+            let finalNarration = '';
+            if (particularsText && notesText && particularsText !== notesText) {
+              finalNarration = `${particularsText} | ${notesText}`;
+            } else if (particularsText) {
+              finalNarration = particularsText;
+            } else if (notesText) {
+              finalNarration = notesText;
+            } else {
+              finalNarration = `${values.voucherType} for ${firstAcc?.account_title || firstItem.accountCode}`;
+            }
+
             const databasePayload: any = {
               voucher_no: values.voucherNo,
               voucher_type: values.voucherType,
               voucher_date: values.voucherDate,
-              narration: values.notes.trim() || `${values.voucherType} for ${firstAcc?.account_title || firstItem.accountCode}`,
+              narration: finalNarration,
               total_amount: effectiveTotal,
-              items: isSingleRowMode ? [] : values.items,
+              items: values.items,
               account_code: firstItem.accountCode || editData?.account_code || '',
               account_title: firstAcc?.account_title || editData?.account_title || '',
               debit: isSingleRowMode ? effectiveDebit : sumDebits,
               credit: isSingleRowMode ? effectiveCredit : sumCredits,
-              notes: values.notes.trim(),
-              status: editData?.status || 'Posted',
+              original_invoice_no: particularsText || editData?.original_invoice_no || null,
               metadata: {
+                ...(editData?.metadata || {}),
                 preset: activePreset,
                 party_type: isCust ? 'customer' : isVend ? 'vendor' : 'general',
                 party_code: firstItem.accountCode || editData?.account_code || '',
-                party_name: firstAcc?.account_title || editData?.account_title || ''
+                party_name: firstAcc?.account_title || editData?.account_title || '',
+                particulars: particularsText,
+                notes: notesText
               }
             };
 
@@ -693,6 +762,39 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
 
             // Two-Way Live Balance Sync
             try {
+              // Synchronize Opening Balance voucher changes back to Customer Profile
+              const vNumStr = String(values.voucherNo || editData?.voucher_no || '').trim().toUpperCase();
+              const isOBVoucher = vNumStr.startsWith('OB-') || String(values.notes || '').toLowerCase().includes('opening balance') || String(editData?.narration || '').toLowerCase().includes('opening balance');
+              
+              if (isOBVoucher) {
+                const targetCode = (firstItem.accountCode || editData?.account_code || '').trim();
+                const targetTitle = (firstAcc?.account_title || editData?.account_title || '').trim();
+                
+                if (targetCode || targetTitle) {
+                  let custQuery = supabase.from('customers').select('id, balance, currentBalance, opening_balance');
+                  if (targetCode && targetTitle) {
+                    custQuery = custQuery.or(`customer_code.eq.${targetCode},account_code.eq.${targetCode},customerCode.eq.${targetCode},customerName.eq.${targetTitle}`);
+                  } else if (targetCode) {
+                    custQuery = custQuery.or(`customer_code.eq.${targetCode},account_code.eq.${targetCode},customerCode.eq.${targetCode}`);
+                  } else {
+                    custQuery = custQuery.eq('customerName', targetTitle);
+                  }
+                  
+                  const { data: matchedCust } = await custQuery.maybeSingle();
+                  if (matchedCust) {
+                    const custUpdate: any = {};
+                    if (effectiveTotal > 0) {
+                      custUpdate.opening_balance = effectiveTotal;
+                      custUpdate.balance = effectiveTotal;
+                      custUpdate.currentBalance = effectiveTotal;
+                    }
+                    if (Object.keys(custUpdate).length > 0) {
+                      await supabase.from('customers').update(custUpdate).eq('id', matchedCust.id);
+                    }
+                  }
+                }
+              }
+
               if (activePreset === 'SAV' || activePreset === 'SRV' || activePreset === 'CRV') {
                 const custItem = values.items.find((it: any) => (it.accountCode || '').startsWith('2020-'));
                 if (custItem) {
@@ -822,12 +924,17 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
             impactSign = '-';
             impactDesc = 'Payment Disbursed (-Payable)';
             expectedNewBalance = oldBalance - currentEnteredAmount;
+          } else if (activePreset === 'EXP') {
+            impactSign = '+';
+            impactDesc = 'Expense Debit (+Expense)';
+            expectedNewBalance = oldBalance + currentEnteredAmount;
           }
 
           // Balance Display Nature
           const isCustomer = activePreset === 'SAV' || activePreset === 'SRV' || activePreset === 'CRV' || (partyData?.type === 'Customer');
           const isVendor = activePreset === 'PAV' || activePreset === 'PRV' || activePreset === 'VPV' || (partyData?.type === 'Vendor');
-          const balSuffix = isCustomer ? 'Dr (Receivable)' : isVendor ? 'Cr (Payable)' : '';
+          const isExpense = activePreset === 'EXP' || (partyData?.type === 'Expense');
+          const balSuffix = isCustomer ? 'Dr (Receivable)' : isVendor ? 'Cr (Payable)' : isExpense ? 'Dr (Expense)' : '';
 
           return (
             <Form className="space-y-5">
