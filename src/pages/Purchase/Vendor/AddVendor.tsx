@@ -17,7 +17,8 @@ import {
   MdTag,
   MdPeople,
   MdPerson,
-  MdLocationOn
+  MdLocationOn,
+  MdCalendarToday
 } from 'react-icons/md';
 import {
   SubAreaAreaInput,
@@ -29,6 +30,7 @@ import {
 const AddVendor = () => {
   const [loading, setLoading] = useState(false);
   const [suggestedCode, setSuggestedCode] = useState<string>('');
+  const [existingOBDate, setExistingOBDate] = useState<string>('');
   const { tenantId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -60,6 +62,27 @@ const AddVendor = () => {
 
   const editData = location.state?.vendorRecord || location.state?.vendor || fetchedVendor;
   const isEditMode = !!(id || editData);
+
+  // Fetch existing OB voucher date from financial_vouchers for edit mode
+  useEffect(() => {
+    const code = editData?.vendor_code || editData?.vendorCode;
+    if (code) {
+      const cleanCode = String(code).trim();
+      const vNum = cleanCode.replace('2010-', '');
+      supabase
+        .from('financial_vouchers')
+        .select('voucher_date')
+        .or(`voucher_no.eq.OB-${vNum},account_code.eq.${cleanCode}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.voucher_date) {
+            setExistingOBDate(data.voucher_date);
+          }
+        });
+    }
+  }, [editData]);
 
   // Universal redirect helper back to vendor list
   const handleNavigateToList = () => {
@@ -300,6 +323,7 @@ const AddVendor = () => {
           opening_balance: editData?.opening_balance !== undefined && editData?.opening_balance !== null
             ? String(editData.opening_balance)
             : (editData?.balance ? String(Math.abs(Number(editData.balance))) : ''),
+          opening_balance_date: existingOBDate || (editData?.created_at ? editData.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
           balance_nature: editData?.balance_nature || (Number(editData?.balance) < 0 ? 'Debit' : 'Credit'),
           contactName: editData?.contact_name || '',
           cellNo: editData?.cell_no || editData?.phone || '',
@@ -430,10 +454,12 @@ const AddVendor = () => {
 
                 // Two-way sync to financial_vouchers if opening balance > 0
                 if (parsedOpeningBal > 0) {
+                  const obDate = (values as any).opening_balance_date || new Date().toISOString().split('T')[0];
+                  const vNum = cleanCode.replace('2010-', '');
                   const vPayload: any = {
-                    voucher_no: `OB-${cleanCode}`,
+                    voucher_no: `OB-${vNum}`,
                     voucher_type: 'Journal Voucher',
-                    voucher_date: new Date().toISOString().split('T')[0],
+                    voucher_date: obDate,
                     account_code: cleanCode,
                     account_title: trimmedName,
                     total_amount: parsedOpeningBal,
@@ -446,7 +472,7 @@ const AddVendor = () => {
                   const { data: existV } = await supabase
                     .from('financial_vouchers')
                     .select('id')
-                    .or(`voucher_no.eq.OB-${cleanCode},account_code.eq.${cleanCode}`)
+                    .or(`voucher_no.eq.OB-${vNum},voucher_no.eq.OB-${cleanCode},account_code.eq.${cleanCode}`)
                     .maybeSingle();
 
                   if (existV) {
@@ -585,8 +611,29 @@ const AddVendor = () => {
                   </p>
                 </div>
 
-                {/* Balance Nature Pill Buttons */}
+                {/* Opening Balance Date */}
                 <div>
+                  <label className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <span className="flex items-center gap-1.5">
+                      <MdCalendarToday className="text-primary text-sm" />
+                      <span>Opening Balance Date</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">Effective Date</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="opening_balance_date"
+                    onChange={handleChange}
+                    value={(values as any).opening_balance_date || ''}
+                    className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-4 py-2.5 text-xs font-mono outline-none transition focus:bg-white dark:focus:bg-boxdark focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Date assigned to Opening Balance journal voucher (OB-xxx)
+                  </p>
+                </div>
+
+                {/* Balance Nature Pill Buttons */}
+                <div className="md:col-span-2">
                   <label className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-200">
                     Balance Nature:
                   </label>
