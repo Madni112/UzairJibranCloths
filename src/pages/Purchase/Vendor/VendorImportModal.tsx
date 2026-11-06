@@ -710,13 +710,16 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
             if (r.phone) {
               item['phone'] = r.phone;
               item['cell_no'] = r.phone;
+              item['phone_no'] = r.phone;
             }
             item['address'] = fullAddress;
             item['province'] = r.province || 'Sindh';
-            if (r.pageNo) item['page_no'] = r.pageNo;
+            if (r.pageNo) {
+              item['page_no'] = r.pageNo;
+              item['pageNo'] = r.pageNo;
+            }
             item['balance'] = computedBal;
             item['currentBalance'] = computedBal;
-            item['opening_balance'] = Math.abs(rawBal);
           } else {
             setCol('vendor_name', r.name);
             setCol('name', r.name);
@@ -745,22 +748,48 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
 
             setCol('balance', computedBal);
             setCol('currentBalance', computedBal);
-            setCol('current_balance', computedBal);
+            if (hasCol('current_balance')) setCol('current_balance', computedBal);
             if (hasCol('opening_balance')) setCol('opening_balance', Math.abs(rawBal));
           }
 
           return item;
         });
 
-        const { data: insertedData, error: insertErr } = await supabase
-          .from('vendors')
-          .insert(insertPayloads)
-          .select('id, vendor_name, name, vendor_code');
+        const batchSize = 50;
+        for (let i = 0; i < insertPayloads.length; i += batchSize) {
+          let batch = insertPayloads.slice(i, i + batchSize);
+          let { data: insertedData, error: insertErr } = await supabase
+            .from('vendors')
+            .insert(batch)
+            .select('id, vendor_name, name, vendor_code');
 
-        if (insertErr) {
-          throw insertErr;
-        } else {
-          insertedCount = insertedData?.length || toInsert.length;
+          // Auto-heal missing columns reported by PostgREST schema cache
+          if (insertErr && (insertErr.code === 'PGRST204' || insertErr.message?.includes('schema cache'))) {
+            for (let attempt = 0; attempt < 8 && insertErr; attempt++) {
+              const errMsg = insertErr.message || '';
+              const colMatch = errMsg.match(/Could not find the '([^']+)' column/i);
+              if (colMatch && colMatch[1]) {
+                const missingCol = colMatch[1].toLowerCase();
+                batch = batch.map((rowItem) => {
+                  const copy = { ...rowItem };
+                  const foundKey = Object.keys(copy).find((k) => k.toLowerCase() === missingCol);
+                  if (foundKey) delete copy[foundKey];
+                  return copy;
+                });
+                const retryRes = await supabase
+                  .from('vendors')
+                  .insert(batch)
+                  .select('id, vendor_name, name, vendor_code');
+                insertErr = retryRes.error;
+                insertedData = retryRes.data;
+              } else {
+                break;
+              }
+            }
+          }
+
+          if (insertErr) throw insertErr;
+          insertedCount += insertedData?.length || batch.length;
         }
 
         // 4. Automatically create / sync Chart of Accounts ledgers for all new vendors
