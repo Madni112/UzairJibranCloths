@@ -106,6 +106,7 @@ export const ReportDashboard: React.FC = () => {
   const [quickBalanceFilter, setQuickBalanceFilter] = useState<string>('ALL');
   const [quickPartyTypeFilter, setQuickPartyTypeFilter] = useState<'ALL' | 'CUSTOMER' | 'VENDOR'>('ALL');
   const [expensePaidViaFilter, setExpensePaidViaFilter] = useState<string>('ALL');
+  const [dailyDateMode, setDailyDateMode] = useState<'single' | 'range'>('single');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
   const reportPdfRef = useRef<HTMLDivElement>(null);
 
@@ -316,6 +317,7 @@ export const ReportDashboard: React.FC = () => {
       const today = new Date().toISOString().split('T')[0];
       setFromDate(today);
       setToDate(today);
+      setDailyDateMode('single');
     } else {
       const found = FINANCIAL_YEARS.find(f => f.id === selectedFY);
       setFromDate(found ? found.from : '2026-06-22');
@@ -1504,7 +1506,8 @@ export const ReportDashboard: React.FC = () => {
             date: String(d).split('T')[0],
             time: '12:00 PM',
             voucherNo: v.voucher_no || `VCH-${v.id}`,
-            accountTitle: `${v.account_title || 'General Account'} (${v.account_code || '-'})`,
+            accountTitle: v.account_title || 'General Account',
+            accountCode: v.account_code || '',
             entryType: entryLabel,
             cashIn,
             cashOut,
@@ -1659,7 +1662,7 @@ export const ReportDashboard: React.FC = () => {
         'S#': r.index,
         'Date': r.date,
         'Voucher / Ref #': r.voucherNo,
-        'Account Title': r.accountTitle,
+        'Account Title (Code)': r.accountCode ? `${r.accountTitle} (${r.accountCode})` : r.accountTitle,
         'Entry Type': r.entryType,
         'Cash In (Dr)': r.cashIn,
         'Cash Out (Cr)': r.cashOut,
@@ -2076,6 +2079,7 @@ export const ReportDashboard: React.FC = () => {
       const q = tableSearch.toLowerCase().trim();
       list = list.filter(r => 
         String(r.accountTitle || '').toLowerCase().includes(q) ||
+        String(r.accountCode || '').toLowerCase().includes(q) ||
         String(r.voucherNo || '').toLowerCase().includes(q) ||
         String(r.entryType || '').toLowerCase().includes(q)
       );
@@ -2320,22 +2324,84 @@ export const ReportDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* 5. Date Selection: Single Date for DailyBook, Range for others */}
+          {/* 5. Date Selection: Single Date or Date Range for DailyBook, Range for others */}
           {activeTab === 'daily-book' ? (
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
-                Date (Roznamcha Day) *
-              </label>
-              <input
-                type="date"
-                value={toDate || fromDate}
-                onChange={(e) => {
-                  setFromDate(e.target.value);
-                  setToDate(e.target.value);
-                }}
-                className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                  Date Mode
+                </label>
+                <div className="flex items-center h-[38px] p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-stroke dark:border-strokedark">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDailyDateMode('single');
+                      setToDate(fromDate || new Date().toISOString().split('T')[0]);
+                    }}
+                    className={`flex-1 h-full flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
+                      dailyDateMode === 'single'
+                        ? 'bg-white dark:bg-boxdark text-primary shadow-2xs font-extrabold'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                    }`}
+                  >
+                    Single Day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDailyDateMode('range')}
+                    className={`flex-1 h-full flex items-center justify-center rounded-lg text-xs font-bold transition cursor-pointer ${
+                      dailyDateMode === 'range'
+                        ? 'bg-white dark:bg-boxdark text-primary shadow-2xs font-extrabold'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                    }`}
+                  >
+                    Date Range
+                  </button>
+                </div>
+              </div>
+
+              {dailyDateMode === 'single' ? (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                    Date (Roznamcha Day) *
+                  </label>
+                  <input
+                    type="date"
+                    value={fromDate || toDate}
+                    onChange={(e) => {
+                      setFromDate(e.target.value);
+                      setToDate(e.target.value);
+                    }}
+                    className="w-full h-[38px] rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                      From Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="w-full h-[38px] rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 uppercase tracking-wider">
+                      To Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full h-[38px] rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                </>
+              )}
+            </>
           ) : (
             <>
               {/* 5. From Date */}
@@ -2347,7 +2413,7 @@ export const ReportDashboard: React.FC = () => {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-[38px] rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
@@ -2360,7 +2426,7 @@ export const ReportDashboard: React.FC = () => {
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="w-full rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-[38px] rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-900 dark:text-white px-3 py-2 text-xs font-semibold font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </>
@@ -2433,12 +2499,16 @@ export const ReportDashboard: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-slate-800 dark:text-white">
               {activeTab === 'daily-book'
-                ? 'Select a date and click Generate Report'
+                ? (dailyDateMode === 'single'
+                    ? 'Select a date and click Generate Report'
+                    : 'Select a date range and click Generate Report')
                 : 'Select a financial year and date range, then click Generate Report'}
             </h3>
             <p className="text-xs text-slate-400 max-w-md mt-1">
               {activeTab === 'daily-book'
-                ? 'Choose the date for Roznamcha and click Generate Report to inspect daily cash drawer movement.'
+                ? (dailyDateMode === 'single'
+                    ? 'Choose the date for Roznamcha and click Generate Report to inspect daily cash drawer movement.'
+                    : 'Choose the date range for Roznamcha and click Generate Report to inspect cash drawer movements across the period.')
                 : 'Choose your criteria in the filter bar above and click the Generate Report button to fetch the live ledger and calculations.'}
             </p>
           </div>
@@ -2891,7 +2961,9 @@ export const ReportDashboard: React.FC = () => {
                   </h2>
                   <div className="text-[10px] text-slate-600 font-mono mt-0.5">
                     {activeTab === 'daily-book'
-                      ? `Date: ${formatPrintDate(toDate || fromDate)}`
+                      ? (dailyDateMode === 'single' || fromDate === toDate
+                          ? `Date: ${formatPrintDate(toDate || fromDate)}`
+                          : `Period: ${formatPrintDate(fromDate) || 'Start'} — ${formatPrintDate(toDate) || 'Current'}`)
                       : activeTab === 'combined-ledger'
                       ? `As of Date: ${new Date().toLocaleDateString('en-GB')}`
                       : `Period: ${formatPrintDate(fromDate) || 'Start'} — ${formatPrintDate(toDate) || 'Current'}`}
@@ -3018,7 +3090,7 @@ export const ReportDashboard: React.FC = () => {
                           <td className="py-2 px-2 font-mono font-bold text-primary whitespace-nowrap">{row.refNo}</td>
                           <td className="py-2 px-2 font-bold text-slate-800 dark:text-white">
                             <span>{row.partyName}</span>{' '}
-                            <bdi className="font-mono text-slate-400 text-[10px] inline-block font-normal">({row.accountCode})</bdi>
+                            <bdi dir="ltr" className="font-mono text-slate-400 text-[10px] inline-block font-normal">{`\u200E(${row.accountCode})\u200E`}</bdi>
                           </td>
                           <td className="py-2 px-2 text-slate-700 dark:text-slate-200 font-medium whitespace-nowrap">
                             {row.city || '-'}
@@ -3172,7 +3244,7 @@ export const ReportDashboard: React.FC = () => {
                           <td className="py-2 px-2 font-mono font-bold text-primary whitespace-nowrap">{row.refNo}</td>
                           <td className="py-2 px-2 font-bold text-slate-800 dark:text-white">
                             <span>{row.partyName}</span>{' '}
-                            <bdi className="font-mono text-slate-400 text-[10px] inline-block font-normal">({row.accountCode})</bdi>
+                            <bdi dir="ltr" className="font-mono text-slate-400 text-[10px] inline-block font-normal">{`\u200E(${row.accountCode})\u200E`}</bdi>
                           </td>
                           <td className="py-2 px-2 text-slate-700 dark:text-slate-200 font-medium whitespace-nowrap">
                             {row.city || '-'}
@@ -3326,7 +3398,7 @@ export const ReportDashboard: React.FC = () => {
                           <td className="py-2 px-2 font-mono font-bold text-primary whitespace-nowrap">{row.refNo}</td>
                           <td className="py-2 px-2 font-bold text-slate-800 dark:text-white">
                             <span>{row.partyName}</span>{' '}
-                            <bdi className="font-mono text-slate-400 text-[10px] inline-block font-normal">({row.accountCode})</bdi>
+                            <bdi dir="ltr" className="font-mono text-slate-400 text-[10px] inline-block font-normal">{`\u200E(${row.accountCode})\u200E`}</bdi>
                           </td>
                           <td className="py-2 px-2 whitespace-nowrap">
                             <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -3407,15 +3479,30 @@ export const ReportDashboard: React.FC = () => {
                     </button>
                   </div>
 
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stroke dark:border-strokedark bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-                    <input
-                      type="checkbox"
-                      checked={pnlIncludeOB}
-                      onChange={(e) => setPnlIncludeOB(e.target.checked)}
-                      className="rounded border-slate-300 text-primary focus:ring-primary h-3.5 w-3.5"
-                    />
-                    <span>Include Opening Balances</span>
-                  </label>
+                  <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-stroke dark:border-strokedark">
+                    <button
+                      type="button"
+                      onClick={() => setPnlIncludeOB(false)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        !pnlIncludeOB
+                          ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                    >
+                      Exclude Opening Balances
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPnlIncludeOB(true)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        pnlIncludeOB
+                          ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                    >
+                      Include Opening Balances
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -3805,7 +3892,17 @@ export const ReportDashboard: React.FC = () => {
                           <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px] whitespace-nowrap align-middle">{idx + 1}</td>
                           <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap align-middle">{row.date}</td>
                           <td className="py-2.5 px-3 font-mono font-bold text-primary whitespace-nowrap align-middle">{row.voucherNo}</td>
-                          <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-white whitespace-nowrap align-middle">{row.accountTitle}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-white whitespace-nowrap align-middle">
+                            <span dir="auto">{row.accountTitle}</span>
+                            {row.accountCode && (
+                              <>
+                                {' '}
+                                <bdi dir="ltr" className="font-mono text-slate-400 dark:text-slate-500 text-[10px] inline-block font-normal">
+                                  {`\u200E(${row.accountCode})\u200E`}
+                                </bdi>
+                              </>
+                            )}
+                          </td>
                           <td className="py-2.5 px-3 whitespace-nowrap align-middle">
                             {isGeneratingPdf ? (
                               <span className="font-semibold text-slate-800 text-[11px]">
