@@ -225,7 +225,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
     };
 
     // 2. Find header row indices (case-insensitive substring matches supporting English and Urdu)
-    const headerRow = matrix[0].map((h) => String(h || '').trim().toLowerCase());
+    const headerRow = matrix[0].map((h) => String(h || '').trim().toLowerCase().replace(/^\uFEFF/, ''));
     let nameIdx = -1;
     let companyIdx = -1;
     let phoneIdx = -1;
