@@ -107,6 +107,7 @@ export const ReportDashboard: React.FC = () => {
   const [quickPartyTypeFilter, setQuickPartyTypeFilter] = useState<'ALL' | 'CUSTOMER' | 'VENDOR'>('ALL');
   const [expensePaidViaFilter, setExpensePaidViaFilter] = useState<string>('ALL');
   const [dailyDateMode, setDailyDateMode] = useState<'single' | 'range'>('single');
+  const [dailyEntryTypeFilter, setDailyEntryTypeFilter] = useState<string>('ALL');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
   const reportPdfRef = useRef<HTMLDivElement>(null);
 
@@ -311,6 +312,7 @@ export const ReportDashboard: React.FC = () => {
     setQuickTypeFilter('ALL');
     setQuickBalanceFilter('ALL');
     setQuickPartyTypeFilter('ALL');
+    setDailyEntryTypeFilter('ALL');
     setHasGenerated(false);
 
     if (key === 'daily-book') {
@@ -1472,33 +1474,88 @@ export const ReportDashboard: React.FC = () => {
           if (t < startMs || t > endMs) return false;
 
           const vNo = String(v.voucher_no || '').toUpperCase();
+          if (vNo.startsWith('OB-')) return false; // Ignore party opening balance vouchers in daily transaction daybook
+
           const amt = Number(v.total_amount || v.debit || v.credit || 0);
 
           let cashIn = 0;
           let cashOut = 0;
+          let creditSaleAmt = 0;
           let entryLabel = v.voucher_type || 'Cash Voucher';
+          let paymentMode = 'Cash in Hand';
 
-          if (vNo.startsWith('CRV-') || vNo.startsWith('BRV-')) {
+          // Detect Bank Account from items if any
+          if (v.items && Array.isArray(v.items) && v.items.length > 0) {
+            const bankItem = v.items.find((it: any) => {
+              const code = String(it.accountCode || it.account_code || '');
+              const title = String(it.accountTitle || it.account_title || '').toLowerCase();
+              return code.startsWith('1020') || title.includes('bank') || title.includes('meezan') || title.includes('hbl');
+            });
+            if (bankItem) {
+              const bTitle = String(bankItem.accountTitle || bankItem.account_title || 'Bank');
+              paymentMode = bTitle.includes('-') ? bTitle.split('-')[0].trim() : bTitle;
+            }
+          }
+
+          if (vNo.startsWith('CRV-')) {
             cashIn = amt;
             totalCashIn += amt;
             entryLabel = 'Customer Cash Receipt';
+            paymentMode = 'Cash in Hand';
+          } else if (vNo.startsWith('BRV-')) {
+            cashIn = amt;
+            totalCashIn += amt;
+            entryLabel = 'Customer Bank Receipt';
+            if (paymentMode === 'Cash in Hand') paymentMode = 'Bank Transfer';
+          } else if (vNo.startsWith('CPV-')) {
+            cashOut = amt;
+            totalCashOut += amt;
+            entryLabel = 'Cash Payment (CPV)';
+            paymentMode = 'Cash in Hand';
+          } else if (vNo.startsWith('BPV-')) {
+            cashOut = amt;
+            totalCashOut += amt;
+            entryLabel = 'Bank Payment (BPV)';
+            if (paymentMode === 'Cash in Hand') paymentMode = 'Bank Transfer';
           } else if (vNo.startsWith('VPV-')) {
             cashOut = amt;
             totalCashOut += amt;
-            entryLabel = 'Vendor Payment';
-          } else if (vNo.startsWith('EXP-')) {
+            entryLabel = 'Vendor Payment (VPV)';
+          } else if (vNo.startsWith('EXP-') || String(v.account_code || '').startsWith('5') || String(v.voucher_type || '').toLowerCase().includes('expense')) {
             cashOut = amt;
             totalCashOut += amt;
             entryLabel = 'Expense Payment';
+          } else if (vNo.startsWith('SAV-') || String(v.voucher_type || '').toLowerCase().includes('sale amount')) {
+            // Accrual Credit Sale: Money is Receivable (Udhaar), NOT liquid cash received
+            cashIn = 0;
+            cashOut = 0;
+            creditSaleAmt = amt;
+            entryLabel = 'Sale Amount Voucher (Receivable)';
+            paymentMode = 'On Credit (Udhaar)';
+          } else if (vNo.startsWith('SRV-') || String(v.voucher_type || '').toLowerCase().includes('sale return')) {
+            // Accrual Sale Return: Credit Note to customer
+            cashIn = 0;
+            cashOut = 0;
+            entryLabel = 'Sale Return Voucher (Credit Note)';
+            paymentMode = 'On Credit (Udhaar)';
+          } else if (vNo.startsWith('PAV-') || String(v.voucher_type || '').toLowerCase().includes('purchase amount')) {
+            // Accrual Purchase: Payable to vendor
+            cashIn = 0;
+            cashOut = 0;
+            entryLabel = 'Purchase Amount Voucher (Payable)';
+            paymentMode = 'On Credit (Udhaar)';
+          } else if (vNo.startsWith('PRV-') || String(v.voucher_type || '').toLowerCase().includes('purchase return')) {
+            // Accrual Purchase Return: Debit Note to vendor
+            cashIn = 0;
+            cashOut = 0;
+            entryLabel = 'Purchase Return Voucher (Debit Note)';
+            paymentMode = 'On Credit (Udhaar)';
           } else {
-            if (Number(v.debit) > 0) {
-              cashIn = Number(v.debit);
-              totalCashIn += cashIn;
-            }
-            if (Number(v.credit) > 0) {
-              cashOut = Number(v.credit);
-              totalCashOut += cashOut;
-            }
+            // Non-cash adjustment / Journal Voucher
+            cashIn = 0;
+            cashOut = 0;
+            entryLabel = v.voucher_type || 'Journal Voucher';
+            paymentMode = 'Journal Entry';
           }
 
           rows.push({
@@ -1509,13 +1566,23 @@ export const ReportDashboard: React.FC = () => {
             accountTitle: v.account_title || 'General Account',
             accountCode: v.account_code || '',
             entryType: entryLabel,
+            paymentMode,
+            voucherAmount: amt,
+            creditSaleAmt,
             cashIn,
             cashOut,
             timestamp: t
           });
         });
 
-        let runningDrawer = 45000;
+        const cashAccount = coaAccounts.find(a => 
+          a.account_code === '1010-001' || 
+          String(a.account_code).startsWith('1010') || 
+          String(a.account_title).toLowerCase().includes('cash in hand')
+        );
+        const openingDrawerCash = Number(cashAccount?.opening_balance || 0);
+
+        let runningDrawer = openingDrawerCash;
         const computed = rows.map((r, idx) => {
           runningDrawer = runningDrawer + r.cashIn - r.cashOut;
           return {
@@ -1527,7 +1594,7 @@ export const ReportDashboard: React.FC = () => {
 
         setDailyBookRows(computed);
         setSummary({
-          opening: 45000,
+          opening: openingDrawerCash,
           debit: totalCashIn,
           returnAmt: 0,
           credit: totalCashOut,
@@ -1664,8 +1731,9 @@ export const ReportDashboard: React.FC = () => {
         'Voucher / Ref #': r.voucherNo,
         'Account Title (Code)': r.accountCode ? `${r.accountTitle} (${r.accountCode})` : r.accountTitle,
         'Entry Type': r.entryType,
-        'Cash In (Dr)': r.cashIn,
-        'Cash Out (Cr)': r.cashOut,
+        'Payment Mode': r.paymentMode,
+        'Cash / Bank In (Dr)': r.cashIn,
+        'Cash / Bank Out (Cr)': r.cashOut,
         'Net Drawer Cash': r.netDrawerCash
       }));
     }
@@ -2073,8 +2141,20 @@ export const ReportDashboard: React.FC = () => {
     return { count, total };
   }, [filteredExpenseRows]);
 
+  const availableDailyEntryTypes = useMemo(() => {
+    const set = new Set<string>();
+    dailyBookRows.forEach(r => {
+      if (r.entryType) set.add(r.entryType);
+    });
+    return Array.from(set).sort();
+  }, [dailyBookRows]);
+
   const filteredDailyRows = useMemo(() => {
     let list = dailyBookRows;
+    if (dailyEntryTypeFilter !== 'ALL') {
+      const f = dailyEntryTypeFilter.toLowerCase().trim();
+      list = list.filter(r => String(r.entryType || '').toLowerCase().trim() === f);
+    }
     if (tableSearch.trim()) {
       const q = tableSearch.toLowerCase().trim();
       list = list.filter(r => 
@@ -2114,7 +2194,23 @@ export const ReportDashboard: React.FC = () => {
       });
     }
     return list;
-  }, [dailyBookRows, tableSearch, sortKey, sortOrder]);
+  }, [dailyBookRows, tableSearch, dailyEntryTypeFilter, sortKey, sortOrder]);
+
+  const dailySummary = useMemo(() => {
+    const totalCashIn = filteredDailyRows.reduce((acc, r) => acc + (Number(r.cashIn) || 0), 0);
+    const totalCashOut = filteredDailyRows.reduce((acc, r) => acc + (Number(r.cashOut) || 0), 0);
+    const totalCreditSales = filteredDailyRows.reduce((acc, r) => acc + (Number(r.creditSaleAmt) || 0), 0);
+    const opening = summary.opening || 0;
+    const closing = opening + totalCashIn - totalCashOut;
+    return {
+      opening,
+      cashIn: totalCashIn,
+      cashOut: totalCashOut,
+      creditSales: totalCreditSales,
+      closing,
+      count: filteredDailyRows.length
+    };
+  }, [filteredDailyRows, summary.opening]);
 
   return (
     <div className="mx-auto max-w-7xl text-xs space-y-5 pb-16 print:max-w-none print:p-0 print:m-0 print:space-y-0 print:pb-0">
@@ -2650,28 +2746,35 @@ export const ReportDashboard: React.FC = () => {
                 <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
                   <span className="text-[11px] font-bold text-slate-400 uppercase">Opening Drawer Cash</span>
                   <div className="text-base font-black text-slate-800 dark:text-white font-mono mt-1">
-                    Rs. {Number(summary.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    Rs. {Number(dailySummary.opening).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
 
                 <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
-                  <span className="text-[11px] font-bold text-emerald-600 uppercase">Total Cash In (Dr)</span>
+                  <span className="text-[11px] font-bold text-emerald-600 uppercase">Cash & Bank In (Dr)</span>
                   <div className="text-base font-black text-emerald-600 font-mono mt-1">
-                    Rs. {Number(summary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    Rs. {Number(dailySummary.cashIn).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
 
                 <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
-                  <span className="text-[11px] font-bold text-amber-600 uppercase">Total Cash Out (Cr)</span>
+                  <span className="text-[11px] font-bold text-amber-600 uppercase">Cash & Bank Out (Cr)</span>
                   <div className="text-base font-black text-amber-600 font-mono mt-1">
-                    Rs. {Number(summary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    Rs. {Number(dailySummary.cashOut).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs sm:col-span-2">
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-primary/30 bg-primary/5 dark:bg-primary/10 shadow-2xs">
                   <span className="text-[11px] font-bold text-primary uppercase">Closing Drawer Balance</span>
                   <div className="text-base font-black text-primary font-mono mt-1">
-                    Rs. {Number(summary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    Rs. {Number(dailySummary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 shadow-2xs">
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase">Credit Sales (Receivable)</span>
+                  <div className="text-base font-black text-blue-600 dark:text-blue-400 font-mono mt-1">
+                    Rs. {Number(dailySummary.creditSales).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               </>
@@ -2797,6 +2900,23 @@ export const ReportDashboard: React.FC = () => {
                       .map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Entry Type Filter (Available on DailyBook) */}
+              {activeTab === 'daily-book' && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Entry Type:</span>
+                  <select
+                    value={dailyEntryTypeFilter}
+                    onChange={(e) => setDailyEntryTypeFilter(e.target.value)}
+                    className="rounded-xl border border-stroke dark:border-strokedark bg-slate-50/50 dark:bg-boxdark text-slate-800 dark:text-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-primary cursor-pointer shadow-2xs"
+                  >
+                    <option value="ALL">All Entry Types</option>
+                    {availableDailyEntryTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -3904,15 +4024,22 @@ export const ReportDashboard: React.FC = () => {
                             )}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap align-middle">
-                            {isGeneratingPdf ? (
-                              <span className="font-semibold text-slate-800 text-[11px]">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-semibold text-slate-800 dark:text-white text-[11px]">
                                 {row.entryType}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 print:bg-transparent print:p-0 print:text-black">
-                                {row.entryType}
-                              </span>
-                            )}
+                              {row.paymentMode && (
+                                <span className={`text-[10px] font-bold ${
+                                  row.paymentMode.includes('Credit')
+                                    ? 'text-amber-600 dark:text-amber-400'
+                                    : row.paymentMode.includes('Bank')
+                                    ? 'text-blue-600 dark:text-blue-400'
+                                    : 'text-emerald-600 dark:text-emerald-400'
+                                }`}>
+                                  {row.paymentMode}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 whitespace-nowrap align-middle">
                             {row.cashIn > 0 ? `Rs. ${Number(row.cashIn).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
@@ -3934,13 +4061,13 @@ export const ReportDashboard: React.FC = () => {
                           Total Daily Inflow & Outflow:
                         </td>
                         <td className="py-3 px-3 text-right font-mono font-black text-emerald-600 whitespace-nowrap">
-                          Rs. {Number(summary.debit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          Rs. {Number(dailySummary.cashIn).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-3 text-right font-mono font-black text-rose-600 whitespace-nowrap">
-                          Rs. {Number(summary.credit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          Rs. {Number(dailySummary.cashOut).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
-                          Rs. {Number(summary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          Rs. {Number(dailySummary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     </tfoot>

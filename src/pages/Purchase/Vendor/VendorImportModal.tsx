@@ -34,12 +34,15 @@ export interface ParsedVendor {
   pageNo: string;
   balance: number;
   balanceNature: 'Credit' | 'Debit';
+  openingDate?: string;
+  assignedCode?: string;
   isValid: boolean;
   validationError?: string;
   isExisting?: boolean;
   existingId?: string | number;
   existingBalance?: number;
   existingCity?: string;
+  existingCode?: string;
 }
 
 export const VendorImportModal: React.FC<VendorImportModalProps> = ({
@@ -49,6 +52,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedVendor[]>([]);
+  const [batchOpeningDate, setBatchOpeningDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [fileName, setFileName] = useState<string>('');
   const [importing, setImporting] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -141,6 +145,34 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
     }
   };
 
+  // Helper to parse dates from Excel serial number, ISO, or DD/MM/YYYY formats
+  const parseExcelDate = (val: any): string => {
+    if (!val) return '';
+    if (typeof val === 'number') {
+      try {
+        const parsed = XLSX.SSF.parse_date_code(val);
+        if (parsed) {
+          return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+        }
+      } catch {}
+    }
+    const s = String(val).trim();
+    if (!s) return '';
+    const isoMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-${String(isoMatch[3]).padStart(2, '0')}`;
+    }
+    const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmyMatch) {
+      return `${dmyMatch[3]}-${String(dmyMatch[2]).padStart(2, '0')}-${String(dmyMatch[1]).padStart(2, '0')}`;
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+    return '';
+  };
+
   // Parse 2D matrix of sheet rows into strongly typed vendor objects with existing vendor matching
   const parseMatrix = async (matrix: any[][]) => {
     if (!matrix || matrix.length < 2) {
@@ -148,18 +180,49 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
       return;
     }
 
-    // 1. Pre-fetch existing vendors from database for duplicate/update detection
+    // 1. Pre-fetch existing vendors and Chart of Accounts for duplicate/update detection & sequential code assignment
     let existingDbVendors: any[] = [];
+    const usedCodes = new Set<string>();
+
     try {
-      const { data: dbVendors, error: vendErr } = await supabase
-        .from('vendors')
-        .select('*');
-      if (!vendErr && dbVendors) {
-        existingDbVendors = dbVendors;
+      const [vendQuery, coaQuery] = await Promise.all([
+        supabase
+          .from('vendors')
+          .select('id, vendor_name, name, company_name, city, province, address, balance, currentBalance, opening_balance, vendor_code, vendorCode'),
+        supabase
+          .from('chart_of_accounts')
+          .select('account_code')
+      ]);
+
+      if (vendQuery.data) {
+        existingDbVendors = vendQuery.data;
+        vendQuery.data.forEach((v: any) => {
+          ['vendor_code', 'vendorCode'].forEach((k) => {
+            if (v[k]) usedCodes.add(String(v[k]).trim().toUpperCase());
+          });
+        });
+      }
+
+      if (coaQuery.data) {
+        coaQuery.data.forEach((a: any) => {
+          if (a.account_code) usedCodes.add(String(a.account_code).trim().toUpperCase());
+        });
       }
     } catch (e) {
-      console.warn('Could not query existing vendors for duplicate detection:', e);
+      console.warn('Could not query existing vendors or COA for code generation:', e);
     }
+
+    let nextVendorSeq = 1;
+    const generateNextAccountCode = () => {
+      while (true) {
+        const candidate = `2010-${String(nextVendorSeq).padStart(3, '0')}`;
+        nextVendorSeq++;
+        if (!usedCodes.has(candidate)) {
+          usedCodes.add(candidate);
+          return candidate;
+        }
+      }
+    };
 
     // 2. Find header row indices (case-insensitive substring matches supporting English and Urdu)
     const headerRow = matrix[0].map((h) => String(h || '').trim().toLowerCase());
@@ -173,6 +236,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
     let pageIdx = -1;
     let balIdx = -1;
     let natureIdx = -1;
+    let dateIdx = -1;
 
     headerRow.forEach((col, idx) => {
       // Vendor / Supplier Name
@@ -261,26 +325,20 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
       ) {
         if (provinceIdx === -1) provinceIdx = idx;
       }
-      // Page Number
+      // Opening Balance Date (check before general balance)
       else if (
-        col.includes('page') ||
-        col.includes('صفحہ') ||
-        col.includes('کھاتہ صفحہ')
+        col.includes('opening balance date') ||
+        col.includes('balance date') ||
+        col.includes('opening date') ||
+        col.includes('voucher date') ||
+        col.includes('ob date') ||
+        col.includes('entry date') ||
+        col.includes('تاریخ') ||
+        col === 'date'
       ) {
-        if (pageIdx === -1) pageIdx = idx;
+        if (dateIdx === -1) dateIdx = idx;
       }
-      // Balance / Opening
-      else if (
-        col.includes('balance') ||
-        col.includes('opening') ||
-        col.includes('op bal') ||
-        col.includes('بقایا') ||
-        col.includes('ابتدائی') ||
-        col === 'bal'
-      ) {
-        if (balIdx === -1) balIdx = idx;
-      }
-      // Balance Nature (Cr / Dr)
+      // Balance Nature (Cr / Dr - check before general balance)
       else if (
         col.includes('nature') ||
         col.includes('dr/cr') ||
@@ -293,6 +351,25 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         col === 'dr'
       ) {
         if (natureIdx === -1) natureIdx = idx;
+      }
+      // Balance / Opening
+      else if (
+        col.includes('balance') ||
+        col.includes('opening') ||
+        col.includes('op bal') ||
+        col.includes('بقایا') ||
+        col.includes('ابتدائی') ||
+        col === 'bal'
+      ) {
+        if (balIdx === -1) balIdx = idx;
+      }
+      // Page Number
+      else if (
+        col.includes('page') ||
+        col.includes('صفحہ') ||
+        col.includes('کھاتہ صفحہ')
+      ) {
+        if (pageIdx === -1) pageIdx = idx;
       }
     });
 
@@ -345,6 +422,10 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         balanceNature = 'Credit';
       }
 
+      // Opening Balance Date
+      const rawDate = dateIdx !== -1 && row[dateIdx] !== undefined ? row[dateIdx] : '';
+      const openingDate = parseExcelDate(rawDate) || batchOpeningDate;
+
       let isValid = true;
       let validationError = '';
 
@@ -366,6 +447,8 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
       const existingId = matchedDbVendor?.id;
       const existingBalance = matchedDbVendor?.currentBalance ?? matchedDbVendor?.balance ?? matchedDbVendor?.opening_balance;
       const existingCity = matchedDbVendor?.city || (matchedDbVendor?.address && matchedDbVendor.address.includes('ماتلی') ? 'ماتلی' : undefined);
+      const existingCode = matchedDbVendor?.vendor_code || matchedDbVendor?.vendorCode;
+      const assignedCode = isExisting && existingCode ? existingCode : generateNextAccountCode();
 
       list.push({
         id: `row-${r}-${Date.now()}`,
@@ -379,12 +462,15 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         pageNo,
         balance,
         balanceNature,
+        openingDate,
+        assignedCode,
         isValid,
         validationError,
         isExisting,
         existingId,
         existingBalance: existingBalance !== undefined ? Number(existingBalance) : undefined,
-        existingCity
+        existingCity,
+        existingCode
       });
     }
 
@@ -415,6 +501,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         'Province',
         'Opening Balance',
         'Balance Nature (Cr / Dr)',
+        'Opening Balance Date',
         'Page #'
       ],
       [
@@ -427,6 +514,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         'Sindh',
         450000,
         'Credit',
+        '2026-10-31',
         '101'
       ],
       [
@@ -439,6 +527,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         'Sindh',
         820000,
         'Credit',
+        '2026-10-31',
         '102'
       ],
       [
@@ -451,6 +540,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         'Punjab',
         125000,
         'Credit',
+        '2026-10-31',
         '103'
       ],
       [
@@ -463,6 +553,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         'Sindh',
         65000,
         'Credit',
+        '2026-10-31',
         '104'
       ]
     ];
@@ -478,6 +569,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
       { wch: 16 }, // Province
       { wch: 18 }, // Opening Balance
       { wch: 24 }, // Balance Nature
+      { wch: 20 }, // Opening Balance Date
       { wch: 12 }, // Page #
     ];
 
@@ -556,25 +648,41 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         } else {
           updatedCount++;
         }
+
+        // Sync Chart of Accounts for updated vendor if code exists
+        const vendorCode = r.existingCode || r.assignedCode;
+        if (vendorCode) {
+          const coaPayload = {
+            account_code: vendorCode,
+            account_title: r.companyName ? `${r.name} (${r.companyName})` : r.name,
+            category_code: '2. LIABILITIES',
+            sub_category_code: 'Current Liabilities',
+            control_code: 'Vendors',
+            opening_balance: Math.abs(rawBal),
+            balance_nature: r.balanceNature || 'Credit',
+            notes: `Vendor ledger account for ${r.name}`
+          };
+          try {
+            const { data: existingCOA } = await supabase
+              .from('chart_of_accounts')
+              .select('id')
+              .eq('account_code', vendorCode)
+              .maybeSingle();
+
+            if (existingCOA?.id) {
+              await supabase.from('chart_of_accounts').update(coaPayload).eq('id', existingCOA.id);
+            } else {
+              await supabase.from('chart_of_accounts').insert([coaPayload]);
+            }
+          } catch (coaErr) {
+            console.warn('COA sync note for updated vendor:', coaErr);
+          }
+        }
       }
 
       // 3. Process INSERTS for new vendors
       if (toInsert.length > 0) {
-        // Query highest vendor code
-        let maxCodeNum = 0;
-        try {
-          const { data: codeData } = await supabase.from('vendors').select('vendor_code, vendorCode');
-          (codeData || []).forEach((v: any) => {
-            const codeStr = v.vendor_code || v.vendorCode || '';
-            const match = String(codeStr).match(/2010-(\d+)/);
-            if (match && match[1]) {
-              const num = parseInt(match[1], 10);
-              if (num > maxCodeNum) maxCodeNum = num;
-            }
-          });
-        } catch (_) {}
-
-        const insertPayloads = toInsert.map((r, i) => {
+        const insertPayloads = toInsert.map((r) => {
           const item: any = {};
           const setCol = (key: string, val: any) => {
             const exacts = getExactCols(key);
@@ -589,14 +697,16 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
           const computedBal = r.balanceNature === 'Debit' ? -Math.abs(rawBal) : Math.abs(rawBal);
           const locSegments = [r.address, r.area, r.city].filter(Boolean);
           const fullAddress = locSegments.length > 0 ? locSegments.join(', ') : (r.address || r.city || '');
-          const assignedCode = `2010-${String(maxCodeNum + i + 1).padStart(3, '0')}`;
+          const assignedCode = r.assignedCode;
 
           if (dbColumns.length === 0) {
             item['vendor_name'] = r.name;
             item['name'] = r.name;
             if (r.companyName) item['company_name'] = r.companyName;
-            item['vendor_code'] = assignedCode;
-            item['vendorCode'] = assignedCode;
+            if (assignedCode) {
+              item['vendor_code'] = assignedCode;
+              item['vendorCode'] = assignedCode;
+            }
             if (r.phone) {
               item['phone'] = r.phone;
               item['cell_no'] = r.phone;
@@ -606,13 +716,16 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
             if (r.pageNo) item['page_no'] = r.pageNo;
             item['balance'] = computedBal;
             item['currentBalance'] = computedBal;
+            item['opening_balance'] = Math.abs(rawBal);
           } else {
             setCol('vendor_name', r.name);
             setCol('name', r.name);
             if (r.companyName) setCol('company_name', r.companyName);
 
-            setCol('vendor_code', assignedCode);
-            setCol('vendorCode', assignedCode);
+            if (assignedCode) {
+              setCol('vendor_code', assignedCode);
+              setCol('vendorCode', assignedCode);
+            }
 
             if (r.phone) {
               setCol('phone', r.phone);
@@ -649,10 +762,74 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
         } else {
           insertedCount = insertedData?.length || toInsert.length;
         }
+
+        // 4. Automatically create / sync Chart of Accounts ledgers for all new vendors
+        for (const r of toInsert) {
+          if (r.assignedCode) {
+            const rawBal = Number(r.balance) || 0;
+            const coaPayload = {
+              account_code: r.assignedCode,
+              account_title: r.companyName ? `${r.name} (${r.companyName})` : r.name,
+              category_code: '2. LIABILITIES',
+              sub_category_code: 'Current Liabilities',
+              control_code: 'Vendors',
+              opening_balance: Math.abs(rawBal),
+              balance_nature: r.balanceNature || 'Credit',
+              notes: `Vendor ledger account for ${r.name} (Auto-assigned from Excel import)`
+            };
+            try {
+              const { data: existingCOA } = await supabase
+                .from('chart_of_accounts')
+                .select('id')
+                .eq('account_code', r.assignedCode)
+                .maybeSingle();
+
+              if (existingCOA?.id) {
+                await supabase.from('chart_of_accounts').update(coaPayload).eq('id', existingCOA.id);
+              } else {
+                await supabase.from('chart_of_accounts').insert([coaPayload]);
+              }
+            } catch (coaErr) {
+              console.warn('COA auto-sync note in vendor Excel import:', coaErr);
+            }
+          }
+        }
+
+        // 5. Automatically create Opening Balance Journal Vouchers (financial_vouchers)
+        const voucherInserts: any[] = [];
+        for (const r of toInsert) {
+          const rawBal = Number(r.balance) || 0;
+          const bal = Math.abs(rawBal);
+          if (bal > 0 && r.assignedCode) {
+            const isCredit = r.balanceNature !== 'Debit';
+            const vNum = r.assignedCode.replace('2010-', '');
+            voucherInserts.push({
+              voucher_no: `OB-${vNum}`,
+              voucher_type: 'Journal Voucher',
+              voucher_date: r.openingDate || batchOpeningDate || new Date().toISOString().split('T')[0],
+              account_code: r.assignedCode,
+              account_title: r.companyName ? `${r.name} (${r.companyName})` : r.name,
+              total_amount: bal,
+              debit: !isCredit ? bal : 0,
+              credit: isCredit ? bal : 0,
+              narration: `Opening Balance for Vendor ${r.name}`,
+              items: []
+            });
+          }
+        }
+
+        if (voucherInserts.length > 0) {
+          try {
+            const { error: vErr } = await supabase.from('financial_vouchers').insert(voucherInserts);
+            if (vErr) console.warn('Vendor opening balance vouchers insert note:', vErr);
+          } catch (vErr) {
+            console.warn('Voucher insert note:', vErr);
+          }
+        }
       }
 
       toast.success(
-        `Bulk Import Complete: ${insertedCount} new vendors added, ${updatedCount} existing updated!`
+        `Bulk Import Complete: ${insertedCount} new vendors added with Chart of Accounts & Opening Balance Vouchers, ${updatedCount} existing updated!`
       );
       onSuccess();
       onClose();
@@ -684,7 +861,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                 Import Vendors & Suppliers from Excel
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Bulk upload suppliers, smart address & city mapping, and existing vendor balance sync
+                Bulk upload suppliers, auto Chart of Accounts (2010-xxx), opening balance & date sync
               </p>
             </div>
           </div>
@@ -777,6 +954,8 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
               <span className="font-semibold text-slate-700 dark:text-slate-300">Opening Balance</span>
               <span>•</span>
               <span className="font-semibold text-slate-700 dark:text-slate-300">Nature (Cr / Dr)</span>
+              <span>•</span>
+              <span className="font-semibold text-purple-600 dark:text-purple-400">Opening Balance Date</span>
             </div>
           </div>
 
@@ -818,16 +997,39 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setParsedData([]);
-                    setFileName('');
-                  }}
-                  className="text-rose-600 hover:text-rose-700 text-[11px] font-bold flex items-center gap-1 self-end sm:self-auto cursor-pointer"
-                >
-                  <MdDeleteOutline size={14} /> Clear List
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 shadow-2xs">
+                    <label className="text-[10.5px] font-semibold text-slate-500 whitespace-nowrap">
+                      Default OB Date:
+                    </label>
+                    <input
+                      type="date"
+                      value={batchOpeningDate}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBatchOpeningDate(val);
+                        setParsedData((prev) =>
+                          prev.map((row) => ({
+                            ...row,
+                            openingDate: row.openingDate || val,
+                          }))
+                        );
+                      }}
+                      className="text-xs font-mono font-medium text-slate-700 dark:text-slate-200 bg-transparent outline-none cursor-pointer"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setParsedData([]);
+                      setFileName('');
+                    }}
+                    className="text-rose-600 hover:text-rose-700 text-[11px] font-bold flex items-center gap-1 self-end sm:self-auto cursor-pointer"
+                  >
+                    <MdDeleteOutline size={14} /> Clear List
+                  </button>
+                </div>
               </div>
 
               {/* Data Table */}
@@ -837,6 +1039,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                     <tr>
                       <th className="p-2.5 w-10 text-center">#</th>
                       <th className="p-2.5 min-w-[150px]">Vendor Name *</th>
+                      <th className="p-2.5 min-w-[90px]">Account Code</th>
                       <th className="p-2.5 min-w-[80px]">Action</th>
                       <th className="p-2.5 min-w-[100px]">City *</th>
                       <th className="p-2.5 min-w-[100px]">Area</th>
@@ -845,6 +1048,7 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                       <th className="p-2.5 min-w-[100px]">Phone</th>
                       <th className="p-2.5 min-w-[110px] text-right">Opening Bal.</th>
                       <th className="p-2.5 min-w-[90px] text-center">Nature</th>
+                      <th className="p-2.5 min-w-[100px] text-center">OB Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
@@ -860,10 +1064,24 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                         </td>
                         <td className="p-2.5 font-bold text-slate-800 dark:text-slate-100">
                           {row.name}
+                          {row.companyName && (
+                            <span className="block text-[10px] text-slate-400 font-normal">
+                              {row.companyName}
+                            </span>
+                          )}
                           {!row.isValid && (
                             <span className="block text-[10px] text-rose-500 font-normal">
                               {row.validationError}
                             </span>
+                          )}
+                        </td>
+                        <td className="p-2.5 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                          {row.assignedCode ? (
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                              {row.assignedCode}
+                            </span>
+                          ) : (
+                            '-'
                           )}
                         </td>
                         <td className="p-2.5">
@@ -907,6 +1125,9 @@ export const VendorImportModal: React.FC<VendorImportModalProps> = ({
                           >
                             {row.balanceNature === 'Credit' ? 'Credit (Cr)' : 'Debit (Dr)'}
                           </span>
+                        </td>
+                        <td className="p-2.5 text-center font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                          {row.openingDate || batchOpeningDate}
                         </td>
                       </tr>
                     ))}
