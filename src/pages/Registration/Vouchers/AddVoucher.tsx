@@ -257,13 +257,31 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 else if (code.startsWith('5')) inferredType = 'Expense';
                 else inferredType = 'General Ledger';
               }
-              const nature = a.balance_nature || (code.startsWith('5') || code.startsWith('1') ? 'Debit' : 'Credit');
+              const isCustomer = code.startsWith('2020-') || inferredType === 'Customer';
+              const isVendor = code.startsWith('2010-') || inferredType === 'Vendor';
+              const isAssetOrExp = code.startsWith('1') || code.startsWith('5') || isCustomer;
               const opBal = Number(a.opening_balance || 0);
               const d = coaDebits[code] || 0;
               const c = coaCredits[code] || 0;
-              const computedBal = nature.toLowerCase() === 'credit'
-                ? opBal + (c - d)
-                : opBal + (d - c);
+
+              let nature = a.balance_nature;
+              let computedBal = 0;
+
+              if (isCustomer) {
+                nature = nature || 'Debit';
+                const signedOp = nature.toLowerCase() === 'credit' ? -opBal : opBal;
+                computedBal = signedOp + (d - c); // Debits are Sales, Credits are Payments
+              } else if (isVendor) {
+                nature = nature || 'Credit';
+                const signedOp = nature.toLowerCase() === 'debit' ? -opBal : opBal;
+                computedBal = signedOp + (c - d); // Credits are Purchases, Debits are Payments
+              } else if (isAssetOrExp) {
+                nature = nature || 'Debit';
+                computedBal = opBal + (d - c);
+              } else {
+                nature = nature || 'Credit';
+                computedBal = opBal + (c - d);
+              }
 
               accountDetails[code] = {
                 account_code: code,
