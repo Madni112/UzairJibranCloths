@@ -506,14 +506,14 @@ const VendorList = () => {
                                                         type="button"
                                                         onClick={() => {
                                                             const vName = vendor.vendor_name || vendor.name;
-                                                            navigate('/Reports/Account-Report/Print', {
+                                                            const vCode = vendor.vendor_code || vendor.vendorCode;
+                                                            navigate('/Reports/Reports-Dashboard', {
                                                                 state: {
-                                                                    tab: 3,
-                                                                    criteria: {
-                                                                        vendor: [vName],
-                                                                        dateFrom: '',
-                                                                        dateTo: new Date().toISOString().split('T')[0]
-                                                                    }
+                                                                    tab: 'vendor-ledger',
+                                                                    accountCode: vCode,
+                                                                    partyName: vName,
+                                                                    partyId: vendor.id,
+                                                                    autoGenerate: true
                                                                 }
                                                             });
                                                         }}

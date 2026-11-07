@@ -679,14 +679,14 @@ const CustomerHistory = () => {
                           type="button"
                           onClick={() => {
                             const cName = getCustomerDisplayName(c);
-                            navigate(`/Reports/Account-Report/Print`, {
+                            const cCode = c.customer_code || c.customerCode || c.coa_code;
+                            navigate('/Reports/Reports-Dashboard', {
                               state: {
-                                tab: 1,
-                                criteria: {
-                                  customer: [cName],
-                                  dateFrom: '',
-                                  dateTo: new Date().toISOString().split('T')[0]
-                                }
+                                tab: 'customer-ledger',
+                                accountCode: cCode,
+                                partyName: cName,
+                                partyId: c.id,
+                                autoGenerate: true
                               }
                             });
                           }}

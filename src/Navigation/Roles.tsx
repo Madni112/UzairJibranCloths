@@ -547,6 +547,12 @@ export const adminRoutes = [
     icon: MdAssessment
   },
   {
+    path: '/Reports/Reports Dashboard',
+    component: <ReportDashboard />,
+    label: 'Reports Dashboard',
+    hideFromSidebar: true
+  },
+  {
     path: '/Reports/Sales-Report',
     component: <SalesReport />,
     label: 'Sales Report',
