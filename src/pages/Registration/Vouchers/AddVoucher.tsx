@@ -757,7 +757,8 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 party_code: firstItem.accountCode || editData?.account_code || '',
                 party_name: firstAcc?.account_title || editData?.account_title || '',
                 particulars: particularsText,
-                notes: notesText
+                notes: notesText,
+                previous_balance: !isEditMode ? oldBalance : (editData?.metadata?.previous_balance ?? oldBalance)
               }
             };
 
@@ -948,6 +949,9 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
 
           // Real-time khata impact calculation
           const oldBalance = partyData ? Number(partyData.currentBalance || 0) : 0;
+          const creationBalance = editData?.metadata?.previous_balance !== undefined
+            ? Number(editData.metadata.previous_balance)
+            : null;
           let expectedNewBalance = oldBalance;
           let impactSign = '+';
           let impactDesc = 'No impact';
@@ -1226,10 +1230,27 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
 
                       {/* 3-Step Live Khata Flow */}
                       <div className="space-y-3 font-mono text-xs">
+                        {/* Static Snapshot at Creation (Shown on Edit Mode if available) */}
+                        {isEditMode && creationBalance !== null && (
+                          <div className="flex justify-between items-center p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
+                            <div>
+                              <span className="font-sans font-bold text-amber-800 dark:text-amber-200 block text-[11px]">
+                                Balance at Creation Time:
+                              </span>
+                              <span className="font-sans text-[10px] text-amber-600/80 dark:text-amber-400/80">
+                                Snapshot when voucher was created
+                              </span>
+                            </div>
+                            <span className="font-black text-amber-950 dark:text-amber-100 text-sm">
+                              Rs. {creationBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+
                         {/* 1. Current Balance */}
                         <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
                           <span className="font-sans font-bold text-slate-600 dark:text-slate-300">
-                            1. Previous Balance:
+                            {isEditMode ? '1. Net Balance (Excl. This Voucher):' : '1. Previous Balance:'}
                           </span>
                           <span className="font-black text-slate-900 dark:text-white">
                             Rs. {oldBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
