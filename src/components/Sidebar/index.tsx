@@ -520,7 +520,7 @@ const SidebarItem = ({
 };
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
-  const { getRoleBasedRoutes, logout, tenantId } = useAuth();
+  const { getRoleBasedRoutes, logout } = useAuth();
   const { isRTL } = useLanguage();
   const roleRoutes = getRoleBasedRoutes();
   const location = useLocation();
@@ -529,18 +529,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const sidebar = useRef<any>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
-  const isTenantRoute = pathname.startsWith('/tenant=') || pathname.startsWith('/tenant-');
-  const rawTenant = tenantId || (isTenantRoute ? pathname.split('/')[1] : '');
-  const cleanSlug = rawTenant ? rawTenant.replace(/^tenant=/, '').replace(/^tenant-/, '').toLowerCase().trim() : '';
-  const reservedPrefixes = ['auth', 'dev', 'assets', 'api', 'purchase', 'sales', 'reports', 'registration', 'administration', 'dashboard', 'sales-return'];
-  const cleanPrefix = '';
-
   const getTenantPath = (path?: string) => {
     if (!path || typeof path !== 'string') return '';
-    if (!cleanPrefix) return path;
-    if (path === '/') return cleanPrefix;
-    const cleanSub = path.startsWith('/') ? path : `/${path}`;
-    return `${cleanPrefix}${cleanSub}`;
+    return path;
   };
 
   // Master tracking ID to determine which global branch header is clicked open
