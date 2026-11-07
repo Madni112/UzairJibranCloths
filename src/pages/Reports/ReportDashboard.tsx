@@ -552,7 +552,15 @@ export const ReportDashboard: React.FC = () => {
             if (vNo.startsWith('OB-')) return false;
             const vCode = String(v.account_code || '').trim();
             const vTitle = String(v.account_title || '').trim().toLowerCase();
-            return vCode === cCode || vTitle === cName.toLowerCase();
+            const metaParty = String(v.metadata?.party_code || '').trim();
+            const metaName = String(v.metadata?.party_name || '').trim().toLowerCase();
+            const hasItem = Array.isArray(v.items) && v.items.some((it: any) => String(it.accountCode || '').trim() === cCode);
+
+            return vCode === cCode || 
+                   vTitle === cName.toLowerCase() || 
+                   metaParty === cCode || 
+                   metaName === cName.toLowerCase() || 
+                   hasItem;
           });
 
           custVouchers.forEach(vch => {
@@ -763,7 +771,15 @@ export const ReportDashboard: React.FC = () => {
             if (vNo.startsWith('OB-')) return false;
             const aCode = String(v.account_code || '').trim();
             const aTitle = String(v.account_title || '').trim().toLowerCase();
-            return aCode === vCode || aTitle === vName.toLowerCase();
+            const metaParty = String(v.metadata?.party_code || '').trim();
+            const metaName = String(v.metadata?.party_name || '').trim().toLowerCase();
+            const hasItem = Array.isArray(v.items) && v.items.some((it: any) => String(it.accountCode || '').trim() === vCode);
+
+            return aCode === vCode || 
+                   aTitle === vName.toLowerCase() || 
+                   metaParty === vCode || 
+                   metaName === vName.toLowerCase() || 
+                   hasItem;
           });
 
           vendVouchers.forEach(vch => {
@@ -1030,7 +1046,15 @@ export const ReportDashboard: React.FC = () => {
             if (vNo.startsWith('OB-')) return false;
             const aCode = String(v.account_code || '').trim();
             const aTitle = String(v.account_title || '').trim().toLowerCase();
-            return aCode === cCode || aTitle === cName.toLowerCase();
+            const metaParty = String(v.metadata?.party_code || '').trim();
+            const metaName = String(v.metadata?.party_name || '').trim().toLowerCase();
+            const hasItem = Array.isArray(v.items) && v.items.some((it: any) => String(it.accountCode || '').trim() === cCode);
+
+            return aCode === cCode || 
+                   aTitle === cName.toLowerCase() || 
+                   metaParty === cCode || 
+                   metaName === cName.toLowerCase() || 
+                   hasItem;
           });
 
           custVouchers.forEach(vch => {
@@ -1175,7 +1199,15 @@ export const ReportDashboard: React.FC = () => {
             if (vNo.startsWith('OB-')) return false;
             const aCode = String(v.account_code || '').trim();
             const aTitle = String(v.account_title || '').trim().toLowerCase();
-            return aCode === vCode || aTitle === vName.toLowerCase();
+            const metaParty = String(v.metadata?.party_code || '').trim();
+            const metaName = String(v.metadata?.party_name || '').trim().toLowerCase();
+            const hasItem = Array.isArray(v.items) && v.items.some((it: any) => String(it.accountCode || '').trim() === vCode);
+
+            return aCode === vCode || 
+                   aTitle === vName.toLowerCase() || 
+                   metaParty === vCode || 
+                   metaName === vName.toLowerCase() || 
+                   hasItem;
           });
 
           vendVouchers.forEach(vch => {
