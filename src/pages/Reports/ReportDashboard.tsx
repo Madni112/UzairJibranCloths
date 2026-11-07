@@ -380,20 +380,21 @@ export const ReportDashboard: React.FC = () => {
   };
 
   // 2. Report Generation Engine
-  const handleGenerateReport = async (overrideTab?: TabKey, overrideParties?: string[]) => {
+  const handleGenerateReport = async (overrideTab?: any, overrideParties?: string[]) => {
     try {
       setGenerating(true);
       setQuickPartyTypeFilter('ALL');
 
-      const currentTab = overrideTab || activeTab;
-      const currentCustAccounts = (currentTab === 'customer-ledger' && overrideParties) ? overrideParties : selectedCustomerAccounts;
-      const currentVendAccounts = (currentTab === 'vendor-ledger' && overrideParties) ? overrideParties : selectedVendorAccounts;
+      const targetTab: TabKey = typeof overrideTab === 'string' ? (overrideTab as TabKey) : activeTab;
+      const targetParties = Array.isArray(overrideParties) ? overrideParties : undefined;
+      const currentCustAccounts = (targetTab === 'customer-ledger' && targetParties) ? targetParties : selectedCustomerAccounts;
+      const currentVendAccounts = (targetTab === 'vendor-ledger' && targetParties) ? targetParties : selectedVendorAccounts;
 
       const startMs = fromDate ? new Date(fromDate + 'T00:00:00').getTime() : 0;
       const endMs = toDate ? new Date(toDate + 'T23:59:59').getTime() : Infinity;
 
       // ── TAB 1: CUSTOMER LEDGER ──
-      if (currentTab === 'customer-ledger') {
+      if (targetTab === 'customer-ledger') {
         const [vchRes, invRes, retRes] = await Promise.all([
           supabase.from('financial_vouchers').select('*').order('id', { ascending: true }),
           supabase.from('sales_invoices').select('*').order('id', { ascending: true }),
@@ -637,7 +638,7 @@ export const ReportDashboard: React.FC = () => {
       }
 
       // ── TAB 2: VENDOR LEDGER ──
-      else if (currentTab === 'vendor-ledger') {
+      else if (targetTab === 'vendor-ledger') {
         const [vchRes, purRes, pretRes] = await Promise.all([
           supabase.from('financial_vouchers').select('*').order('id', { ascending: true }),
           supabase.from('supplier_purchases').select('*').order('id', { ascending: true }),
@@ -2632,7 +2633,7 @@ export const ReportDashboard: React.FC = () => {
           <button
             type="button"
             disabled={generating || isGeneratingPdf}
-            onClick={handleGenerateReport}
+            onClick={() => handleGenerateReport()}
             className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/95 transition shadow-sm cursor-pointer disabled:opacity-50 min-h-[36px]"
           >
             {generating ? <Spinner /> : <MdSearch size={18} />}
