@@ -444,7 +444,7 @@ export const ReportDashboard: React.FC = () => {
         targetCustomers.forEach(cust => {
           const cName = (cust.customerName || '').trim();
           const cCode = cust.customer_code || cust.account_code || '2020-000';
-          const cOpenBal = Math.abs(Number(cust.opening_balance || cust.balance || 0));
+          const cOpenBal = Math.abs(Number(cust.opening_balance ?? cust.openingBalance ?? 0));
           const isCr = String(cust.balance_nature || '').toLowerCase().includes('cr');
           const { city: cCity, area: cArea } = getPartyLocation(cust);
 
@@ -456,25 +456,28 @@ export const ReportDashboard: React.FC = () => {
             return vNo.startsWith('OB-') && (aCode === cCode || aTitle === cName.toLowerCase());
           });
 
-          const obDate = obVch?.voucher_date || cust.opening_balance_date || '2026-06-22';
-          totalOpening += isCr ? -cOpenBal : cOpenBal;
+          // Only push Opening Balance line if customer actually has an opening balance > 0 OR an OB voucher exists
+          if (cOpenBal > 0 || obVch) {
+            const effectiveOB = cOpenBal > 0 ? cOpenBal : Math.abs(Number(obVch?.total_amount || obVch?.debit || obVch?.credit || 0));
+            const obDate = obVch?.voucher_date || cust.opening_balance_date || '2026-06-22';
+            totalOpening += isCr ? -effectiveOB : effectiveOB;
 
-          // Push Opening Balance line
-          rows.push({
-            id: `ob-${cust.id}`,
-            date: obDate,
-            refNo: obVch?.voucher_no || `OB-${cCode.replace('2020-', '')}`,
-            partyName: cName,
-            accountCode: cCode,
-            city: cCity || '-',
-            area: cArea || '-',
-            entryType: 'Opening Balance',
-            sales: !isCr ? cOpenBal : 0,
-            returns: 0,
-            received: isCr ? cOpenBal : 0,
-            timestamp: new Date(obDate + 'T00:00:00').getTime(),
-            isOpening: true
-          });
+            rows.push({
+              id: `ob-${cust.id}`,
+              date: obDate,
+              refNo: obVch?.voucher_no || `OB-${cCode.replace('2020-', '')}`,
+              partyName: cName,
+              accountCode: cCode,
+              city: cCity || '-',
+              area: cArea || '-',
+              entryType: 'Opening Balance',
+              sales: !isCr ? effectiveOB : 0,
+              returns: 0,
+              received: isCr ? effectiveOB : 0,
+              timestamp: new Date(obDate + 'T00:00:00').getTime(),
+              isOpening: true
+            });
+          }
 
           // Match Sales Invoices
           const custInvoices = allInvoices.filter(i => (i.customer_name || '').trim().toLowerCase() === cName.toLowerCase());
@@ -686,7 +689,7 @@ export const ReportDashboard: React.FC = () => {
         targetVendors.forEach(vend => {
           const vName = (vend.vendor_name || '').trim();
           const vCode = vend.vendor_code || vend.account_code || '2010-000';
-          const vOpenBal = Math.abs(Number(vend.opening_balance || vend.balance || 0));
+          const vOpenBal = Math.abs(Number(vend.opening_balance ?? vend.openingBalance ?? 0));
           const { city: vCity, area: vArea } = getPartyLocation(vend);
 
           const obVch = allVouchers.find(v => {
@@ -696,24 +699,27 @@ export const ReportDashboard: React.FC = () => {
             return vNo.startsWith('OB-') && (aCode === vCode || aTitle === vName.toLowerCase());
           });
 
-          const obDate = obVch?.voucher_date || '2026-06-22';
-          totalOpening += vOpenBal;
+          if (vOpenBal > 0 || obVch) {
+            const effectiveOB = vOpenBal > 0 ? vOpenBal : Math.abs(Number(obVch?.total_amount || obVch?.credit || obVch?.debit || 0));
+            const obDate = obVch?.voucher_date || '2026-06-22';
+            totalOpening += effectiveOB;
 
-          rows.push({
-            id: `ob-vend-${vend.id}`,
-            date: obDate,
-            refNo: obVch?.voucher_no || `OB-${vCode.replace('2010-', '')}`,
-            partyName: vName,
-            accountCode: vCode,
-            city: vCity || '-',
-            area: vArea || '-',
-            entryType: 'Opening Balance',
-            purchases: vOpenBal,
-            returns: 0,
-            payments: 0,
-            timestamp: new Date(obDate + 'T00:00:00').getTime(),
-            isOpening: true
-          });
+            rows.push({
+              id: `ob-vend-${vend.id}`,
+              date: obDate,
+              refNo: obVch?.voucher_no || `OB-${vCode.replace('2010-', '')}`,
+              partyName: vName,
+              accountCode: vCode,
+              city: vCity || '-',
+              area: vArea || '-',
+              entryType: 'Opening Balance',
+              purchases: effectiveOB,
+              returns: 0,
+              payments: 0,
+              timestamp: new Date(obDate + 'T00:00:00').getTime(),
+              isOpening: true
+            });
+          }
 
           // Purchases
           const vendPurchases = allPurchases.filter(p => (p.supplier_name || p.vendor_name || '').trim().toLowerCase() === vName.toLowerCase());
@@ -938,7 +944,7 @@ export const ReportDashboard: React.FC = () => {
         targetCustomers.forEach(cust => {
           const cName = (cust.customerName || '').trim();
           const cCode = cust.customer_code || cust.account_code || '2020-000';
-          const cOpenBal = Math.abs(Number(cust.opening_balance || cust.balance || 0));
+          const cOpenBal = Math.abs(Number(cust.opening_balance ?? cust.openingBalance ?? 0));
           const isCr = String(cust.balance_nature || '').toLowerCase().includes('cr');
           const { city: cCity, area: cArea } = getPartyLocation(cust);
 
@@ -949,27 +955,30 @@ export const ReportDashboard: React.FC = () => {
             return vNo.startsWith('OB-') && (aCode === cCode || aTitle === cName.toLowerCase());
           });
 
-          const obDate = obVch?.voucher_date || cust.opening_balance_date || '2026-06-22';
-          const drAmt = !isCr ? cOpenBal : 0;
-          const crAmt = isCr ? cOpenBal : 0;
-          totalOpeningDr += drAmt;
-          totalOpeningCr += crAmt;
+          if (cOpenBal > 0 || obVch) {
+            const effectiveOB = cOpenBal > 0 ? cOpenBal : Math.abs(Number(obVch?.total_amount || obVch?.debit || obVch?.credit || 0));
+            const obDate = obVch?.voucher_date || cust.opening_balance_date || '2026-06-22';
+            const drAmt = !isCr ? effectiveOB : 0;
+            const crAmt = isCr ? effectiveOB : 0;
+            totalOpeningDr += drAmt;
+            totalOpeningCr += crAmt;
 
-          rows.push({
-            id: `c-ob-${cust.id}`,
-            date: obDate,
-            refNo: obVch?.voucher_no || `OB-${cCode.replace('2020-', '')}`,
-            partyName: cName,
-            partyType: 'Customer',
-            accountCode: cCode,
-            city: cCity || '-',
-            area: cArea || '-',
-            entryType: 'Opening Balance',
-            debit: drAmt,
-            credit: crAmt,
-            timestamp: new Date(obDate + 'T00:00:00').getTime(),
-            isOpening: true
-          });
+            rows.push({
+              id: `c-ob-${cust.id}`,
+              date: obDate,
+              refNo: obVch?.voucher_no || `OB-${cCode.replace('2020-', '')}`,
+              partyName: cName,
+              partyType: 'Customer',
+              accountCode: cCode,
+              city: cCity || '-',
+              area: cArea || '-',
+              entryType: 'Opening Balance',
+              debit: drAmt,
+              credit: crAmt,
+              timestamp: new Date(obDate + 'T00:00:00').getTime(),
+              isOpening: true
+            });
+          }
 
           // Sales Invoices
           const custInvoices = allInvoices.filter(i => (i.customer_name || '').trim().toLowerCase() === cName.toLowerCase());
@@ -1110,7 +1119,7 @@ export const ReportDashboard: React.FC = () => {
         targetVendors.forEach(vend => {
           const vName = (vend.vendor_name || '').trim();
           const vCode = vend.vendor_code || vend.account_code || '2010-000';
-          const vOpenBal = Math.abs(Number(vend.opening_balance || vend.balance || 0));
+          const vOpenBal = Math.abs(Number(vend.opening_balance ?? vend.openingBalance ?? 0));
           const isDr = String(vend.balance_nature || '').toLowerCase().includes('dr');
           const { city: vCity, area: vArea } = getPartyLocation(vend);
 
@@ -1121,27 +1130,30 @@ export const ReportDashboard: React.FC = () => {
             return vNo.startsWith('OB-') && (aCode === vCode || aTitle === vName.toLowerCase());
           });
 
-          const obDate = obVch?.voucher_date || vend.opening_balance_date || '2026-06-22';
-          const drAmt = isDr ? vOpenBal : 0;
-          const crAmt = !isDr ? vOpenBal : 0;
-          totalOpeningDr += drAmt;
-          totalOpeningCr += crAmt;
+          if (vOpenBal > 0 || obVch) {
+            const effectiveOB = vOpenBal > 0 ? vOpenBal : Math.abs(Number(obVch?.total_amount || obVch?.credit || obVch?.debit || 0));
+            const obDate = obVch?.voucher_date || vend.opening_balance_date || '2026-06-22';
+            const drAmt = isDr ? effectiveOB : 0;
+            const crAmt = !isDr ? effectiveOB : 0;
+            totalOpeningDr += drAmt;
+            totalOpeningCr += crAmt;
 
-          rows.push({
-            id: `v-ob-${vend.id}`,
-            date: obDate,
-            refNo: obVch?.voucher_no || `OB-${vCode.replace('2010-', '')}`,
-            partyName: vName,
-            partyType: 'Vendor',
-            accountCode: vCode,
-            city: vCity || '-',
-            area: vArea || '-',
-            entryType: 'Opening Balance',
-            debit: drAmt,
-            credit: crAmt,
-            timestamp: new Date(obDate + 'T00:00:00').getTime(),
-            isOpening: true
-          });
+            rows.push({
+              id: `v-ob-${vend.id}`,
+              date: obDate,
+              refNo: obVch?.voucher_no || `OB-${vCode.replace('2010-', '')}`,
+              partyName: vName,
+              partyType: 'Vendor',
+              accountCode: vCode,
+              city: vCity || '-',
+              area: vArea || '-',
+              entryType: 'Opening Balance',
+              debit: drAmt,
+              credit: crAmt,
+              timestamp: new Date(obDate + 'T00:00:00').getTime(),
+              isOpening: true
+            });
+          }
 
           // Purchases
           const vendPurchases = allPurchases.filter(p => (p.supplier_name || p.vendor_name || '').trim().toLowerCase() === vName.toLowerCase());
