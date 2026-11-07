@@ -758,7 +758,7 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 party_name: firstAcc?.account_title || editData?.account_title || '',
                 particulars: particularsText,
                 notes: notesText,
-                previous_balance: !isEditMode ? oldBalance : (editData?.metadata?.previous_balance ?? oldBalance)
+                previous_balance: editData?.metadata?.previous_balance ?? 0
               }
             };
 
