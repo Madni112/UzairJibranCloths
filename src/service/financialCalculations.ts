@@ -341,13 +341,17 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       }
     });
 
-    // 4. Also aggregate all Cash Accounts from Chart of Accounts (1010-xxx, Cash drawers, counter boxes)
+    // 4. Also aggregate all Cash Accounts from Chart of Accounts (Strictly 1010-xxx or Cash Control, excluding Customer 2020- and Vendor 2010-)
     let coaCashBalance = 0;
     const cashCOAAccounts = coaList.filter((a: any) => {
       const code = String(a.account_code || '').trim();
       const ctrl = String(a.control_code || '').toLowerCase();
+      // Strictly exclude customer (2020-) and vendor (2010-) accounts even if named "Cash Customer"
+      if (code.startsWith('2020-') || code.startsWith('2010-') || ctrl.includes('customer') || ctrl.includes('vendor')) {
+        return false;
+      }
       const title = String(a.account_title || '').toLowerCase();
-      return code.startsWith('1010-') || ctrl.includes('cash') || title.includes('cash') || title.includes('drawer');
+      return code.startsWith('1010-') || (ctrl === 'cash' && !ctrl.includes('customer') && !ctrl.includes('vendor')) || title.includes('cash in hand') || title.includes('cash drawer') || title.includes('cash counter');
     });
 
     if (cashCOAAccounts.length > 0) {
