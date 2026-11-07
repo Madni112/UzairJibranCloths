@@ -380,18 +380,46 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
     let thisMonthBankInflow = 0;
     let thisMonthBankOutflow = 0;
 
+    // A. Initialize from banks table (handle snake_case current_balance and camelCase)
     banksList.forEach((b: any) => {
-      const key = String(b.accountTitle || b.bankName || b.id).trim();
-      bankLedgerMap[key] = {
-        id: b.id,
-        bankName: b.bankName || 'Bank',
-        accountTitle: b.accountTitle || key,
-        accountNumber: b.accountNumber || '',
-        openingBalance: Number(b.openingBalance || 0),
-        totalInflow: 0,
-        totalOutflow: 0,
-        netBalance: Number(b.openingBalance || 0)
-      };
+      const key = String(b.account_title || b.accountTitle || b.bank_name || b.bankName || b.id).trim();
+      const opBal = Number(b.opening_balance ?? b.openingBalance ?? b.current_balance ?? b.currentBalance ?? 0);
+      if (!bankLedgerMap[key]) {
+        bankLedgerMap[key] = {
+          id: b.id,
+          bankName: b.bank_name || b.bankName || 'Bank',
+          accountTitle: b.account_title || b.accountTitle || key,
+          accountNumber: b.account_number || b.accountNumber || '',
+          openingBalance: opBal,
+          totalInflow: 0,
+          totalOutflow: 0,
+          netBalance: opBal
+        };
+      }
+    });
+
+    // B. Also include any bank accounts from Chart of Accounts (1020-xxx or Bank control code)
+    const bankCOAAccounts = coaList.filter((a: any) => {
+      const code = String(a.account_code || '').trim();
+      const ctrl = String(a.control_code || '').toLowerCase();
+      return code.startsWith('1020-') || ctrl.includes('bank');
+    });
+
+    bankCOAAccounts.forEach((a: any) => {
+      const key = String(a.account_title || a.account_code).trim();
+      const opBal = Number(a.opening_balance || 0);
+      if (!bankLedgerMap[key]) {
+        bankLedgerMap[key] = {
+          id: a.account_code,
+          bankName: 'Bank',
+          accountTitle: key,
+          accountNumber: a.account_code,
+          openingBalance: opBal,
+          totalInflow: 0,
+          totalOutflow: 0,
+          netBalance: opBal
+        };
+      }
     });
 
     // Bank Invoices
@@ -424,15 +452,36 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       }
     });
 
-    // Bank Vouchers
+    // Bank Vouchers (Handle item-level 1020- bank accounts as well)
     vouchersList.forEach((v: any) => {
-      const bankTitle = String(v.bank_account || v.bank_title || '').trim();
-      const amt = Number(v.total_amount || 0);
-      const isReceipt = String(v.voucher_type || '').toLowerCase().includes('receipt');
-      const isPayment = String(v.voucher_type || '').toLowerCase().includes('payment');
+      let bankTitle = String(v.bank_account || v.bank_title || '').trim();
+      const vType = String(v.voucher_type || '').toLowerCase();
+      const vNo = String(v.voucher_no || '').toUpperCase();
+      const isReceipt = vType.includes('receive') || vType.includes('receipt') || vNo.startsWith('CRV');
+      const isPayment = vType.includes('payment') || vType.includes('disburse') || vNo.startsWith('VPV') || vNo.startsWith('EXP');
       const vInThisMonth = isThisMonth(v.created_at || v.voucher_date || v.date);
+      const amt = Number(v.total_amount || 0);
 
-      if (bankTitle) {
+      // Check if voucher has bank in items (1020-xxx)
+      if (Array.isArray(v.items) && v.items.length > 0) {
+        v.items.forEach((it: any) => {
+          const itCode = String(it.accountCode || it.account_code || '').trim();
+          if (itCode.startsWith('1020-') || itCode.toLowerCase().includes('bank')) {
+            const itTitle = it.accountTitle || it.account_title || itCode;
+            if (!bankLedgerMap[itTitle]) {
+              bankLedgerMap[itTitle] = { id: itCode, bankName: 'Bank', accountTitle: itTitle, openingBalance: 0, totalInflow: 0, totalOutflow: 0, netBalance: 0 };
+            }
+            const d = Number(it.debit || 0);
+            const c = Number(it.credit || 0);
+            bankLedgerMap[itTitle].totalInflow += d;
+            bankLedgerMap[itTitle].totalOutflow += c;
+            if (vInThisMonth) {
+              thisMonthBankInflow += d;
+              thisMonthBankOutflow += c;
+            }
+          }
+        });
+      } else if (bankTitle) {
         if (!bankLedgerMap[bankTitle]) {
           bankLedgerMap[bankTitle] = { id: bankTitle, bankName: 'Bank', accountTitle: bankTitle, openingBalance: 0, totalInflow: 0, totalOutflow: 0, netBalance: 0 };
         }
