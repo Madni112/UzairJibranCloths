@@ -289,9 +289,11 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
         if (custRes.data && Array.isArray(custRes.data)) {
           custRes.data.forEach((c: any) => {
             const code = String(c.customer_code || c.customerCode || c.account_code || c.coa_code || '').trim();
-            const rawBal = Number(c.currentBalance !== undefined && c.currentBalance !== null && c.currentBalance !== ''
+            const tableBal = Number(c.currentBalance !== undefined && c.currentBalance !== null && c.currentBalance !== ''
               ? c.currentBalance
               : (c.balance !== undefined && c.balance !== null && c.balance !== '' ? c.balance : c.opening_balance || 0));
+            const liveBal = pMap[code]?.currentBalance;
+            const finalBal = (liveBal !== undefined && liveBal !== 0) ? liveBal : (tableBal || liveBal || 0);
             const phone = c.primaryPhone || c.phone || c.mobile || '';
             const city = c.city || c.area || '';
             const address = c.address || '';
@@ -304,7 +306,7 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 phone,
                 city,
                 address,
-                currentBalance: rawBal,
+                currentBalance: finalBal,
                 balanceNature: String(c.balance_nature || 'Debit')
               };
               accountDetails[code] = {
@@ -326,11 +328,13 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
         if (vendRes.data && Array.isArray(vendRes.data)) {
           vendRes.data.forEach((v: any) => {
             const code = String(v.vendor_code || v.vendorCode || v.account_code || '').trim();
-            const rawBal = Number(v.currentBalance !== undefined && v.currentBalance !== null && v.currentBalance !== ''
+            const tableBal = Number(v.currentBalance !== undefined && v.currentBalance !== null && v.currentBalance !== ''
               ? v.currentBalance
               : (v.current_balance !== undefined && v.current_balance !== null
                 ? v.current_balance
                 : (v.balance !== undefined && v.balance !== null ? v.balance : v.opening_balance || 0)));
+            const liveBal = pMap[code]?.currentBalance;
+            const finalBal = (liveBal !== undefined && liveBal !== 0) ? liveBal : (tableBal || liveBal || 0);
             const phone = v.phone || v.cell_no || v.phone_no || '';
             const city = v.city || '';
             const address = v.address || '';
@@ -343,7 +347,7 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 phone,
                 city,
                 address,
-                currentBalance: rawBal,
+                currentBalance: finalBal,
                 balanceNature: String(v.balance_nature || 'Credit')
               };
               accountDetails[code] = {
