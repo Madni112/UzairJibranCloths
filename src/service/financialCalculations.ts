@@ -87,7 +87,8 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       openStocksRes,
       dynamicStockRes,
       customersRes,
-      vendorsRes
+      vendorsRes,
+      coaRes
     ] = await Promise.allSettled([
       supabase.from('sales_invoices').select('*'),
       supabase.from('supplier_purchases').select('*'),
@@ -102,7 +103,8 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       supabase.from('opening_stocks').select('*'),
       supabase.rpc('calculate_dynamic_stock_by_location', { p_location: 'All', p_start_date: startOfCurrentMonthStr, p_end_date: null }),
       supabase.from('customers').select('*'),
-      supabase.from('vendors').select('*')
+      supabase.from('vendors').select('*'),
+      supabase.from('chart_of_accounts').select('*')
     ]);
 
     const invoicesList = (salesInvoicesRes.status === 'fulfilled' && Array.isArray(salesInvoicesRes.value.data)) ? salesInvoicesRes.value.data : [];
@@ -113,6 +115,7 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
     const purchaseReturnRecList = (purchaseReturnReceiptsRes.status === 'fulfilled' && Array.isArray(purchaseReturnReceiptsRes.value.data)) ? purchaseReturnReceiptsRes.value.data : [];
     const vouchersList = (vouchersRes.status === 'fulfilled' && Array.isArray(vouchersRes.value.data)) ? vouchersRes.value.data : [];
     const banksList = (banksRes.status === 'fulfilled' && Array.isArray(banksRes.value.data)) ? banksRes.value.data : [];
+    const coaList = (coaRes.status === 'fulfilled' && Array.isArray(coaRes.value.data)) ? coaRes.value.data : [];
 
     const productsList = (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value.data)) ? productsRes.value.data : [];
     const customerRecList = (customerReceiptsRes.status === 'fulfilled' && Array.isArray(customerReceiptsRes.value.data)) ? customerReceiptsRes.value.data : [];
@@ -252,16 +255,21 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       }
     });
 
-    // 2. Financial Vouchers (Subsequent Customer Receipts / General Cash Inflows)
+    // 2. Financial Vouchers (Subsequent Customer Receipts / General Cash Inflows / Cash Vouchers)
     vouchersList.forEach((v: any) => {
       const amt = Number(v.total_amount || v.amount || 0);
-      const mode = String(v.mode_of_payment || v.payment_mode || v.voucher_type || '');
-      const isReceipt = String(v.voucher_type || '').toLowerCase().includes('receipt');
-      const isPayment = String(v.voucher_type || '').toLowerCase().includes('payment');
+      const vType = String(v.voucher_type || '').toLowerCase();
+      const vNo = String(v.voucher_no || '').toUpperCase();
+      const mode = String(v.mode_of_payment || v.payment_mode || v.voucher_type || '').toLowerCase();
+      const isReceipt = vType.includes('receive') || vType.includes('receipt') || vNo.startsWith('CRV');
+      const isPayment = vType.includes('payment') || vType.includes('disburse') || vNo.startsWith('VPV') || vNo.startsWith('EXP');
       const vDate = v.created_at || v.voucher_date || v.date;
       const vInThisMonth = isThisMonth(vDate);
 
-      if (!mode.toLowerCase().includes('bank')) {
+      // Check if voucher involves bank
+      const hasBank = mode.includes('bank') || (v.items && Array.isArray(v.items) && v.items.some((it: any) => String(it.accountCode || it.account_code || '').startsWith('1020-')));
+
+      if (!hasBank) {
         if (isReceipt) {
           const cleanRef = String(v.original_invoice_no || '').replace('INV-', '').trim().toLowerCase();
           const targetInv = cleanRef ? paidInvoicesMap.get(cleanRef) : null;
@@ -333,7 +341,35 @@ export const fetchFinancialMetrics = async (): Promise<FinancialSummary> => {
       }
     });
 
-    const netCashBalance = Math.max(0, cashInflow - cashOutflow);
+    // 4. Also aggregate all Cash Accounts from Chart of Accounts (1010-xxx, Cash drawers, counter boxes)
+    let coaCashBalance = 0;
+    const cashCOAAccounts = coaList.filter((a: any) => {
+      const code = String(a.account_code || '').trim();
+      const ctrl = String(a.control_code || '').toLowerCase();
+      const title = String(a.account_title || '').toLowerCase();
+      return code.startsWith('1010-') || ctrl.includes('cash') || title.includes('cash') || title.includes('drawer');
+    });
+
+    if (cashCOAAccounts.length > 0) {
+      const cashCodes = new Set(cashCOAAccounts.map((a: any) => String(a.account_code || '').trim()));
+      cashCOAAccounts.forEach((a: any) => {
+        coaCashBalance += Number(a.opening_balance || 0);
+      });
+      vouchersList.forEach((v: any) => {
+        if (Array.isArray(v.items) && v.items.length > 0) {
+          v.items.forEach((it: any) => {
+            const code = String(it.accountCode || it.account_code || '').trim();
+            if (cashCodes.has(code)) {
+              coaCashBalance += (Number(it.debit || 0) - Number(it.credit || 0));
+            }
+          });
+        } else if (v.account_code && cashCodes.has(String(v.account_code).trim())) {
+          coaCashBalance += (Number(v.debit || v.total_amount || 0) - Number(v.credit || 0));
+        }
+      });
+    }
+
+    const netCashBalance = Math.max(0, Math.max(cashInflow - cashOutflow, coaCashBalance));
 
     // --- 4. Calculate Bank Balances per Corporate Bank Ledger ---
     const bankLedgerMap: Record<string, BankBalanceItem> = {};
