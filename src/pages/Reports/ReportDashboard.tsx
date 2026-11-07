@@ -2850,26 +2850,26 @@ export const ReportDashboard: React.FC = () => {
                 {pnlBasis === 'cash' ? (
                   <>
                     <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
-                      <span className="text-[11px] font-bold text-emerald-600 uppercase">Cash Recovered</span>
+                      <span className="text-[11px] font-bold text-emerald-600 uppercase">Cash & Bank Recovered</span>
                       <div className="text-base font-black text-emerald-600 font-mono mt-1">
                         Rs. {Number(pnlData.cashFromCustomers).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
-                      <span className="text-[11px] font-bold text-amber-600 uppercase">Paid to Vendors</span>
+                      <span className="text-[11px] font-bold text-amber-600 uppercase">Paid to Vendors (Cash/Bank)</span>
                       <div className="text-base font-black text-amber-600 font-mono mt-1">
                         Rs. {Number(pnlData.cashPaidToVendors).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
-                      <span className="text-[11px] font-bold text-rose-600 uppercase">Cash Expenses</span>
+                      <span className="text-[11px] font-bold text-rose-600 uppercase">Paid Expenses (Cash/Bank)</span>
                       <div className="text-base font-black text-rose-600 font-mono mt-1">
                         Rs. {Number(pnlData.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div className={`p-4 bg-white dark:bg-boxdark rounded-2xl border shadow-2xs ${pnlData.netCashProfit >= 0 ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-rose-300 dark:border-rose-800 bg-rose-50/40 dark:bg-rose-950/20'}`}>
                       <span className={`text-[11px] font-bold uppercase ${pnlData.netCashProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                        Net Cash Profit
+                        Net Realized Profit (Cash & Bank)
                       </span>
                       <div className={`text-base font-black font-mono mt-1 ${pnlData.netCashProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                         Rs. {Number(pnlData.netCashProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -3661,7 +3661,7 @@ export const ReportDashboard: React.FC = () => {
                           : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                       }`}
                     >
-                      Realized Profit (Cash Basis)
+                      Realized Profit (Cash & Bank)
                     </button>
                   </div>
 
@@ -3772,30 +3772,30 @@ export const ReportDashboard: React.FC = () => {
                 );
               })()}
 
-              {/* ── CASH BASIS (REALIZED CASH PROFIT) STATEMENT ── */}
+              {/* ── CASH & BANK BASIS (REALIZED LIQUID PROFIT) STATEMENT ── */}
               {pnlBasis === 'cash' && (
                 <div className="space-y-4 max-w-3xl font-mono text-xs">
                   <div className="p-3 rounded-xl bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 text-teal-800 dark:text-teal-300 text-[11px] font-medium">
-                    💡 <strong>Realized Pocket Profit:</strong> Measures actual cash collected from customers minus payments made to vendors and cash expenses paid. Credit receivables (udhaar) are not counted until collected.
+                    💡 <strong>Realized Pocket Profit:</strong> Measures actual liquid funds collected from customers (Cash + Bank / Wallets) minus payments made to vendors and operational expenses paid. Credit receivables (udhaar) are not counted until collected.
                   </div>
 
                   <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
                     <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-400 font-bold">
-                      <span>1. Cash Collected from Customers (Receipts & Invoices Paid)</span>
+                      <span>1. Cash & Bank Recovered from Customers (Receipts & Invoices Paid)</span>
                       <span>Rs. {Number(pnlData.cashFromCustomers).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center text-amber-600 pl-4 text-[11px]">
-                      <span>Less: Cash Paid to Suppliers / Vendors (VPV & Purchases Paid)</span>
+                      <span>Less: Paid to Suppliers / Vendors (Cash & Bank Outflows)</span>
                       <span>(Rs. {Number(pnlData.cashPaidToVendors).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
                     </div>
                     <div className="flex justify-between items-center font-black text-primary border-t border-dashed border-stroke dark:border-strokedark pt-2">
-                      <span>Net Cash Generated from Trading</span>
+                      <span>Net Cash & Bank Generated from Trading</span>
                       <span>Rs. {Number(pnlData.cashFromCustomers - pnlData.cashPaidToVendors).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
                   <div className="space-y-2 border-b border-stroke dark:border-strokedark pb-3">
-                    <span className="block font-bold text-slate-800 dark:text-white mb-2">Cash Operating Expenses:</span>
+                    <span className="block font-bold text-slate-800 dark:text-white mb-2">Operating Expenses Paid (Cash / Bank):</span>
                     {Object.entries(pnlData.expenseMap).length === 0 ? (
                       <div className="text-slate-400 italic pl-4">No operational expenses paid in this period.</div>
                     ) : (
@@ -3807,13 +3807,13 @@ export const ReportDashboard: React.FC = () => {
                       ))
                     )}
                     <div className="flex justify-between items-center font-bold text-rose-600 border-t border-dashed border-stroke dark:border-strokedark pt-2">
-                      <span>Total Cash Expenses Paid</span>
+                      <span>Total Operating Expenses Paid</span>
                       <span>(Rs. {Number(pnlData.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
                     </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-stroke dark:border-strokedark flex justify-between items-center text-sm font-black">
-                    <span className="text-slate-900 dark:text-white">Net Realized Cash Profit / (Loss)</span>
+                    <span className="text-slate-900 dark:text-white">Net Realized Profit / (Loss) [Cash & Bank]</span>
                     <span className={pnlData.netCashProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                       Rs. {Number(pnlData.netCashProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
