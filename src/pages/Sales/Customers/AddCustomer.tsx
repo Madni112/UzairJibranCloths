@@ -555,6 +555,7 @@ const AddCustomer: React.FC = () => {
       setCol('customer_code', cleanCode);
       setCol('customerCode', cleanCode);
       setCol('coa_code', cleanCode);
+      setCol('account_code', cleanCode);
 
       // Page Number
       setCol('page_no', values.page_no ? String(values.page_no).trim() : '');
@@ -689,6 +690,7 @@ const AddCustomer: React.FC = () => {
             balance_nature: values.balanceNature || 'Debit',
             notes: `Customer ledger account for ${trimmedName} (Synced from Customers module)`
           };
+          if (tenantId) coaPayload.tenant_id = tenantId;
 
           const { data: existingCOA } = await supabase
             .from('chart_of_accounts')
@@ -702,9 +704,12 @@ const AddCustomer: React.FC = () => {
               .update(coaPayload)
               .eq('id', existingCOA.id);
           } else {
-            await supabase
+            const { error: insErr } = await supabase
               .from('chart_of_accounts')
               .insert([coaPayload]);
+            if (insErr) {
+              console.error('COA auto-sync insert error:', insErr);
+            }
           }
 
           // --- TWO-WAY SYNC: UPDATE OR INSERT OPENING BALANCE FINANCIAL VOUCHER ---
