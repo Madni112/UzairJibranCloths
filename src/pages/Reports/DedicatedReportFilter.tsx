@@ -646,7 +646,7 @@ const DedicatedReportFilter: React.FC = () => {
           supabase.from('products').select('id, product_name'),
           supabase.from('inventory_locations').select('id, name'),
           supabase.from('sales_invoices').select('id, total_amount, customer_name, invoice_no').order('id', { ascending: false }),
-          supabase.from('inventory_uom').select('id, short_code, full_name').eq('tenant_id', tenantId || 'bashir').eq('is_active', true)
+          supabase.from('inventory_uom').select('id, short_code, full_name').eq('is_active', true)
         ]);
 
         if (custRes.status === 'fulfilled' && custRes.value.data) setCustomers(custRes.value.data);

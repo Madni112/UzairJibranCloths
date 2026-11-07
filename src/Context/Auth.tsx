@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return 'Cloth Retail & Wholesale';
     }
   });
-  const [tenantId, setTenantId] = useState<string | null>('uzair');
+  const [tenantId, setTenantId] = useState<string | null>('bashir');
   const [businessName, setBusinessName] = useState<string | null>('UZAIR JIBRAN CLOTH');
   const [userEmail, setUserEmail] = useState<string | null>(() => {
     try {

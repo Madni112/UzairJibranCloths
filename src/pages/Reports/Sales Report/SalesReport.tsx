@@ -71,7 +71,7 @@ const SalesReport = () => {
                     supabase.from('products').select('id, product_name'),
                     supabase.from('inventory_locations').select('id, name'),
                     supabase.from('sales_invoices').select('id, total_amount, customer_name').order('id', { ascending: false }),
-                    supabase.from('inventory_uom').select('id, short_code, full_name').eq('tenant_id', tenantId || 'bashir').eq('is_active', true)
+                    supabase.from('inventory_uom').select('id, short_code, full_name').eq('is_active', true)
                 ]);
 
                 if (custRes.data) setCustomers(custRes.data);

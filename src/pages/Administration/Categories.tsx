@@ -56,10 +56,6 @@ const Categories = () => {
                 .select('*')
                 .order('name', { ascending: true });
 
-            if (tenantId) {
-                query = query.eq('tenant_id', tenantId);
-            }
-
             const { data, error } = await query;
             if (error) throw error;
             setCategories(data || []);

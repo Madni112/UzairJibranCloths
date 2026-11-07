@@ -603,9 +603,7 @@ const BulkProductUpload = () => {
           supabase
             .from('products')
             .select('id, product_name, item_sr_no, purchase_price, retail_price, category'),
-          tenantId
-            ? supabase.from('inventory_categories').select('*').eq('tenant_id', tenantId)
-            : supabase.from('inventory_categories').select('*'),
+          supabase.from('inventory_categories').select('*'),
           supabase.from('inventory_brands').select('*'),
           supabase.from('inventory_prints').select('*'),
         ]);
@@ -984,7 +982,6 @@ const BulkProductUpload = () => {
 
     // 1. Fetch latest categories
     let catQuery = supabase.from('inventory_categories').select('*');
-    if (tenantId) catQuery = catQuery.eq('tenant_id', tenantId);
     const { data: latestCats } = await catQuery;
     const catList: any[] = latestCats ? [...latestCats] : [];
 
@@ -1169,7 +1166,6 @@ const BulkProductUpload = () => {
     // Refresh existing states in component
     try {
       let finalCatQuery = supabase.from('inventory_categories').select('*');
-      if (tenantId) finalCatQuery = finalCatQuery.eq('tenant_id', tenantId);
       const { data: refreshedCats } = await finalCatQuery;
       if (refreshedCats) setExistingCategories(refreshedCats);
 
