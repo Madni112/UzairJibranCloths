@@ -99,7 +99,7 @@ const AddBank = () => {
 
                 posService.syncBankToPOSAccount({ id: editData.id, ...values });
                 toast.success('Account Details Updated Successfully!');
-                navigate(`${tenantId ? `/${tenantId}` : ''}/Registration/Bank-Account/BankAccountList`);
+                navigate('/Registration/Bank-Account/BankAccountList');
             } else {
                 const { data: insertedBank, error } = await supabase.from('banks').insert([dbPayload]).select('id').single();
                 if (error) throw error;
@@ -119,7 +119,7 @@ const AddBank = () => {
 
                 posService.syncBankToPOSAccount({ id: insertedBank?.id, ...values }, true);
                 toast.success('Bank Account Registered Successfully!');
-                navigate(`${tenantId ? `/${tenantId}` : ''}/Registration/Bank-Account/BankAccountList`);
+                navigate('/Registration/Bank-Account/BankAccountList');
             }
         } catch (err: any) {
             toast.error(err.message);
