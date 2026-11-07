@@ -194,33 +194,3 @@ const BankAccountList = () => {
 };
 
 export default BankAccountList;
-
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-        <div>
-          {isRTL ? `کل ${banks.length} میں سے ${banks.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0} تا ${Math.min(currentPage * entriesPerPage, banks.length)} ریکارڈز` : `Showing ${banks.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0} to ${Math.min(currentPage * entriesPerPage, banks.length)} of ${banks.length} entries`}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
-          >
-            {isRTL ? "پچھلا" : "Previous"}
-          </button>
-          <span className="px-3 py-1.5 font-bold text-teal-600 text-xs">
-            {isRTL ? `صفحہ ${currentPage} از ${Math.ceil(banks.length / entriesPerPage) || 1}` : `Page ${currentPage} of ${Math.ceil(banks.length / entriesPerPage) || 1}`}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(Math.ceil(banks.length / entriesPerPage), p + 1))}
-            disabled={currentPage === Math.ceil(banks.length / entriesPerPage) || banks.length === 0}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold disabled:opacity-40 cursor-pointer text-xs"
-          >
-            {isRTL ? "اگلا" : "Next"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default BankAccountList;
