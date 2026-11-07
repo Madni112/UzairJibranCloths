@@ -193,7 +193,7 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
         setMetadataLoading(true);
 
         let currentVoucher = location.state?.voucher;
-        const queryId = searchParams.get('id');
+        const queryId = searchParams.get('id') || currentVoucher?.id;
         if (!currentVoucher && queryId) {
           const { data: vDb } = await supabase
             .from('financial_vouchers')
@@ -311,7 +311,7 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
               ? c.currentBalance
               : (c.balance !== undefined && c.balance !== null && c.balance !== '' ? c.balance : c.opening_balance || 0));
             const liveBal = pMap[code]?.currentBalance;
-            const finalBal = (liveBal !== undefined && liveBal !== 0) ? liveBal : (tableBal || liveBal || 0);
+            const finalBal = liveBal !== undefined ? liveBal : tableBal;
             const phone = c.primaryPhone || c.phone || c.mobile || '';
             const city = c.city || c.area || '';
             const address = c.address || '';
@@ -352,7 +352,7 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 ? v.current_balance
                 : (v.balance !== undefined && v.balance !== null ? v.balance : v.opening_balance || 0)));
             const liveBal = pMap[code]?.currentBalance;
-            const finalBal = (liveBal !== undefined && liveBal !== 0) ? liveBal : (tableBal || liveBal || 0);
+            const finalBal = liveBal !== undefined ? liveBal : tableBal;
             const phone = v.phone || v.cell_no || v.phone_no || '';
             const city = v.city || '';
             const address = v.address || '';
@@ -821,25 +821,35 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 const custItem = values.items.find((it: any) => (it.accountCode || '').startsWith('2020-'));
                 if (custItem) {
                   const custCode = custItem.accountCode.trim();
-                  const amt = effectiveTotal;
-                  const { data: cData } = await supabase
-                    .from('customers')
-                    .select('id, balance, currentBalance')
-                    .or(`customer_code.eq.${custCode},account_code.eq.${custCode}`)
-                    .maybeSingle();
+                  // Recalculate true Khata balance for affected Customer from all vouchers in database
+                  const [{ data: allVchs }, { data: coaItem }, { data: custRec }] = await Promise.all([
+                    supabase.from('financial_vouchers').select('debit, credit, total_amount, items, account_code'),
+                    supabase.from('chart_of_accounts').select('opening_balance, balance_nature').eq('account_code', custCode).maybeSingle(),
+                    supabase.from('customers').select('id, opening_balance').or(`customer_code.eq.${custCode},account_code.eq.${custCode}`).maybeSingle()
+                  ]);
 
-                  if (cData) {
-                    const curBal = Number(cData.currentBalance ?? cData.balance ?? 0);
-                    let newBal = curBal;
-                    if (activePreset === 'SAV') {
-                      newBal = curBal + amt;
-                    } else if (activePreset === 'SRV' || activePreset === 'CRV') {
-                      newBal = curBal - amt;
+                  let totalD = 0;
+                  let totalC = 0;
+                  (allVchs || []).forEach((v: any) => {
+                    if (Array.isArray(v.items) && v.items.length > 0) {
+                      v.items.forEach((it: any) => {
+                        if (String(it.accountCode || it.account_code || '').trim() === custCode) {
+                          totalD += Number(it.debit || 0);
+                          totalC += Number(it.credit || 0);
+                        }
+                      });
+                    } else if (String(v.account_code || '').trim() === custCode) {
+                      totalD += Number(v.debit || (v.credit ? 0 : v.total_amount) || 0);
+                      totalC += Number(v.credit || 0);
                     }
-                    await supabase
-                      .from('customers')
-                      .update({ balance: newBal, currentBalance: newBal })
-                      .eq('id', cData.id);
+                  });
+
+                  const op = Number(coaItem?.opening_balance ?? custRec?.opening_balance ?? 0);
+                  const isCr = coaItem?.balance_nature?.toLowerCase() === 'credit';
+                  const exactCustBal = (isCr ? -op : op) + (totalD - totalC);
+
+                  if (custRec?.id) {
+                    await supabase.from('customers').update({ balance: exactCustBal, currentBalance: exactCustBal }).eq('id', custRec.id);
                   }
                 }
               }
@@ -848,25 +858,35 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 const vendItem = values.items.find((it: any) => (it.accountCode || '').startsWith('2010-'));
                 if (vendItem) {
                   const vendCode = vendItem.accountCode.trim();
-                  const amt = effectiveTotal;
-                  const { data: vData } = await supabase
-                    .from('vendors')
-                    .select('id, balance, currentBalance, current_balance')
-                    .eq('vendor_code', vendCode)
-                    .maybeSingle();
+                  // Recalculate true Khata balance for affected Vendor from all vouchers in database
+                  const [{ data: allVchs }, { data: coaItem }, { data: vendRec }] = await Promise.all([
+                    supabase.from('financial_vouchers').select('debit, credit, total_amount, items, account_code'),
+                    supabase.from('chart_of_accounts').select('opening_balance, balance_nature').eq('account_code', vendCode).maybeSingle(),
+                    supabase.from('vendors').select('id, opening_balance').eq('vendor_code', vendCode).maybeSingle()
+                  ]);
 
-                  if (vData) {
-                    const curBal = Number(vData.currentBalance ?? vData.current_balance ?? vData.balance ?? 0);
-                    let newBal = curBal;
-                    if (activePreset === 'PAV') {
-                      newBal = curBal + amt;
-                    } else if (activePreset === 'PRV' || activePreset === 'VPV') {
-                      newBal = curBal - amt;
+                  let totalD = 0;
+                  let totalC = 0;
+                  (allVchs || []).forEach((v: any) => {
+                    if (Array.isArray(v.items) && v.items.length > 0) {
+                      v.items.forEach((it: any) => {
+                        if (String(it.accountCode || it.account_code || '').trim() === vendCode) {
+                          totalD += Number(it.debit || 0);
+                          totalC += Number(it.credit || 0);
+                        }
+                      });
+                    } else if (String(v.account_code || '').trim() === vendCode) {
+                      totalD += Number(v.debit || (v.credit ? 0 : v.total_amount) || 0);
+                      totalC += Number(v.credit || 0);
                     }
-                    await supabase
-                      .from('vendors')
-                      .update({ balance: newBal, currentBalance: newBal, current_balance: newBal })
-                      .eq('id', vData.id);
+                  });
+
+                  const op = Number(coaItem?.opening_balance ?? vendRec?.opening_balance ?? 0);
+                  const isDr = coaItem?.balance_nature?.toLowerCase() === 'debit';
+                  const exactVendBal = (isDr ? -op : op) + (totalC - totalD);
+
+                  if (vendRec?.id) {
+                    await supabase.from('vendors').update({ balance: exactVendBal, currentBalance: exactVendBal, current_balance: exactVendBal }).eq('id', vendRec.id);
                   }
                 }
               }
