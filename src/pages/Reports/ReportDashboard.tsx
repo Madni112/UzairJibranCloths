@@ -847,7 +847,7 @@ export const ReportDashboard: React.FC = () => {
       }
 
       // ── TAB 3: ALL PARTIES (FULL CONSOLIDATED TRANSACTION LEDGER) ──
-      else if (activeTab === 'combined-ledger') {
+      else if (targetTab === 'combined-ledger') {
         const [vchRes, invRes, retRes, purRes, pretRes] = await Promise.all([
           supabase.from('financial_vouchers').select('*').order('id', { ascending: true }),
           supabase.from('sales_invoices').select('*').order('id', { ascending: true }),
@@ -1251,12 +1251,12 @@ export const ReportDashboard: React.FC = () => {
       }
 
       // ── TAB 4: PROFIT & LOSS ──
-      else if (activeTab === 'profit-loss') {
+      else if (targetTab === 'profit-loss') {
         const [invRes, retRes, purRes, expRes] = await Promise.all([
           supabase.from('sales_invoices').select('total_amount, sale_date, created_at, cash_amount_paid, amount_paid'),
           supabase.from('sales_returns').select('total_amount, return_date, created_at'),
           supabase.from('supplier_purchases').select('total_amount, purchase_date, created_at, cash_amount_paid, amount_paid'),
-          supabase.from('financial_vouchers').select('total_amount, debit, credit, voucher_date, narration, account_code, account_title, voucher_type, voucher_no, metadata, created_at')
+          supabase.from('financial_vouchers').select('total_amount, debit, credit, voucher_date, narration, account_code, account_title, voucher_type, voucher_no, metadata, items, created_at')
         ]);
 
         const allVouchers = expRes.data || [];
@@ -1386,14 +1386,24 @@ export const ReportDashboard: React.FC = () => {
           if (vNo.startsWith('OB-')) return;
           const code = String(v.account_code || '');
           const type = String(v.voucher_type || '').toLowerCase();
-          const isCust = customers.some(c => c.customer_code === code || c.account_code === code || c.name === v.account_title) || code.startsWith('2020');
-          const isVend = vendors.some(vd => vd.vendor_code === code || vd.account_code === code || vd.name === v.account_title) || code.startsWith('3030');
+          const preset = String(v.metadata?.preset || '').toUpperCase();
 
-          if (isCust && (vNo.startsWith('CRV-') || type.includes('receipt') || Number(v.credit) > 0)) {
-            cashFromCustomers += Number(v.credit || v.total_amount || 0);
+          // Check if items array contains customer (2020-) or vendor (3030-) lines
+          let itemCust = false;
+          let itemVend = false;
+          if (Array.isArray(v.items)) {
+            itemCust = v.items.some((it: any) => String(it.accountCode || '').startsWith('2020'));
+            itemVend = v.items.some((it: any) => String(it.accountCode || '').startsWith('3030'));
           }
-          if (isVend && (vNo.startsWith('VPV-') || type.includes('payment') || Number(v.debit) > 0)) {
-            cashPaidToVendors += Number(v.debit || v.total_amount || 0);
+
+          const isCust = code.startsWith('2020') || itemCust || preset === 'CRV' || vNo.startsWith('CRV-') || type.includes('receive');
+          const isVend = code.startsWith('3030') || itemVend || preset === 'VPV' || vNo.startsWith('VPV-') || type.includes('payment');
+
+          if (isCust && (vNo.startsWith('CRV-') || preset === 'CRV' || type.includes('receipt') || type.includes('receive') || Number(v.credit) > 0)) {
+            cashFromCustomers += Number(v.total_amount || v.credit || 0);
+          }
+          if (isVend && (vNo.startsWith('VPV-') || preset === 'VPV' || type.includes('payment') || Number(v.debit) > 0)) {
+            cashPaidToVendors += Number(v.total_amount || v.debit || 0);
           }
         });
 
@@ -1445,7 +1455,7 @@ export const ReportDashboard: React.FC = () => {
       }
 
       // ── TAB 5: EXPENSE REPORT ──
-      else if (activeTab === 'expense-report') {
+      else if (targetTab === 'expense-report') {
         const { data: vchList } = await supabase
           .from('financial_vouchers')
           .select('*')
@@ -1514,7 +1524,7 @@ export const ReportDashboard: React.FC = () => {
       }
 
       // ── TAB 6: DAILYBOOK (ROZNAMCHA) ──
-      else if (activeTab === 'daily-book') {
+      else if (targetTab === 'daily-book') {
         const { data: vchList } = await supabase
           .from('financial_vouchers')
           .select('*')
