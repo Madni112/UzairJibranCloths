@@ -720,8 +720,8 @@ const DeveloperDashboard: React.FC = () => {
       const roleModules = ROLE_PRESETS[assignLoginRole]?.modules || ROLE_PRESETS['Salesman'].modules;
 
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
+        import.meta.env.VITE_SUPABASE_URL || 'https://rulteyoktqtjhdrvswqz.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_e3pmJln3jO9DvmW40gPnAw_g6K-RDQD',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
@@ -1021,8 +1021,8 @@ const DeveloperDashboard: React.FC = () => {
     try {
       setPwUpdating(true);
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
+        import.meta.env.VITE_SUPABASE_URL || 'https://rulteyoktqtjhdrvswqz.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_e3pmJln3jO9DvmW40gPnAw_g6K-RDQD',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
@@ -1153,8 +1153,8 @@ const DeveloperDashboard: React.FC = () => {
       // 1. Create User in Supabase Auth with allowed modules and role
       // Create a secondary client so we don't log out the active session
       const secondaryAuthClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || 'https://niwzgfouutangmdskqql.supabase.co',
-        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2xSHcWIOC9vRjSxv-QtjOA_AbHygGKl',
+        import.meta.env.VITE_SUPABASE_URL || 'https://rulteyoktqtjhdrvswqz.supabase.co',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_e3pmJln3jO9DvmW40gPnAw_g6K-RDQD',
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
       
