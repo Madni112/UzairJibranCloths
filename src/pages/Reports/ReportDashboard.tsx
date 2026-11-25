@@ -1591,6 +1591,9 @@ export const ReportDashboard: React.FC = () => {
           let cashIn = 0;
           let cashOut = 0;
           let creditSaleAmt = 0;
+          let saleAmt = 0;
+          let purchaseAmt = 0;
+          let expenseAmt = 0;
           let entryLabel = v.voucher_type || 'Cash Voucher';
           let paymentMode = 'Cash in Hand';
 
@@ -1634,12 +1637,14 @@ export const ReportDashboard: React.FC = () => {
           } else if (vNo.startsWith('EXP-') || String(v.account_code || '').startsWith('5') || String(v.voucher_type || '').toLowerCase().includes('expense')) {
             cashOut = amt;
             totalCashOut += amt;
+            expenseAmt = amt;
             entryLabel = 'Expense Payment';
           } else if (vNo.startsWith('SAV-') || String(v.voucher_type || '').toLowerCase().includes('sale amount')) {
             // Accrual Credit Sale: Money is Receivable (Udhaar), NOT liquid cash received
             cashIn = 0;
             cashOut = 0;
             creditSaleAmt = amt;
+            saleAmt = amt;
             entryLabel = 'Sale Amount Voucher (Receivable)';
             paymentMode = 'On Credit (Udhaar)';
           } else if (vNo.startsWith('SRV-') || String(v.voucher_type || '').toLowerCase().includes('sale return')) {
@@ -1648,10 +1653,11 @@ export const ReportDashboard: React.FC = () => {
             cashOut = 0;
             entryLabel = 'Sale Return Voucher (Credit Note)';
             paymentMode = 'On Credit (Udhaar)';
-          } else if (vNo.startsWith('PAV-') || String(v.voucher_type || '').toLowerCase().includes('purchase amount')) {
+          } else if (vNo.startsWith('PAV-') || vNo.startsWith('PUR-') || String(v.voucher_type || '').toLowerCase().includes('purchase amount')) {
             // Accrual Purchase: Payable to vendor
             cashIn = 0;
             cashOut = 0;
+            purchaseAmt = amt;
             entryLabel = 'Purchase Amount Voucher (Payable)';
             paymentMode = 'On Credit (Udhaar)';
           } else if (vNo.startsWith('PRV-') || String(v.voucher_type || '').toLowerCase().includes('purchase return')) {
@@ -1679,6 +1685,9 @@ export const ReportDashboard: React.FC = () => {
             paymentMode,
             voucherAmount: amt,
             creditSaleAmt,
+            saleAmt,
+            purchaseAmt,
+            expenseAmt,
             cashIn,
             cashOut,
             timestamp: t
@@ -2310,6 +2319,9 @@ export const ReportDashboard: React.FC = () => {
     const totalCashIn = filteredDailyRows.reduce((acc, r) => acc + (Number(r.cashIn) || 0), 0);
     const totalCashOut = filteredDailyRows.reduce((acc, r) => acc + (Number(r.cashOut) || 0), 0);
     const totalCreditSales = filteredDailyRows.reduce((acc, r) => acc + (Number(r.creditSaleAmt) || 0), 0);
+    const totalSales = filteredDailyRows.reduce((acc, r) => acc + (Number(r.saleAmt) || 0), 0);
+    const totalPurchases = filteredDailyRows.reduce((acc, r) => acc + (Number(r.purchaseAmt) || 0), 0);
+    const totalExpenses = filteredDailyRows.reduce((acc, r) => acc + (Number(r.expenseAmt) || 0), 0);
     const opening = summary.opening || 0;
     const closing = opening + totalCashIn - totalCashOut;
     return {
@@ -2317,6 +2329,9 @@ export const ReportDashboard: React.FC = () => {
       cashIn: totalCashIn,
       cashOut: totalCashOut,
       creditSales: totalCreditSales,
+      totalSales,
+      totalPurchases,
+      totalExpenses,
       closing,
       count: filteredDailyRows.length
     };
@@ -2722,7 +2737,11 @@ export const ReportDashboard: React.FC = () => {
       ) : (
         <div className="space-y-5 animate-in fade-in duration-200 print:space-y-0 print:animate-none">
           {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print:hidden">
+          <div className={`grid gap-3.5 print:hidden ${
+            activeTab === 'daily-book'
+              ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-4'
+              : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+          }`}>
             {activeTab === 'customer-ledger' && (
               <>
                 <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark shadow-2xs">
@@ -2885,6 +2904,27 @@ export const ReportDashboard: React.FC = () => {
                   <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase">Credit Sales (Receivable)</span>
                   <div className="text-base font-black text-blue-600 dark:text-blue-400 font-mono mt-1">
                     Rs. {Number(dailySummary.creditSales).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-teal-200 dark:border-teal-900 bg-teal-50/50 dark:bg-teal-950/20 shadow-2xs">
+                  <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 uppercase">Total Sale</span>
+                  <div className="text-base font-black text-teal-600 dark:text-teal-400 font-mono mt-1">
+                    Rs. {Number(dailySummary.totalSales).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/20 shadow-2xs">
+                  <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">Total Purchase</span>
+                  <div className="text-base font-black text-indigo-600 dark:text-indigo-400 font-mono mt-1">
+                    Rs. {Number(dailySummary.totalPurchases).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 shadow-2xs">
+                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase">Total Expense</span>
+                  <div className="text-base font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
+                    Rs. {Number(dailySummary.totalExpenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               </>
