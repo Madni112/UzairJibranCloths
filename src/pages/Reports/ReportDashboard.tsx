@@ -2300,6 +2300,9 @@ export const ReportDashboard: React.FC = () => {
         if (sortKey === 'entryType') {
           return String(a.entryType || '').localeCompare(String(b.entryType || '')) * mul;
         }
+        if (sortKey === 'voucherAmount') {
+          return (Number(a.voucherAmount || 0) - Number(b.voucherAmount || 0)) * mul;
+        }
         if (sortKey === 'cashIn' || sortKey === 'debit') {
           return (Number(a.cashIn || 0) - Number(b.cashIn || 0)) * mul;
         }
@@ -4121,6 +4124,15 @@ export const ReportDashboard: React.FC = () => {
                         </div>
                       </th>
                       <th 
+                        onClick={() => handleSort('voucherAmount')}
+                        className="py-3 px-3 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap w-32"
+                      >
+                        <div className="flex items-center justify-end gap-0.5">
+                          <span>Voucher Amount</span>
+                          {renderSortIcon('voucherAmount')}
+                        </div>
+                      </th>
+                      <th 
                         onClick={() => handleSort('cashIn')}
                         className="py-3 px-3 text-right cursor-pointer group hover:text-primary transition whitespace-nowrap w-32"
                       >
@@ -4152,7 +4164,7 @@ export const ReportDashboard: React.FC = () => {
                   <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
                     {filteredDailyRows.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-400 italic">
+                        <td colSpan={9} className="py-8 text-center text-slate-400 italic">
                           No daily transactions found in this period.
                         </td>
                       </tr>
@@ -4191,6 +4203,13 @@ export const ReportDashboard: React.FC = () => {
                               )}
                             </div>
                           </td>
+                          <td className={`py-2.5 px-3 text-right font-mono font-bold whitespace-nowrap align-middle ${
+                            row.creditSaleAmt > 0
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-slate-700 dark:text-slate-200'
+                          }`}>
+                            {row.voucherAmount > 0 ? `Rs. ${Number(row.voucherAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
                           <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600 whitespace-nowrap align-middle">
                             {row.cashIn > 0 ? `Rs. ${Number(row.cashIn).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}
                           </td>
@@ -4207,7 +4226,7 @@ export const ReportDashboard: React.FC = () => {
                   {filteredDailyRows.length > 0 && (
                     <tfoot className="print:table-footer-group border-t-2 border-slate-900 dark:border-slate-300 bg-slate-50/90 dark:bg-slate-800/80 font-bold">
                       <tr>
-                        <td colSpan={5} className="py-3 px-3 text-right uppercase tracking-wider font-bold text-slate-700 dark:text-slate-200">
+                        <td colSpan={6} className="py-3 px-3 text-right uppercase tracking-wider font-bold text-slate-700 dark:text-slate-200">
                           Total Daily Inflow & Outflow:
                         </td>
                         <td className="py-3 px-3 text-right font-mono font-black text-emerald-600 whitespace-nowrap">
