@@ -337,7 +337,9 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 account_code: code,
                 account_title: partyObj.name,
                 account_type: 'Customer',
-                balance_nature: 'Debit'
+                balance_nature: 'Debit',
+                city: c.city || '',
+                area: c.area || '',
               };
               pMap[code] = partyObj;
               if (c.account_code) pMap[String(c.account_code).trim()] = partyObj;
@@ -382,7 +384,9 @@ function AddVoucher({ voucherTypePreset }: AddVoucherProps) {
                 account_code: code,
                 account_title: vendObj.name,
                 account_type: 'Vendor',
-                balance_nature: 'Credit'
+                balance_nature: 'Credit',
+                city: v.city || '',
+                area: v.area || '',
               };
               pMap[code] = vendObj;
               if (v.account_code) pMap[String(v.account_code).trim()] = vendObj;

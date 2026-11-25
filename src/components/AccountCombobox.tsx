@@ -7,6 +7,8 @@ export interface AccountOption {
   account_title: string;
   account_type?: string;
   balance_nature?: string;
+  city?: string;
+  area?: string;
 }
 
 interface AccountComboboxProps {
@@ -106,7 +108,9 @@ export const AccountCombobox: React.FC<AccountComboboxProps> = ({
       .filter(a => {
         const code = String(a.account_code || '').toLowerCase();
         const title = String(a.account_title || '').toLowerCase();
-        return code.includes(q) || title.includes(q);
+        const city = String(a.city || '').toLowerCase();
+        const area = String(a.area || '').toLowerCase();
+        return code.includes(q) || title.includes(q) || city.includes(q) || area.includes(q);
       })
       .slice(0, 60);
   }, [accounts, inputValue, isOpen, selectedAccount]);
@@ -232,11 +236,16 @@ export const AccountCombobox: React.FC<AccountComboboxProps> = ({
                       <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 leading-normal break-words whitespace-normal">
                         {p.account_title}
                       </span>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500 font-mono">
                         <span className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded font-bold text-primary">
                           {p.account_code}
                         </span>
                         {p.account_type && <span className="break-words whitespace-normal">• {p.account_type}</span>}
+                        {(p.city || p.area) && (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-sans font-semibold break-words whitespace-normal">
+                            • {[p.city, p.area && p.area !== p.city ? p.area : ''].filter(Boolean).join(' / ')}
+                          </span>
+                        )}
                       </div>
                     </div>
 

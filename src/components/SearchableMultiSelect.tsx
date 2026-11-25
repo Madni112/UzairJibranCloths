@@ -10,6 +10,7 @@ interface SearchableMultiSelectProps {
   className?: string;
   allLabel?: string;
   disabled?: boolean;
+  optionMetadata?: Record<string, string>;
 }
 
 export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
@@ -20,7 +21,8 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
   placeholder,
   className = '',
   allLabel,
-  disabled = false
+  disabled = false,
+  optionMetadata
 }) => {
   const safeValue = Array.isArray(value) ? value : (typeof value === 'string' && value !== 'All' ? [value] : []);
 
@@ -43,8 +45,12 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
   const filtered = useMemo(() => {
     if (!query.trim()) return options;
     const q = query.toLowerCase();
-    return options.filter(o => String(o || '').toLowerCase().includes(q));
-  }, [options, query]);
+    return options.filter(o => {
+      const labelMatch = String(o || '').toLowerCase().includes(q);
+      const metaMatch = optionMetadata?.[o] ? optionMetadata[o].toLowerCase().includes(q) : false;
+      return labelMatch || metaMatch;
+    });
+  }, [options, query, optionMetadata]);
 
   useEffect(() => {
     setHighlightedIndex(0);
@@ -183,11 +189,18 @@ export const SearchableMultiSelect: React.FC<SearchableMultiSelectProps> = ({
                       type="checkbox" 
                       checked={isSelected}
                       readOnly
-                      className="accent-primary w-3 h-3 cursor-pointer"
+                      className="accent-primary w-3 h-3 cursor-pointer shrink-0"
                     />
-                    <span className={`flex-1 ${isSelected ? 'font-bold text-primary' : 'text-black dark:text-white'}`}>
-                      {opt}
-                    </span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className={`truncate ${isSelected ? 'font-bold text-primary' : 'text-black dark:text-white'}`}>
+                        {opt}
+                      </span>
+                      {optionMetadata?.[opt] && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                          {optionMetadata[opt]}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })

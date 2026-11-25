@@ -269,6 +269,28 @@ export const ReportDashboard: React.FC = () => {
     return Array.from(set).filter(Boolean).sort();
   }, [customers, selectedCities]);
 
+  // Location metadata map (City / Area) for Customer & Vendor dropdowns
+  const partyLocationMetadata = useMemo(() => {
+    const map: Record<string, string> = {};
+    customers.forEach(c => {
+      const code = c.customer_code || c.account_code;
+      const key = code ? `[${code}] ${c.customerName}` : c.customerName;
+      if (!key) return;
+      const loc = getPartyLocation(c);
+      const locStr = [loc.city, loc.area && loc.area !== loc.city ? loc.area : ''].filter(Boolean).join(' / ');
+      if (locStr) map[key] = locStr;
+    });
+    vendors.forEach(v => {
+      const code = v.vendor_code || v.account_code;
+      const key = code ? `[${code}] ${v.vendor_name}` : v.vendor_name;
+      if (!key) return;
+      const loc = getPartyLocation(v);
+      const locStr = [loc.city, loc.area && loc.area !== loc.city ? loc.area : ''].filter(Boolean).join(' / ');
+      if (locStr) map[key] = locStr;
+    });
+    return map;
+  }, [customers, vendors]);
+
   // Customer Account options formatted with code & name
   const customerAccountOptions = useMemo(() => {
     let pool = customers;
@@ -2403,6 +2425,7 @@ export const ReportDashboard: React.FC = () => {
                 onChange={setSelectedCustomerAccounts}
                 placeholder="All Customers"
                 allLabel="All Customers"
+                optionMetadata={partyLocationMetadata}
               />
             </div>
           )}
@@ -2462,6 +2485,7 @@ export const ReportDashboard: React.FC = () => {
                     ? 'All Customers'
                     : 'All Vendors'
                 }
+                optionMetadata={partyLocationMetadata}
               />
             </div>
           )}
@@ -2477,6 +2501,7 @@ export const ReportDashboard: React.FC = () => {
                 onChange={setSelectedVendorAccounts}
                 placeholder="All Vendors"
                 allLabel="All Vendors"
+                optionMetadata={partyLocationMetadata}
               />
             </div>
           )}
