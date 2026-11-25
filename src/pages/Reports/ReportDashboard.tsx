@@ -30,6 +30,7 @@ import {
   MdClear
 } from 'react-icons/md';
 import * as XLSX from 'xlsx';
+import { printSingleVoucher } from '../../utils/voucherPrint';
 
 type TabKey = 'customer-ledger' | 'vendor-ledger' | 'combined-ledger' | 'profit-loss' | 'expense-report' | 'daily-book';
 
@@ -1690,7 +1691,8 @@ export const ReportDashboard: React.FC = () => {
             expenseAmt,
             cashIn,
             cashOut,
-            timestamp: t
+            timestamp: t,
+            rawVoucher: v
           });
         });
 
@@ -4159,12 +4161,17 @@ export const ReportDashboard: React.FC = () => {
                           {renderSortIcon('netDrawerCash')}
                         </div>
                       </th>
+                      {!isGeneratingPdf && (
+                        <th className="py-3 px-3 text-center whitespace-nowrap w-16 print:hidden">
+                          Print
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stroke dark:divide-strokedark font-medium">
                     {filteredDailyRows.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-8 text-center text-slate-400 italic">
+                        <td colSpan={isGeneratingPdf ? 9 : 10} className="py-8 text-center text-slate-400 italic">
                           No daily transactions found in this period.
                         </td>
                       </tr>
@@ -4219,6 +4226,33 @@ export const ReportDashboard: React.FC = () => {
                           <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap align-middle">
                             Rs. {Number(row.netDrawerCash).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
+                          {!isGeneratingPdf && (
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap align-middle print:hidden">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  printSingleVoucher(
+                                    {
+                                      ...(row.rawVoucher || {}),
+                                      voucher_no: row.voucherNo,
+                                      voucher_date: row.date,
+                                      voucher_type: row.entryType,
+                                      account_title: row.accountTitle,
+                                      account_code: row.accountCode,
+                                      paymentMode: row.paymentMode,
+                                      total_amount: row.voucherAmount,
+                                    },
+                                    { businessName }
+                                  );
+                                }}
+                                title="Print Voucher"
+                                className="inline-flex items-center justify-center w-7 h-7 rounded-lg border bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-800/60 transition cursor-pointer"
+                              >
+                                <MdPrint size={15} />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))
                     )}
@@ -4238,6 +4272,7 @@ export const ReportDashboard: React.FC = () => {
                         <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-white whitespace-nowrap">
                           Rs. {Number(dailySummary.closing).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
+                        {!isGeneratingPdf && <td className="py-3 px-3 print:hidden" />}
                       </tr>
                     </tfoot>
                   )}

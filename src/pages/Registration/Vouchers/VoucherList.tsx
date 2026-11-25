@@ -5,6 +5,7 @@ import { supabase } from '../../../Context/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Spinner from '../../../ui/Spinner';
 import TableActions from '../../../ui/TableActions';
+import { printSingleVoucher } from '../../../utils/voucherPrint';
 import { MdReceipt, MdAssignment, MdShoppingCart, MdPayments, MdKeyboardReturn, MdAccountBalanceWallet, MdAssignmentReturn, MdPayment } from 'react-icons/md';
 import { useAuth } from '../../../Context/Auth';
 
@@ -140,7 +141,7 @@ const VOUCHER_CONFIGS: Record<string, VoucherConfig> = {
 };
 
 function VoucherList({ voucherTypePreset }: VoucherListProps) {
-  const { tenantId } = useAuth();
+  const { tenantId, businessName } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -595,6 +596,11 @@ function VoucherList({ voucherTypePreset }: VoucherListProps) {
                       <td className="py-3.5 px-4 text-center text-gray-500 font-medium">{v.voucher_date}</td>
                       <td className="py-3.5 px-4 text-center">
                         <TableActions
+                          onPrint={(e) => {
+                            e.stopPropagation();
+                            printSingleVoucher(v, { businessName });
+                          }}
+                          printTitle="Print Voucher"
                           onEdit={() => {
                             const targetEditRoute = activeConfig ? activeConfig.addRoute : '/Registration/Vouchers/Add';
                             navigate(`${targetEditRoute}?id=${v.id}`, { state: { voucher: v } });

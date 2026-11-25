@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
+  getVoucherPrintSize,
+  setVoucherPrintSize,
+  VoucherPrintSize,
+} from '../../utils/voucherPrint';
+import {
   LuUser,
   LuPalette,
   LuSettings,
@@ -171,6 +176,14 @@ const SETTINGS_TABS: TabItem[] = [
     description: 'Export records & complete data snapshots',
     urDescription: 'ریکارڈز اور مکمل بیک اپ اسنیپ شاٹس',
     icon: LuHardDrive,
+  },
+  {
+    id: 'printing',
+    label: 'Print & Paper Size',
+    urLabel: 'پرنٹ اور کاغذ کا سائز',
+    description: 'Select default paper size for voucher printing',
+    urDescription: 'واؤچر پرنٹنگ کے لیے کاغذ کا سائز منتخب کریں',
+    icon: LuPrinter,
   },
 ];
 
@@ -376,6 +389,13 @@ const SettingsPage: React.FC = () => {
   const [sidebarLayout, setSidebarLayout] = useState<SidebarLayoutMode>(() => getSidebarLayoutMode());
   const [navbarLayout, setNavbarLayout] = useState<NavbarLayoutMode>(() => getNavbarLayoutMode());
   const [sidebarBehavior, setSidebarBehavior] = useState<SidebarBehaviorMode>(() => getSidebarBehaviorMode());
+  const [voucherPrintSize, setVoucherPrintSizeState] = useState<VoucherPrintSize>(() => getVoucherPrintSize());
+
+  const handleSetVoucherPrintSize = (size: VoucherPrintSize) => {
+    setVoucherPrintSizeState(size);
+    setVoucherPrintSize(size);
+    toast.success(`Voucher print paper size set to ${size}`, { id: 'voucher-print-size-toast' });
+  };
 
   const handleSetSidebarBehavior = (mode: SidebarBehaviorMode) => {
     setSidebarBehavior(mode);
@@ -3257,6 +3277,96 @@ const SettingsPage: React.FC = () => {
                       <span>{isRTL ? "اس ڈیوائس سے سائن آؤٹ کریں" : "Sign Out This Device"}</span>
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TAB: PRINT & PAPER SIZE ── */}
+          {activeTab === 'printing' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] p-6 shadow-sm space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <LuPrinter className="text-xl" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                        {isRTL ? 'واؤچر پرنٹ کاغذ کا سائز' : 'Voucher Print Paper Size'}
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {isRTL
+                          ? 'ڈیلی بک اور واؤچر لسٹ سے انفرادی واؤچر پرنٹ کرنے کے لیے کاغذ کا سائز منتخب کریں۔'
+                          : 'Choose the default paper size when printing individual vouchers from DailyBook or Voucher List.'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs font-bold self-start sm:self-center">
+                    Active: {voucherPrintSize}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(
+                    [
+                      {
+                        size: 'A4' as VoucherPrintSize,
+                        title: 'A4 Standard',
+                        dims: '210 × 297 mm',
+                        desc: 'Full executive accounting voucher with complete header, table & 3 signature blocks.',
+                      },
+                      {
+                        size: 'A5' as VoucherPrintSize,
+                        title: 'A5 Half Page',
+                        dims: '148 × 210 mm',
+                        desc: 'Compact half-page voucher slip ideal for standard office printers & voucher pads.',
+                      },
+                      {
+                        size: '80mm' as VoucherPrintSize,
+                        title: '80mm Thermal',
+                        dims: '80 mm Roll',
+                        desc: 'Narrow POS thermal receipt slip for quick counter printing.',
+                      },
+                    ]
+                  ).map((opt) => {
+                    const isSelected = voucherPrintSize === opt.size;
+                    return (
+                      <button
+                        key={opt.size}
+                        type="button"
+                        onClick={() => handleSetVoucherPrintSize(opt.size)}
+                        className={`text-left p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm'
+                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2 w-full">
+                          <div>
+                            <div className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                              <span>{opt.title}</span>
+                            </div>
+                            <span className="inline-block mt-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {opt.dims}
+                            </span>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                              isSelected
+                                ? 'border-primary bg-primary text-white'
+                                : 'border-slate-300 dark:border-slate-600'
+                            }`}
+                          >
+                            {isSelected && <LuCheck size={12} />}
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                          {opt.desc}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
